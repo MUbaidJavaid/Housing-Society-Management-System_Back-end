@@ -1,0 +1,197 @@
+import Redis from 'ioredis';
+import { logger } from '../logger';
+
+// Redis client instance
+let redisClient: Redis | null = null;
+let redisConnectionAttempts = 0;
+const MAX_RETRIES = 3;
+const RETRY_DELAY = 5000; // 5 seconds
+
+// Default Redis configuration
+const defaultRedisConfig = {
+  host: process.env.REDIS_HOST || 'localhost',
+  port: parseInt(process.env.REDIS_PORT || '6379'),
+  password: process.env.REDIS_PASSWORD,
+  db: parseInt(process.env.REDIS_DB || '0'),
+  keyPrefix: process.env.REDIS_KEY_PREFIX || 'rate-limit:',
+  enableReadyCheck: true,
+  maxRetriesPerRequest: 3,
+  retryStrategy: (times: number) => {
+    const delay = Math.min(times * 1000, 10000);
+    return delay;
+  },
+};
+
+// Create Redis client
+export function createRedisClient(config?: Partial<typeof defaultRedisConfig>) {
+  const finalConfig = { ...defaultRedisConfig, ...config };
+
+  try {
+    redisClient = new Redis(finalConfig);
+
+    // Event listeners
+    redisClient.on('connect', () => {
+      logger.info('Redis client connected', {
+        host: finalConfig.host,
+        port: finalConfig.port,
+        db: finalConfig.db,
+      });
+      redisConnectionAttempts = 0;
+    });
+
+    redisClient.on('error', error => {
+      logger.error('Redis client error:', error.message);
+    });
+
+    redisClient.on('close', () => {
+      logger.warn('Redis client connection closed');
+    });
+
+    redisClient.on('reconnecting', (delay: any) => {
+      logger.info(`Redis client reconnecting in ${delay}ms`);
+    });
+
+    redisClient.on('end', () => {
+      logger.warn('Redis client connection ended');
+    });
+
+    return redisClient;
+  } catch (error) {
+    logger.error('Failed to create Redis client:', error);
+    throw error;
+  }
+}
+
+// Get Redis client (singleton)
+export function getRedisClient() {
+  if (!redisClient) {
+    throw new Error('Redis client not initialized. Call createRedisClient first.');
+  }
+  return redisClient;
+}
+
+// Check if Redis is connected
+export function isRedisConnected(): boolean {
+  return redisClient?.status === 'ready';
+}
+
+// Test Redis connection
+export async function testRedisConnection(): Promise<boolean> {
+  try {
+    const client = getRedisClient();
+    const result = await client.ping();
+    return result === 'PONG';
+  } catch (error) {
+    logger.error('Redis connection test failed:', error);
+    return false;
+  }
+}
+
+// Close Redis connection
+export async function closeRedisConnection(): Promise<void> {
+  if (redisClient) {
+    try {
+      await redisClient.quit();
+      logger.info('Redis connection closed gracefully');
+    } catch (error) {
+      logger.error('Error closing Redis connection:', error);
+    } finally {
+      redisClient = null;
+    }
+  }
+}
+
+// Execute Redis command with retry
+export async function executeRedisCommand<T>(command: string, ...args: any[]): Promise<T> {
+  const client = getRedisClient();
+
+  try {
+    return await (client as any)[command](...args);
+  } catch (error) {
+    logger.error(`Redis command failed: ${command}`, error);
+
+    // Attempt reconnection if needed
+    if (!isRedisConnected() && redisConnectionAttempts < MAX_RETRIES) {
+      redisConnectionAttempts++;
+      logger.info(`Attempting Redis reconnection (${redisConnectionAttempts}/${MAX_RETRIES})`);
+
+      await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
+      return executeRedisCommand(command, ...args);
+    }
+
+    throw error;
+  }
+}
+
+// Redis utility functions for rate limiting
+export async function incrementKey(key: string, windowMs: number): Promise<number> {
+  const currentTime = Date.now();
+  const windowKey = `${key}:${Math.floor(currentTime / windowMs)}`;
+
+  const count = await executeRedisCommand<number>('incr', windowKey);
+
+  // Set expiry if this is the first increment
+  if (count === 1) {
+    await executeRedisCommand('pexpire', windowKey, windowMs);
+  }
+
+  return count;
+}
+
+export async function getRemainingRequests(
+  key: string,
+  maxRequests: number,
+  _windowMs: number
+): Promise<number> {
+  try {
+    const windowKey = `${key}:window`;
+
+    // Redis GET returns string | null, so handle both cases
+    const countResult = await executeRedisCommand<string | null>('get', windowKey);
+
+    // Convert string to number, default to 0 if null or invalid
+    const count = countResult ? parseInt(countResult, 10) : 0;
+
+    // Ensure count is a valid number
+    const parsedCount = isNaN(count) ? 0 : count;
+
+    return Math.max(0, maxRequests - parsedCount);
+  } catch (error) {
+    logger.error('Error getting remaining requests:', error);
+    return maxRequests; // Fallback: assume no requests used
+  }
+}
+
+export async function getResetTime(_key: string, windowMs: number): Promise<number> {
+  const currentTime = Date.now();
+  const currentWindow = Math.floor(currentTime / windowMs);
+  const nextWindow = currentWindow + 1;
+  return nextWindow * windowMs;
+}
+
+// Clean up expired rate limit keys
+export async function cleanupExpiredKeys(prefix: string = 'rate-limit:'): Promise<number> {
+  try {
+    const client = getRedisClient();
+    const keys = await client.keys(`${prefix}*`);
+    let deletedCount = 0;
+
+    for (const key of keys) {
+      const ttl = await client.ttl(key);
+      if (ttl === -2 || ttl === -1) {
+        // Key expired or has no expiry
+        await client.del(key);
+        deletedCount++;
+      }
+    }
+
+    if (deletedCount > 0) {
+      logger.debug(`Cleaned up ${deletedCount} expired rate limit keys`);
+    }
+
+    return deletedCount;
+  } catch (error) {
+    logger.error('Error cleaning up expired rate limit keys:', error);
+    return 0;
+  }
+}
