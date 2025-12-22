@@ -1,6 +1,7 @@
 import { NextFunction, Request, Response } from 'express';
 import User from '../../database/models/User';
 import { AppError } from '../../middleware/error.middleware';
+
 import { authService } from '../services/auth.service';
 import { AuthRequest } from '../types';
 
@@ -16,14 +17,58 @@ const extractToken = (req: Request): string | null => {
   return body?.refreshToken || cookies?.refreshToken;
 };
 
-// Auth controller functions
+// Auth controller functions - Updated with OTP endpoints
 export const authController = {
-  /**
-   * Register new user
-   */
+  // Add this endpoint in authController
+  verifyRegistrationOTP: async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { tempUserId, otp } = req.body;
+
+      if (!tempUserId || !otp) {
+        throw new AppError(400, 'Temp User ID and OTP are required');
+      }
+
+      const result = await authService.verifyRegistrationOTP(tempUserId, otp);
+
+      res.json({
+        success: true,
+        data: {
+          user: result.user,
+          tokens: result.tokens,
+        },
+        message: 'Registration verified successfully',
+      });
+    } catch (error) {
+      handleError(error, next);
+    }
+  },
+
+  // Add this endpoint
+  resendRegistrationOTP: async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { tempUserId } = req.body;
+
+      if (!tempUserId) {
+        throw new AppError(400, 'Temp User ID is required');
+      }
+
+      const result = await authService.resendRegistrationOTP(tempUserId);
+
+      res.json({
+        success: true,
+        data: {
+          tempUserId: result.newTempUserId,
+        },
+        message: result.message,
+      });
+    } catch (error) {
+      handleError(error, next);
+    }
+  },
+
+  // Update the register endpoint
   register: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      // Combine all data into a single object
       const registerData = {
         ...req.body,
         userAgent: req.get('user-agent') || '',
@@ -35,22 +80,24 @@ export const authController = {
       res.status(201).json({
         success: true,
         data: {
-          user: result.user,
-          tokens: result.tokens,
+          tempUserId: result.tempUserId,
         },
-        message: 'Registration successful',
+        message: result.message,
       });
     } catch (error) {
       handleError(error, next);
     }
   },
 
-  /**
-   * Login user
-   */
+  // Update login to check email verification
   login: async (req: Request, res: Response, next: NextFunction) => {
     try {
       const result = await authService.login(req.body, req.get('user-agent') || '', req.ip || '');
+
+      // Check if email is verified
+      if (!result.user.emailVerified) {
+        throw new AppError(403, 'Please verify your email before logging in');
+      }
 
       // Set cookies if needed
       if (req.body?.rememberMe) {
@@ -69,6 +116,95 @@ export const authController = {
           tokens: result.tokens,
         },
         message: 'Login successful',
+      });
+    } catch (error) {
+      handleError(error, next);
+    }
+  },
+
+  /**
+   * Send email verification OTP
+   */
+  sendVerificationOTP: async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { email } = req.body;
+
+      if (!email) {
+        throw new AppError(400, 'Email is required');
+      }
+
+      const result = await authService.sendVerificationOTP(email);
+
+      res.json({
+        success: true,
+        message: result.message,
+      });
+    } catch (error) {
+      handleError(error, next);
+    }
+  },
+
+  /**
+   * Verify email with OTP
+   */
+  verifyEmailWithOTP: async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { email, otp } = req.body;
+
+      if (!email || !otp) {
+        throw new AppError(400, 'Email and OTP are required');
+      }
+
+      await authService.verifyEmailWithOTP(email, otp);
+
+      res.json({
+        success: true,
+        message: 'Email verified successfully. You can now login.',
+      });
+    } catch (error) {
+      handleError(error, next);
+    }
+  },
+
+  /**
+   * Send password reset OTP
+   */
+  forgotPasswordWithOTP: async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { email } = req.body;
+
+      if (!email) {
+        throw new AppError(400, 'Email is required');
+      }
+
+      const result = await authService.sendPasswordResetOTP(email);
+
+      // Always return success to prevent email enumeration
+      res.json({
+        success: true,
+        message: result.message,
+      });
+    } catch (error) {
+      handleError(error, next);
+    }
+  },
+
+  /**
+   * Reset password with OTP
+   */
+  resetPasswordWithOTP: async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { email, otp, newPassword } = req.body;
+
+      if (!email || !otp || !newPassword) {
+        throw new AppError(400, 'Email, OTP and new password are required');
+      }
+
+      await authService.resetPasswordWithOTP(email, otp, newPassword);
+
+      res.json({
+        success: true,
+        message: 'Password reset successfully. You can now login with your new password.',
       });
     } catch (error) {
       handleError(error, next);
@@ -156,71 +292,6 @@ export const authController = {
       res.json({
         success: true,
         message: 'Password changed successfully',
-      });
-    } catch (error) {
-      handleError(error, next);
-    }
-  },
-
-  /**
-   * Forgot password
-   */
-  forgotPassword: async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      await authService.forgotPassword(req.body as any);
-
-      // Always return success to prevent email enumeration
-      res.json({
-        success: true,
-        message: 'If an account exists with this email, a password reset link has been sent',
-      });
-    } catch (error) {
-      handleError(error, next);
-    }
-  },
-
-  /**
-   * Reset password
-   */
-  resetPassword: async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      await authService.resetPassword(req.body as any);
-
-      res.json({
-        success: true,
-        message: 'Password reset successfully',
-      });
-    } catch (error) {
-      handleError(error, next);
-    }
-  },
-
-  /**
-   * Verify email
-   */
-  verifyEmail: async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      await authService.verifyEmail(req.body as any);
-
-      res.json({
-        success: true,
-        message: 'Email verified successfully',
-      });
-    } catch (error) {
-      handleError(error, next);
-    }
-  },
-
-  /**
-   * Resend verification email
-   */
-  resendVerification: async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      await authService.resendVerificationEmail((req.body as any).email);
-
-      res.json({
-        success: true,
-        message: 'Verification email sent',
       });
     } catch (error) {
       handleError(error, next);

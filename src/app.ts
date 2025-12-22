@@ -235,7 +235,7 @@ function setupRoutes(app: Application): void {
   // app.use('/api/v1/upload', rateLimitMiddleware.uploadRateLimit, uploadRoutes);
 
   // Also support the original API routes structure
-  app.use('/api/v1', authRoutes);
+  app.use('/api/auth', authRoutes);
 
   // API welcome route with health check
   app.get('/api/v1', requireHealthy, (req: Request, res: Response) => {

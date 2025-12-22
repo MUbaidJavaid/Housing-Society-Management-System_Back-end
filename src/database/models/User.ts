@@ -1,6 +1,7 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { Document, Model, Query, Schema, Types, model } from 'mongoose';
+import ms, { StringValue } from 'ms';
 import validator from 'validator';
 
 /* ---------------------- Enums ---------------------- */
@@ -43,7 +44,14 @@ export interface IUser {
   phone?: string;
   lastLogin?: Date;
   emailVerified: boolean;
+  emailVerificationOTP?: string;
+  emailVerificationOTPExpires?: Date;
+  passwordResetOTP?: string;
+  passwordResetOTPExpires?: Date;
+  passwordResetAttempts?: number;
+  googleId?: string;
   phoneVerified: boolean;
+  phoneCountry?: string;
   twoFactorEnabled: boolean;
   preferences: UserPreferences;
   metadata: Record<string, any>;
@@ -91,10 +99,17 @@ const userSchema = new Schema<UserDocument, UserModel, IUserMethods>(
       unique: true,
       lowercase: true,
       trim: true,
-      validate: { validator: v => validator.isEmail(v), message: 'Invalid email' },
+      validate: { validator: (v: string) => validator.isEmail(v), message: 'Invalid email' },
       index: true,
     },
-    password: { type: String, required: true, minlength: 8, select: false },
+    password: {
+      type: String,
+      required: function (this: IUser & { googleId?: string }): boolean {
+        return !this.googleId; // Not required for Google OAuth users
+      },
+      minlength: 8,
+      select: false,
+    },
     firstName: { type: String, required: true, trim: true, minlength: 2, maxlength: 50 },
     lastName: { type: String, required: true, trim: true, minlength: 2, maxlength: 50 },
     role: { type: String, enum: Object.values(UserRole), default: UserRole.USER, index: true },
@@ -107,18 +122,71 @@ const userSchema = new Schema<UserDocument, UserModel, IUserMethods>(
     avatar: {
       type: String,
       default: '',
-      validate: { validator: v => !v || validator.isURL(v), message: 'Invalid URL' },
+      validate: { validator: (v: string) => !v || validator.isURL(v), message: 'Invalid URL' },
     },
     phone: {
       type: String,
+      trim: true,
+      sparse: true,
+      index: true,
       validate: {
-        validator: v => !v || validator.isMobilePhone(v, 'any'),
-        message: 'Invalid phone',
+        validator: function (v) {
+          if (!v) return true; // Allow empty
+
+          try {
+            // Use libphonenumber-js for validation
+            const { isValidPhoneNumber } = require('libphonenumber-js');
+            return isValidPhoneNumber(v);
+          } catch (error) {
+            return false;
+          }
+        },
+        message: props => `${props.value} is not a valid international phone number!`,
       },
+    },
+    phoneCountry: {
+      type: String,
+      default: null,
+    },
+    phoneVerified: {
+      type: Boolean,
+      default: false,
     },
     lastLogin: { type: Date },
     emailVerified: { type: Boolean, default: false, index: true },
-    phoneVerified: { type: Boolean, default: false },
+
+    // OTP fields for email verification
+    emailVerificationOTP: {
+      type: String,
+      select: false,
+    },
+    emailVerificationOTPExpires: {
+      type: Date,
+      select: false,
+    },
+
+    // OTP fields for password reset
+    passwordResetOTP: {
+      type: String,
+      select: false,
+    },
+    passwordResetOTPExpires: {
+      type: Date,
+      select: false,
+    },
+    passwordResetAttempts: {
+      // Add this field
+      type: Number,
+      default: 0,
+      select: false,
+    },
+    // Google OAuth
+    googleId: {
+      type: String,
+      sparse: true,
+      index: true,
+    },
+
     twoFactorEnabled: { type: Boolean, default: false },
 
     // Two-factor authentication
@@ -197,9 +265,10 @@ userSchema.virtual('isAdmin').get(function (this: UserDocument) {
 
 /* ---------------------- Middleware ---------------------- */
 userSchema.pre('save', async function (next) {
-  if (!this.isModified('password')) return next();
-  const salt = await bcrypt.genSalt(12);
-  this.password = await bcrypt.hash(this.password, salt);
+  if (this.isModified('password') && this.password) {
+    const salt = await bcrypt.genSalt(12);
+    this.password = await bcrypt.hash(this.password, salt);
+  }
   next();
 });
 
@@ -217,16 +286,45 @@ userSchema.methods.comparePassword = async function (candidate: string) {
   return bcrypt.compare(candidate, this.password);
 };
 
-userSchema.methods.generateAuthToken = async function () {
-  const secret = process.env.JWT_SECRET || 'secret';
-  return jwt.sign({ userId: this._id, email: this.email, role: this.role }, secret, {
-    expiresIn: '24h',
-  });
+userSchema.methods.generateAuthToken = async function (): Promise<string> {
+  const secret = process.env.JWT_ACCESS_SECRET;
+  if (!secret) {
+    throw new Error('JWT_ACCESS_SECRET is not defined');
+  }
+
+  const payload = {
+    userId: this._id.toString(),
+    email: this.email,
+    role: this.role,
+  };
+
+  // Parse the expiresIn string to milliseconds, then to seconds
+  const expiresInString = process.env.JWT_ACCESS_EXPIRES_IN || '15m';
+  const expiresInMs = ms(expiresInString as StringValue);
+
+  const options: jwt.SignOptions = {
+    expiresIn: Math.floor(expiresInMs / 1000), // Convert to seconds
+  };
+
+  return jwt.sign(payload, secret, options);
 };
 
-userSchema.methods.generateRefreshToken = async function () {
-  const secret = process.env.JWT_REFRESH_SECRET || 'refresh-secret';
-  return jwt.sign({ userId: this._id }, secret, { expiresIn: '7d' });
+userSchema.methods.generateRefreshToken = async function (): Promise<string> {
+  const secret = process.env.JWT_REFRESH_SECRET;
+  if (!secret) {
+    throw new Error('JWT_REFRESH_SECRET is not defined');
+  }
+
+  const payload = {
+    userId: this._id.toString(),
+    tokenType: 'refresh',
+  };
+
+  const options: jwt.SignOptions = {
+    expiresIn: Math.floor(ms('7d') / 1000), // 7 days in seconds
+  };
+
+  return jwt.sign(payload, secret, options);
 };
 
 userSchema.methods.toJSON = function () {
@@ -235,28 +333,50 @@ userSchema.methods.toJSON = function () {
   delete obj.__v;
   delete obj.twoFactorSecret;
   delete obj.twoFactorBackupCodes;
+  delete obj.emailVerificationOTP;
+  delete obj.emailVerificationOTPExpires;
+  delete obj.passwordResetOTP;
+  delete obj.passwordResetOTPExpires;
+  delete obj.failedLoginAttempts;
+  delete obj.lockedUntil;
   if (obj.metadata?.internal) delete obj.metadata.internal;
   return obj;
 };
 
 userSchema.methods.getPublicProfile = function () {
-  const obj = this.toObject();
   return {
-    _id: obj._id,
-    email: obj.email,
-    firstName: obj.firstName,
-    lastName: obj.lastName,
-    fullName: obj.fullName,
-    avatar: obj.avatar,
-    role: obj.role,
-    status: obj.status,
-    createdAt: obj.createdAt,
+    id: this._id,
+    email: this.email,
+    firstName: this.firstName,
+    lastName: this.lastName,
+    fullName: this.fullName,
+    avatar: this.avatar,
+    role: this.role,
+    status: this.status,
+    emailVerified: this.emailVerified,
+    phone: this.phone,
+    phoneVerified: this.phoneVerified,
+    twoFactorEnabled: this.twoFactorEnabled,
+    preferences: this.preferences,
+    lastLogin: this.lastLogin,
+    createdAt: this.createdAt,
+    updatedAt: this.updatedAt,
   };
 };
 
 /* ---------------------- Static Methods ---------------------- */
 userSchema.statics.findByEmail = function (email: string) {
-  return this.findOne({ email: email.toLowerCase() }).select('+password');
+  return this.findOne({
+    email: email.toLowerCase(),
+    isDeleted: false,
+  }).select('+password +emailVerificationOTP +passwordResetOTP');
+};
+
+userSchema.statics.findByGoogleId = function (googleId: string) {
+  return this.findOne({
+    googleId,
+    isDeleted: false,
+  });
 };
 
 userSchema.statics.findActiveUsers = function () {
@@ -269,6 +389,15 @@ userSchema.statics.countByStatus = function (status: UserStatus) {
 
 userSchema.statics.findByRole = function (role: UserRole) {
   return this.find({ role, isDeleted: false });
+};
+
+// Find active user by email (for login)
+userSchema.statics.findActiveUser = function (email: string) {
+  return this.findOne({
+    email: email.toLowerCase(),
+    isDeleted: false,
+    status: UserStatus.ACTIVE,
+  }).select('+password +failedLoginAttempts +lockedUntil');
 };
 
 /* ---------------------- Query Helper ---------------------- */
@@ -327,8 +456,5 @@ const User = model<UserDocument, UserModel>('User', userSchema);
 export default User;
 
 // Export all types with different names to avoid conflicts
-export type {
-  UserDocument as IUserDocument,
-  // Alias export
-  UserModel as IUserModel,
-};
+// export type { UserDocument as IUserDocument, UserModel as IUserModel };
+// export type { UserDocument as IUserDocument, UserModel as IUserModel };

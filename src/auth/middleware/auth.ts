@@ -107,7 +107,7 @@ export const authenticate = async (
       userId: decoded.userId,
       userAgent: req.get('user-agent'),
       ipAddress: req.ip,
-      createdAt: session.createdAt,
+      createdAt: session.createdAt!,
       lastActive: new Date(),
       isRevoked: false,
     };

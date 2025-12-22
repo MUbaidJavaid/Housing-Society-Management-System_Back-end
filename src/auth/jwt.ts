@@ -8,11 +8,13 @@ import { DecodedToken, JwtPayload, TokenConfig, TokenPair, UserRole } from './ty
 // Default token configuration
 const defaultTokenConfig: TokenConfig = {
   accessToken: {
-    secret: process.env.JWT_ACCESS_SECRET || 'your-access-secret-key-change-in-production',
+    secret: process.env.JWT_ACCESS_SECRET || 'ASWEDFCSDCRTYUOLI;P[]-9084ERQ2WDFRY65[-9JREWSQ.;KJIO',
     expiresIn: process.env.JWT_ACCESS_EXPIRES_IN || '15m',
   },
   refreshToken: {
-    secret: process.env.JWT_REFRESH_SECRET || 'your-refresh-secret-key-change-in-production',
+    secret:
+      process.env.JWT_REFRESH_SECRET ||
+      'DSEW4EG54RYO8/.LUITU5T/.ASRTUREW4YUKUUKTYKOU;W6+69YFR56;UK',
     expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d',
   },
   passwordResetToken: {
