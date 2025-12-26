@@ -495,8 +495,20 @@ class EmailService {
         console.log('Email:', email);
         console.log('OTP:', otp);
         console.log('==================================');
+
+
+          if (process.env.SEND_EMAIL_IN_DEV === 'true') {
+            console.log('Sending actual email in development mode...');
+            return await this.sendEmail({
+              to: email,
+              template: 'verify-email-otp',
+              data: { name, otp },
+            });
+          }
         return true; // Test ke liye true return karo
       }
+
+
       // Production میں actual email بھیجیں
       return await emailService.sendEmail({
         to: email,
@@ -568,39 +580,39 @@ class EmailService {
           <div style="background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
             <h1 style="color: white; margin: 0; font-size: 24px;">🔐 Password Changed</h1>
           </div>
-          
+
           <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; border: 1px solid #e0e0e0;">
             <p style="font-size: 16px; margin-bottom: 20px;">
               Hello <strong>${name}</strong>,
             </p>
-            
+
             <p style="font-size: 16px; margin-bottom: 20px;">
               We're writing to confirm that your password was recently changed for your Society Management account.
             </p>
-            
+
             <div style="background: #f0f9ff; padding: 15px; border-radius: 5px; border-left: 4px solid #0ea5e9; margin: 20px 0;">
               <p style="margin: 0; font-size: 14px;">
-                <strong>🔒 Security Information:</strong> 
-                For your security, all active sessions have been logged out. 
+                <strong>🔒 Security Information:</strong>
+                For your security, all active sessions have been logged out.
                 You'll need to login again with your new password.
               </p>
             </div>
-            
+
             <p style="font-size: 14px; color: #666; margin-top: 20px;">
-              If you did not change your password, please 
+              If you did not change your password, please
               <a href="mailto:support@societymanagement.com" style="color: #667eea; text-decoration: none;">
                 contact our support team
               </a>
               immediately to secure your account.
             </p>
-            
+
             <div style="text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e0e0e0;">
               <p style="font-size: 12px; color: #666;">
                 This is an automated security notification. Please do not reply to this email.
               </p>
             </div>
           </div>
-          
+
           <div style="text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e0e0e0;">
             <p style="font-size: 12px; color: #999;">
               © ${new Date().getFullYear()} Society Management System. All rights reserved.<br>
@@ -618,8 +630,8 @@ Hello ${name},
 
 We're writing to confirm that your password was recently changed for your Society Management account.
 
-🔒 Security Information: 
-For your security, all active sessions have been logged out. 
+🔒 Security Information:
+For your security, all active sessions have been logged out.
 You'll need to login again with your new password.
 
 If you did not change your password, please contact our support team immediately to secure your account.

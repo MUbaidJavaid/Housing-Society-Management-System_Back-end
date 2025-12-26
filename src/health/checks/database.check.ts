@@ -1,19 +1,12 @@
 // File: health/checks/database.check.ts
 import mongoose from 'mongoose';
 import logger from '../../core/logger';
-import { DatabaseConnectionState, databaseManager } from '../../database/index';
 import { HealthCheckResult, HealthStatus, Severity } from '../types';
 import { BaseHealthCheck } from './base.check';
 
 export class DatabaseHealthCheck extends BaseHealthCheck {
   constructor() {
-    super(
-      'mongodb-connection',
-      'MongoDB Database',
-      DatabaseConnectionState.INTERNAL,
-      Severity.CRITICAL,
-      10000
-    );
+    super('mongodb-connection', 'MongoDB Database', 'internal', Severity.CRITICAL, 10000);
   }
 
   async check(): Promise<HealthCheckResult> {
@@ -21,7 +14,7 @@ export class DatabaseHealthCheck extends BaseHealthCheck {
       const startTime = Date.now();
 
       // Check connection status
-      const isConnected = databaseManager.isConnected();
+      const isConnected = mongoose.connection.readyState === 1;
 
       if (!isConnected) {
         throw new Error('Database not connected');

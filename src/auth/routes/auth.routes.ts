@@ -8,6 +8,7 @@ import {
   optionalAuth,
   requireEmailVerification,
 } from '../middleware/auth';
+import { validateGoogleCallback } from '../middleware/google.auth.middleware';
 import { validate } from '../validators/auth.validator';
 
 const router: Router = Router();
@@ -24,7 +25,7 @@ const otpRateLimiter = authRateLimiter(3, 15 * 60 * 1000); // 3 attempts per 15 
 router.post('/register', registerRateLimiter, validate('register'), authController.register);
 router.post('/login', loginRateLimiter, validate('login'), authController.login);
 router.post('/refresh-token', authController.refreshToken);
-
+router.post('/google/callback', validateGoogleCallback, googleAuthController.callback);
 // Register with OTP verification flow
 // router.post('/register', registerRateLimiter, validate('register'), authController.register);
 // Update the OTP routes section

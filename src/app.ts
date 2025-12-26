@@ -9,7 +9,7 @@ import morgan from 'morgan';
 
 // Import configurations and middleware
 import config from './config';
-import { databaseManager } from './database';
+import { closeDatabase, initializeDatabase as connectToDatabase } from './database';
 import { healthCheckSystem } from './health';
 import {
   gracefulShutdown,
@@ -58,12 +58,62 @@ let isShuttingDown = false;
  * Initialize database connection
  */
 async function initializeDatabase(): Promise<void> {
-  console.log('initializeDatabase');
+  console.log('🔄 Initializing MongoDB Atlas connection...');
+
+  // Debug environment
+  console.log('🔍 Environment:', {
+    NODE_ENV: process.env.NODE_ENV,
+    NODE_VERSION: process.version,
+  });
+
   try {
-    await databaseManager.connect();
-    logger.info('Database connection established');
-  } catch (error) {
-    logger.error('Failed to initialize database:', error);
+    // Add connection event listeners for debugging
+    const mongoose = require('mongoose');
+
+    mongoose.connection.on('connecting', () => {
+      console.log('🔄 MongoDB connecting...');
+    });
+
+    mongoose.connection.on('connected', () => {
+      console.log('✅ MongoDB connected');
+    });
+
+    mongoose.connection.on('error', (err: any) => {
+      console.error('❌ MongoDB connection error:', err.message);
+    });
+
+    mongoose.connection.on('disconnected', () => {
+      console.log('⚠️ MongoDB disconnected');
+    });
+
+    // Attempt connection
+    await connectToDatabase();
+
+    console.log(`✅ MongoDB connected successfully`);
+
+    logger.info('MongoDB Atlas connection established');
+  } catch (error: any) {
+    console.error('❌ FATAL: MongoDB Atlas connection failed');
+    console.error('Error details:', {
+      name: error.name,
+      message: error.message,
+      code: error.code,
+    });
+
+    // Additional debugging
+    if (error.message.includes('ENOTFOUND')) {
+      console.error('🔧 Fix: Check your MongoDB Atlas cluster URL and DNS settings');
+    } else if (error.message.includes('Authentication failed')) {
+      console.error('🔧 Fix: Verify username/password in MONGODB_URI');
+      console.error('🔧 Fix: Check if user has correct database permissions');
+    } else if (error.message.includes('self signed certificate')) {
+      console.error('🔧 Fix: Set MONGODB_TLS_ALLOW_INVALID_CERTIFICATES=true for testing');
+    } else if (error.message.includes('timed out')) {
+      console.error('🔧 Fix: Add your IP to Atlas whitelist');
+      console.error('🔧 Fix: Increase timeout settings in .env');
+    }
+
+    logger.error('Failed to initialize MongoDB Atlas:', error);
     process.exit(1);
   }
 }
@@ -307,10 +357,9 @@ function setupGracefulShutdown(app: Application): void {
         logger.info('HTTP server closed');
       });
     }
-
     // Close database connections
     try {
-      await databaseManager.disconnect();
+      await closeDatabase();
       logger.info('Database connections closed');
     } catch (error) {
       logger.error('Error closing database connections:', error);

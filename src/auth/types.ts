@@ -177,3 +177,22 @@ export interface AuthConfig {
   sessionTimeout: number; // in minutes
   refreshTokenRotation: boolean;
 }
+// types/google.auth.ts
+export enum GoogleAuthErrorCode {
+  INVALID_TOKEN = 'GOOGLE_INVALID_TOKEN',
+  TOKEN_EXPIRED = 'GOOGLE_TOKEN_EXPIRED',
+  INVALID_AUDIENCE = 'GOOGLE_INVALID_AUDIENCE',
+  ACCOUNT_EXISTS = 'GOOGLE_ACCOUNT_EXISTS',
+  ACCOUNT_LINKED = 'GOOGLE_ACCOUNT_LINKED',
+}
+
+export class GoogleAuthError extends Error {
+  constructor(
+    message: string,
+    public code: GoogleAuthErrorCode,
+    public statusCode: number = 400
+  ) {
+    super(message);
+    this.name = 'GoogleAuthError';
+  }
+}

@@ -1,255 +1,225 @@
-import mongoose, { ConnectOptions, Mongoose, MongooseError } from 'mongoose';
-import config, { getMaskedUri } from '../config/database';
+import mongoose from 'mongoose';
 import logger from '../core/logger';
 
-/* ---------------------- Errors ---------------------- */
-export class DatabaseConnectionError extends Error {
+export class AtlasConnectionError extends Error {
   constructor(
     message: string,
-    public originalError?: Error,
-    public retryCount?: number
+    public originalError?: any,
+    public details?: any
   ) {
     super(message);
-    this.name = 'DatabaseConnectionError';
-    Error.captureStackTrace(this, this.constructor);
+    this.name = 'AtlasConnectionError';
   }
 }
 
-export class DatabaseQueryError extends Error {
-  constructor(
-    message: string,
-    public originalError?: Error,
-    public query?: any
-  ) {
-    super(message);
-    this.name = 'DatabaseQueryError';
-    Error.captureStackTrace(this, this.constructor);
-  }
-}
+export class AtlasConnectionManager {
+  private static instance: AtlasConnectionManager;
+  private connectionAttempts = 0;
+  private isInitialized = false;
+  private healthCheckInterval: NodeJS.Timeout | null = null;
 
-/* ---------------------- Global Plugin ---------------------- */
-// function setupGlobalPlugin() {
-//   const plugin = (schema: Schema) => {
-//     // Add soft delete fields
-//     schema.add({
-//       isDeleted: { type: Boolean, default: false },
-//       deletedAt: { type: Date, default: null },
-//     });
+  private constructor() {}
 
-//     // Query helpers
-//     schema.query.excludeDeleted = function () {
-//       return this.where({ isDeleted: false });
-//     };
-
-//     schema.query.onlyDeleted = function () {
-//       return this.where({ isDeleted: true });
-//     };
-
-//     schema.query.withDeleted = function () {
-//       return this;
-//     };
-
-//     // Static methods
-//     schema.statics.softDelete = function (conditions: any) {
-//       return this.updateOne(conditions, {
-//         isDeleted: true,
-//         deletedAt: new Date(),
-//       });
-//     };
-
-//     schema.statics.restore = function (conditions: any) {
-//       return this.updateOne(conditions, {
-//         isDeleted: false,
-//         deletedAt: null,
-//       });
-//     };
-//   };
-
-//   mongoose.plugin(plugin);
-// }
-
-/* ---------------------- Event Listeners ---------------------- */
-function setupEventListeners(healthCheckIntervalRef: { current: NodeJS.Timeout | null }) {
-  mongoose.connection.on('connected', () => {
-    logger.info(`MongoDB connected to ${getMaskedUri(config.uri)}`);
-  });
-
-  mongoose.connection.on('error', (err: MongooseError) => {
-    logger.error('MongoDB connection error:', err.message);
-  });
-
-  mongoose.connection.on('disconnected', () => {
-    logger.warn('MongoDB disconnected');
-    stopHealthCheck(healthCheckIntervalRef);
-  });
-
-  mongoose.connection.on('reconnected', () => {
-    logger.info('MongoDB reconnected');
-    startHealthCheck(healthCheckIntervalRef);
-  });
-
-  mongoose.connection.on('reconnectFailed', () => {
-    logger.error('MongoDB reconnect failed');
-  });
-}
-
-/* ---------------------- Health Check Functions ---------------------- */
-function startHealthCheck(healthCheckIntervalRef: { current: NodeJS.Timeout | null }) {
-  if (healthCheckIntervalRef.current) {
-    clearInterval(healthCheckIntervalRef.current);
-  }
-
-  healthCheckIntervalRef.current = setInterval(async () => {
-    try {
-      await mongoose.connection.db?.admin().ping();
-      logger.debug('MongoDB heartbeat OK');
-    } catch (err) {
-      logger.error('MongoDB heartbeat failed', err);
+  static getInstance(): AtlasConnectionManager {
+    if (!AtlasConnectionManager.instance) {
+      AtlasConnectionManager.instance = new AtlasConnectionManager();
     }
-  }, config.options.heartbeatFrequencyMS);
-}
-
-function stopHealthCheck(healthCheckIntervalRef: { current: NodeJS.Timeout | null }) {
-  if (healthCheckIntervalRef.current) {
-    clearInterval(healthCheckIntervalRef.current);
-    healthCheckIntervalRef.current = null;
+    return AtlasConnectionManager.instance;
   }
-}
 
-/* ---------------------- Connection Functions ---------------------- */
-let isConnecting = false;
-let connectionAttempts = 0;
-const healthCheckIntervalRef: { current: NodeJS.Timeout | null } = { current: null };
+  /**
+   * Initialize MongoDB Atlas connection with comprehensive error handling
+   */
+  async initialize(): Promise<void> {
+    if (this.isInitialized && mongoose.connection.readyState === 1) {
+      logger.info('MongoDB Atlas already connected');
+      return;
+    }
 
-export async function connectWithRetry(): Promise<Mongoose> {
-  if (isConnecting) return mongoose;
-  if (mongoose.connection.readyState === 1) return mongoose;
+    this.connectionAttempts = 0;
 
-  isConnecting = true;
+    // Configure mongoose for Atlas
+    mongoose.set('strictQuery', true);
 
-  // Set mongoose settings
-  mongoose.set('strictQuery', true);
+    // Setup event listeners
+    this.setupEventListeners();
 
-  if (config.isDevelopment) {
-    mongoose.set('debug', (collectionName, method, query, doc) => {
-      logger.debug(`Mongoose: ${collectionName}.${method}`, {
-        query: JSON.stringify(query),
-        doc: JSON.stringify(doc),
+    try {
+      logger.info('Connecting to MongoDB Atlas...');
+
+      // Get URI from environment
+      const mongoUri = process.env.MONGO_URI;
+      if (!mongoUri) {
+        throw new Error('MONGO_URI environment variable is not set');
+      }
+
+      await mongoose.connect(mongoUri);
+
+      this.isInitialized = true;
+      this.startHealthCheck();
+
+      logger.info('✅ MongoDB Atlas connected successfully');
+    } catch (error: any) {
+      logger.error('❌ MongoDB Atlas connection failed:', {
+        error: error.message,
+        code: error.code,
+        name: error.name,
+        connectionAttempts: this.connectionAttempts,
       });
+
+      // Provide helpful error messages based on common Atlas issues
+      let helpfulMessage = 'Unknown connection error';
+
+      if (error.code === 'ENOTFOUND') {
+        helpfulMessage =
+          'DNS resolution failed. Check your network connection and Atlas cluster URL.';
+      } else if (error.code === 'ETIMEDOUT') {
+        helpfulMessage =
+          'Connection timeout. Check IP whitelisting in Atlas and increase timeout settings.';
+      } else if (
+        error.code === 'MONGODB_ERROR' &&
+        error.message.includes('Authentication failed')
+      ) {
+        helpfulMessage =
+          'Authentication failed. Check username/password and ensure user has correct permissions.';
+      } else if (error.message.includes('self signed certificate')) {
+        helpfulMessage =
+          'SSL certificate issue. Ensure MONGODB_TLS_ALLOW_INVALID_CERTIFICATES is false for production.';
+      }
+
+      throw new AtlasConnectionError(`MongoDB Atlas connection failed: ${helpfulMessage}`, error, {
+        uri: mongoUri.substring(0, 50) + '...',
+        attempts: this.connectionAttempts,
+        time: new Date().toISOString(),
+      });
+    }
+  }
+
+  private setupEventListeners(): void {
+    mongoose.connection.on('connected', () => {
+      logger.info('MongoDB Atlas connected');
+      this.connectionAttempts = 0;
+    });
+
+    mongoose.connection.on('error', error => {
+      logger.error('MongoDB Atlas connection error:', error);
+    });
+
+    mongoose.connection.on('disconnected', () => {
+      logger.warn('MongoDB Atlas disconnected');
+      this.stopHealthCheck();
+    });
+
+    mongoose.connection.on('reconnected', () => {
+      logger.info('MongoDB Atlas reconnected');
+      this.startHealthCheck();
+    });
+
+    mongoose.connection.on('reconnectFailed', () => {
+      logger.error('MongoDB Atlas reconnect failed');
     });
   }
 
-  // // Setup global plugin
-  // setupGlobalPlugin();
+  private startHealthCheck(): void {
+    this.stopHealthCheck();
 
-  for (let attempt = 1; attempt <= config.retry.maxRetries; attempt++) {
-    try {
-      logger.info(`Attempting MongoDB connection (${attempt}/${config.retry.maxRetries})...`);
-      await mongoose.connect(config.uri, config.options as ConnectOptions);
+    this.healthCheckInterval = setInterval(async () => {
+      try {
+        const start = Date.now();
+        await mongoose.connection.db?.admin().ping();
+        const latency = Date.now() - start;
 
-      isConnecting = false;
-      connectionAttempts = attempt;
-
-      // Setup event listeners
-      setupEventListeners(healthCheckIntervalRef);
-
-      // Start health check
-      startHealthCheck(healthCheckIntervalRef);
-
-      return mongoose;
-    } catch (err) {
-      isConnecting = false;
-      connectionAttempts = attempt;
-
-      const delay = config.retry.delayMs * Math.pow(config.retry.multiplier, attempt - 1);
-
-      if (attempt === config.retry.maxRetries) {
-        throw new DatabaseConnectionError(
-          `Failed to connect after ${attempt} attempts`,
-          err as Error,
-          attempt
-        );
+        if (latency > 1000) {
+          logger.warn(`MongoDB Atlas health check slow: ${latency}ms`);
+        }
+      } catch (error) {
+        logger.error('MongoDB Atlas health check failed:', error);
       }
+    }, 30000); // Every 30 seconds
+  }
 
-      logger.warn(`Attempt ${attempt} failed. Retrying in ${delay}ms`);
-      await new Promise(r => setTimeout(r, delay));
+  private stopHealthCheck(): void {
+    if (this.healthCheckInterval) {
+      clearInterval(this.healthCheckInterval);
+      this.healthCheckInterval = null;
     }
   }
 
-  throw new DatabaseConnectionError('Max retries reached');
-}
+  async disconnect(): Promise<void> {
+    this.stopHealthCheck();
 
-export async function disconnect(_force?: boolean): Promise<void> {
-  stopHealthCheck(healthCheckIntervalRef);
-
-  if (mongoose.connection.readyState !== 0) {
-    await mongoose.disconnect();
-    logger.info('MongoDB disconnected gracefully');
+    if (mongoose.connection.readyState !== 0) {
+      await mongoose.disconnect();
+      this.isInitialized = false;
+      logger.info('MongoDB Atlas disconnected');
+    }
   }
-}
 
-/* ---------------------- Health Check Functions ---------------------- */
-export async function healthCheck(): Promise<{
-  healthy: boolean;
-  latency?: number;
-  error?: string;
-}> {
-  const start = Date.now();
-
-  try {
-    await mongoose.connection.db?.admin().ping();
+  getStatus(): any {
     return {
-      healthy: true,
-      latency: Date.now() - start,
-    };
-  } catch (err) {
-    return {
-      healthy: false,
-      error: (err as Error).message,
+      readyState: mongoose.connection.readyState,
+      state: this.getReadyStateName(mongoose.connection.readyState),
+      host: mongoose.connection.host,
+      name: mongoose.connection.name,
+      models: Object.keys(mongoose.models || {}).length,
+      connectionAttempts: this.connectionAttempts,
+      isInitialized: this.isInitialized,
     };
   }
-}
 
-export async function getStats(): Promise<any> {
-  if (!mongoose.connection.db) {
-    throw new Error('Database not connected');
+  private getReadyStateName(state: number): string {
+    switch (state) {
+      case 0:
+        return 'disconnected';
+      case 1:
+        return 'connected';
+      case 2:
+        return 'connecting';
+      case 3:
+        return 'disconnecting';
+      default:
+        return 'unknown';
+    }
   }
 
-  const adminDb = mongoose.connection.db.admin();
-  const serverStatus = await adminDb.serverStatus();
-  const dbStats = await mongoose.connection.db.stats();
+  async testConnection(): Promise<{
+    success: boolean;
+    latency: number;
+    error?: string;
+    details?: any;
+  }> {
+    const start = Date.now();
 
-  return {
-    server: {
-      version: serverStatus.version,
-      host: serverStatus.host,
-      uptime: serverStatus.uptime,
-      connections: serverStatus.connections,
-    },
-    database: {
-      collections: dbStats.collections,
-      objects: dbStats.objects,
-      dataSize: dbStats.dataSize,
-      storageSize: dbStats.storageSize,
-      indexSize: dbStats.indexSize,
-    },
-  };
+    try {
+      if (!mongoose.connection.db) {
+        throw new Error('Not connected to database');
+      }
+
+      await mongoose.connection.db.admin().ping();
+      const latency = Date.now() - start;
+
+      return {
+        success: true,
+        latency,
+        details: {
+          host: mongoose.connection.host,
+          database: mongoose.connection.name,
+          readyState: this.getReadyStateName(mongoose.connection.readyState),
+        },
+      };
+    } catch (error: any) {
+      return {
+        success: false,
+        latency: Date.now() - start,
+        error: error.message,
+        details: {
+          readyState: this.getReadyStateName(mongoose.connection.readyState),
+        },
+      };
+    }
+  }
 }
 
-export function getConnectionStatus() {
-  return {
-    readyState: mongoose.connection.readyState,
-    host: mongoose.connection.host,
-    port: mongoose.connection.port,
-    name: mongoose.connection.name,
-    connectionAttempts,
-  };
-}
-
-export function startSession() {
-  return mongoose.startSession();
-}
-
-// Export mongoose instance
-export const mongooseInstance = mongoose;
-export default mongooseInstance;
+// Singleton instance
+export const atlasConnection = AtlasConnectionManager.getInstance();
+export default atlasConnection;

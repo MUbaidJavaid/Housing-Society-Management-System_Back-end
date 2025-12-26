@@ -56,7 +56,7 @@ export interface IUser {
   preferences: UserPreferences;
   metadata: Record<string, any>;
   isDeleted: boolean;
-
+  authMethod?: 'email' | 'google';
   // Security related fields
   twoFactorSecret?: string;
   twoFactorBackupCodes?: string[];
@@ -110,8 +110,21 @@ const userSchema = new Schema<UserDocument, UserModel, IUserMethods>(
       minlength: 8,
       select: false,
     },
-    firstName: { type: String, required: true, trim: true, minlength: 2, maxlength: 50 },
-    lastName: { type: String, required: true, trim: true, minlength: 2, maxlength: 50 },
+   firstName: {
+    type: String,
+    required: [true, 'First name is required'],
+    trim: true,
+    minlength: [2, 'First name must be at least 2 characters'],
+    maxlength: [50, 'First name cannot exceed 50 characters']
+  },
+    lastName: {
+    type: String,
+    required: [true, 'Last name is required'], // یہ required ہے
+    trim: true,
+    minlength: [1, 'Last name must be at least 1 character'], // 1 سے کم کر دیں
+    maxlength: [50, 'Last name cannot exceed 50 characters'],
+    default: 'User' // default value set کریں
+  },
     role: { type: String, enum: Object.values(UserRole), default: UserRole.USER, index: true },
     status: {
       type: String,
@@ -186,7 +199,11 @@ const userSchema = new Schema<UserDocument, UserModel, IUserMethods>(
       sparse: true,
       index: true,
     },
-
+    authMethod: {
+      type: String,
+      enum: ['email', 'google'],
+      default: 'email',
+    },
     twoFactorEnabled: { type: Boolean, default: false },
 
     // Two-factor authentication
@@ -249,7 +266,17 @@ const userSchema = new Schema<UserDocument, UserModel, IUserMethods>(
     toObject: { virtuals: true },
   }
 );
+// userSchema.index({ googleId: 1 }, { sparse: true });
 
+// Update the pre-save hook to handle Google users
+userSchema.pre('save', async function (next) {
+  if (this.isModified('password') && this.authMethod === 'google' && !this.password) {
+    // For Google users without password, generate a random one
+    const crypto = await import('crypto');
+    this.password = crypto.randomBytes(32).toString('hex');
+  }
+  next();
+});
 /* ---------------------- Virtuals ---------------------- */
 userSchema.virtual('fullName').get(function (this: UserDocument) {
   return `${this.firstName} ${this.lastName}`;
