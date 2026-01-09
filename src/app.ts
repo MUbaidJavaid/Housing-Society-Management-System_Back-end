@@ -49,7 +49,14 @@ import { scheduleLogRotation, setupLogRotation } from './utils/log-rotation';
 import authRoutes from './auth/routes/auth.routes';
 // import uploadRoutes from './routes/upload.routes';
 import console from 'console';
+import { plotRoutes } from './Plots/index-plot';
+import { plotBlockRoutes } from './Plots/index-plotblock';
+import { plotSizeRoutes } from './Plots/index-plotsize';
+import { plotTypeRoutes } from './Plots/index-plottype';
 import userRoutes from './routes/user.routes';
+import { memberRoutes } from './Member/index-member';
+
+//
 
 // Track graceful shutdown
 let isShuttingDown = false;
@@ -287,6 +294,20 @@ function setupRoutes(app: Application): void {
   // Also support the original API routes structure
   app.use('/api/auth', authRoutes);
 
+  // PlotBlock routes
+  app.use('/plotblocks', plotBlockRoutes);
+
+  // PlotType routes
+  app.use('/plottypes', plotTypeRoutes);
+
+  // PlotSize routes
+  app.use('/plotsizes', plotSizeRoutes);
+
+  // Plot routes
+  app.use('/plots', plotRoutes);
+
+  //Member routes
+  app.use('/members', memberRoutes);
   // API welcome route with health check
   app.get('/api/v1', requireHealthy, (req: Request, res: Response) => {
     res.json({
