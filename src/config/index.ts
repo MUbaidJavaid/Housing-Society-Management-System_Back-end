@@ -40,7 +40,7 @@ const config = {
   // Server
   env: env.data.NODE_ENV,
   port: env.data.PORT || 3000,
-  host: env.data.HOST || 'localhost',
+  host: env.data.HOST || '0.0.0.0',
   isDevelopment: env.data.NODE_ENV === 'development',
   isProduction: env.data.NODE_ENV === 'production',
   isStaging: env.data.NODE_ENV === 'staging',
@@ -82,8 +82,8 @@ const config = {
       allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
     },
     rateLimit: {
-      windowMs: env.data.RATE_LIMIT_WINDOW_MS,
-      max: env.data.RATE_LIMIT_MAX,
+      windowMs: env.data.RATE_LIMIT_WINDOW_MS || 15 * 60 * 1000, // 15 minutes
+      max: env.data.RATE_LIMIT_MAX || 100, // limit each IP to 100 requests per windowMs
       standardHeaders: true,
       legacyHeaders: false,
       message: 'Too many requests, please try again later.',
@@ -91,10 +91,10 @@ const config = {
     },
     bodyParser: {
       json: {
-        limit: env.data.BODY_SIZE_LIMIT,
+        limit: env.data.BODY_SIZE_LIMIT || '10mb',
       },
       urlencoded: {
-        limit: env.data.BODY_SIZE_LIMIT,
+        limit: env.data.BODY_SIZE_LIMIT || '10mb',
         extended: true,
       },
     },
@@ -102,7 +102,7 @@ const config = {
 
   // Compression
   compression: {
-    enabled: env.data.COMPRESSION_ENABLED,
+    enabled: env.data.COMPRESSION_ENABLED || true,
     level: 6,
     threshold: 1024, // 1KB
   },
@@ -110,7 +110,7 @@ const config = {
   // Static files
   staticFiles: {
     path: path.join(process.cwd(), env.data.STATIC_FILES_PATH),
-    maxAge: env.data.STATIC_FILES_MAX_AGE,
+    maxAge: env.data.STATIC_FILES_MAX_AGE || 31536000, // 1 year
     dotfiles: 'ignore',
     etag: true,
     index: false,

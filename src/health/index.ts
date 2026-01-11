@@ -62,7 +62,7 @@ export class HealthCheckSystem {
     });
 
     // Redis check (if configured)
-    if (process.env.REDIS_URL) {
+    if (process.env.REDIS_URL && process.env.REDIS_ENABLED !== 'false') {
       this.registerCheck({
         name: 'redis',
         check: new RedisHealthCheck(process.env.REDIS_URL).check,

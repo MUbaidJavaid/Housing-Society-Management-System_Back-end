@@ -110,21 +110,21 @@ const userSchema = new Schema<UserDocument, UserModel, IUserMethods>(
       minlength: 8,
       select: false,
     },
-   firstName: {
-    type: String,
-    required: [true, 'First name is required'],
-    trim: true,
-    minlength: [2, 'First name must be at least 2 characters'],
-    maxlength: [50, 'First name cannot exceed 50 characters']
-  },
+    firstName: {
+      type: String,
+      required: [true, 'First name is required'],
+      trim: true,
+      minlength: [2, 'First name must be at least 2 characters'],
+      maxlength: [50, 'First name cannot exceed 50 characters'],
+    },
     lastName: {
-    type: String,
-    required: [true, 'Last name is required'], // یہ required ہے
-    trim: true,
-    minlength: [1, 'Last name must be at least 1 character'], // 1 سے کم کر دیں
-    maxlength: [50, 'Last name cannot exceed 50 characters'],
-    default: 'User' // default value set کریں
-  },
+      type: String,
+      required: [true, 'Last name is required'], // یہ required ہے
+      trim: true,
+      minlength: [1, 'Last name must be at least 1 character'], // 1 سے کم کر دیں
+      maxlength: [50, 'Last name cannot exceed 50 characters'],
+      default: 'User', // default value set کریں
+    },
     role: { type: String, enum: Object.values(UserRole), default: UserRole.USER, index: true },
     status: {
       type: String,
@@ -314,7 +314,7 @@ userSchema.methods.comparePassword = async function (candidate: string) {
 };
 
 userSchema.methods.generateAuthToken = async function (): Promise<string> {
-  const secret = process.env.JWT_ACCESS_SECRET;
+  const secret = process.env.JWT_ACCESS_SECRET || 'Akdsmewasdkelj123!@#kdkwefksnkwe';
   if (!secret) {
     throw new Error('JWT_ACCESS_SECRET is not defined');
   }
@@ -337,7 +337,7 @@ userSchema.methods.generateAuthToken = async function (): Promise<string> {
 };
 
 userSchema.methods.generateRefreshToken = async function (): Promise<string> {
-  const secret = process.env.JWT_REFRESH_SECRET;
+  const secret = process.env.JWT_REFRESH_SECRET || 'Rkjsdhf!@#234ksdjfhweqrlkjsdhfasrgzcW';
   if (!secret) {
     throw new Error('JWT_REFRESH_SECRET is not defined');
   }
