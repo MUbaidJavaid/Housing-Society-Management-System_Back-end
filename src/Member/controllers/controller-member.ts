@@ -1,7 +1,7 @@
+import { AuthRequest } from '@/auth';
 import { NextFunction, Request, Response } from 'express';
 import { AppError } from '../../middleware/error.middleware';
-import { AuthRequest } from '@/auth';
-import { CreateMemberDto, memberService, MemberQueryParams } from '../index-member';
+import { CreateMemberDto, MemberQueryParams, memberService } from '../index-member';
 
 const handleError = (error: any, next: NextFunction) => {
   next(error);

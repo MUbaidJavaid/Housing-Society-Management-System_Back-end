@@ -10,4 +10,4 @@ export const initializeModels = () => {
 };
 
 // Export type exports from models
-export type { IUser, IUserDocument, UserRole, UserStatus } from './User';
+export type { IUser, UserDocument as IUserDocument, UserRole, UserStatus } from './User';

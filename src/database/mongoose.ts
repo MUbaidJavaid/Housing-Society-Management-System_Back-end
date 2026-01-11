@@ -43,12 +43,11 @@ export class AtlasConnectionManager {
 
     // Setup event listeners
     this.setupEventListeners();
-
+    // Get URI from environment
+    const mongoUri = process.env.MONGO_URI;
     try {
       logger.info('Connecting to MongoDB Atlas...');
 
-      // Get URI from environment
-      const mongoUri = process.env.MONGO_URI;
       if (!mongoUri) {
         throw new Error('MONGO_URI environment variable is not set');
       }
@@ -88,7 +87,7 @@ export class AtlasConnectionManager {
       }
 
       throw new AtlasConnectionError(`MongoDB Atlas connection failed: ${helpfulMessage}`, error, {
-        uri: mongoUri.substring(0, 50) + '...',
+        uri: mongoUri ? mongoUri.substring(0, 50) + '...' : 'Not set',
         attempts: this.connectionAttempts,
         time: new Date().toISOString(),
       });
