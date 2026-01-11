@@ -3,8 +3,8 @@ import { NextFunction, Request, Response } from 'express';
 import { AppError } from '../../middleware/error.middleware';
 import {
   CreateSrApplicationTypeDto,
-  srApplicationTypeService,
   SrApplicationTypeQueryParams,
+  srApplicationTypeService,
 } from '../index-applicationtype';
 
 const handleError = (error: any, next: NextFunction) => {
@@ -51,7 +51,7 @@ export const srApplicationTypeController = {
 
   getSrApplicationType: async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { id } = req.params;
+      const { id } = req.params as { id: string };
 
       const srApplicationType = await srApplicationTypeService.getSrApplicationTypeById(id);
 
@@ -111,7 +111,7 @@ export const srApplicationTypeController = {
         throw new AppError(401, 'Authentication required');
       }
 
-      const { id } = req.params;
+      const { id } = req.params as { id: string };
       const updateData = req.body;
 
       const existingSrApplicationType = await srApplicationTypeService.getSrApplicationTypeById(id);
@@ -154,7 +154,7 @@ export const srApplicationTypeController = {
         throw new AppError(401, 'Authentication required');
       }
 
-      const { id } = req.params;
+      const { id } = req.params as { id: string };
 
       const existingSrApplicationType = await srApplicationTypeService.getSrApplicationTypeById(id);
       if (!existingSrApplicationType || (existingSrApplicationType as any).isDeleted) {

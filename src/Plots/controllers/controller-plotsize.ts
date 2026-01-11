@@ -99,7 +99,7 @@ export const plotSizeController = {
         throw new AppError(401, 'Authentication required');
       }
 
-      const { id } = req.params;
+      const { id } = req.params as { id: string };
       const updateData = req.body;
 
       const existingPlotSize = await plotSizeService.getPlotSizeById(id);
@@ -132,7 +132,7 @@ export const plotSizeController = {
         throw new AppError(401, 'Authentication required');
       }
 
-      const { id } = req.params;
+      const { id } = req.params as { id: string };
 
       const existingPlotSize = await plotSizeService.getPlotSizeById(id);
       if (!existingPlotSize || (existingPlotSize as any).isDeleted) {

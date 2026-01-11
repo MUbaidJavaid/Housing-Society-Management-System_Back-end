@@ -56,7 +56,7 @@ export const memberController = {
 
   getMember: async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { id } = req.params;
+      const { id } = req.params as { id: string };
 
       const member = await memberService.getMemberById(id);
 
@@ -75,7 +75,7 @@ export const memberController = {
 
   getMemberByNic: async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { nic } = req.params;
+      const { nic } = req.params as { nic: string };
 
       const member = await memberService.getMemberByNic(nic);
 
@@ -157,7 +157,7 @@ export const memberController = {
         throw new AppError(401, 'Authentication required');
       }
 
-      const { id } = req.params;
+      const { id } = req.params as { id: string };
       const updateData = req.body;
 
       const existingMember = await memberService.getMemberById(id);
@@ -199,7 +199,7 @@ export const memberController = {
         throw new AppError(401, 'Authentication required');
       }
 
-      const { id } = req.params;
+      const { id } = req.params as { id: string };
 
       const existingMember = await memberService.getMemberById(id);
       if (!existingMember || (existingMember as any).isDeleted) {
