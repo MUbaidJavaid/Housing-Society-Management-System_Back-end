@@ -49,12 +49,12 @@ import { scheduleLogRotation, setupLogRotation } from './utils/log-rotation';
 import authRoutes from './auth/routes/auth.routes';
 // import uploadRoutes from './routes/upload.routes';
 import console from 'console';
+import { memberRoutes } from './Member/index-member';
 import { plotRoutes } from './Plots/index-plot';
 import { plotBlockRoutes } from './Plots/index-plotblock';
 import { plotSizeRoutes } from './Plots/index-plotsize';
 import { plotTypeRoutes } from './Plots/index-plottype';
 import userRoutes from './routes/user.routes';
-import { memberRoutes } from './Member/index-member';
 
 //
 
@@ -494,9 +494,15 @@ export async function startServer(): Promise<Application> {
     const app = await createApp();
     console.log('✅ [startServer-2] App created');
 
-    const server = app.listen(config.port, config.host, () => {
-      console.log(`🚀 [startServer-3] Server listening on ${config.host}:${config.port}`);
-      logger.info(`Server started on ${config.host}:${config.port}`);
+    // FIX: PORT must be a number, convert from string if needed
+    const PORT = Number(process.env.PORT) || config.port || 3000;
+    // FIX: Use '0.0.0.0' for production (Render)
+    const HOST = process.env.NODE_ENV === 'production' ? '0.0.0.0' : config.host || 'localhost';
+
+    console.log(`🔧 Config: Port=${PORT}, Host=${HOST}, NODE_ENV=${process.env.NODE_ENV}`);
+    const server = app.listen(PORT, HOST, () => {
+      console.log(`🚀 [startServer-3] Server listening on ${HOST}:${PORT}`);
+      logger.info(`Server started on ${HOST}:${PORT}`);
     });
 
     server.on('error', (error: NodeJS.ErrnoException) => {
@@ -506,7 +512,7 @@ export async function startServer(): Promise<Application> {
       }
       process.exit(1);
     });
-
+    (app as any).server = server;
     return app;
   } catch (error) {
     console.error('❌ [startServer-CATCH] Failed to start server:', error);
