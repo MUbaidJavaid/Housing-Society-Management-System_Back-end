@@ -351,7 +351,7 @@ export const authController = {
         throw new AppError(401, 'Authentication required');
       }
 
-      await authService.revokeSession(req.user.userId, req.params.sessionId);
+      await authService.revokeSession(req.user.userId, req.params.sessionId as string);
 
       res.json({
         success: true,

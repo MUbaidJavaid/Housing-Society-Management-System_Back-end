@@ -51,7 +51,7 @@ export const developmentController = {
 
   getDevelopment: async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { id } = req.params as { id: string };
+      const id = req.params.id as string;
 
       const development = await developmentService.getDevelopmentById(id);
 
@@ -70,7 +70,7 @@ export const developmentController = {
 
   getDevelopmentByPlot: async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { plotId } = req.params as { plotId: string };
+      const plotId = req.params.plotId as string;
 
       const development = await developmentService.getDevelopmentByPlotId(plotId);
 
@@ -133,7 +133,7 @@ export const developmentController = {
         throw new AppError(401, 'Authentication required');
       }
 
-      const { id } = req.params as { id: string };
+      const id = req.params.id as string;
       const updateData = req.body;
 
       const existingDevelopment = await developmentService.getDevelopmentById(id);
@@ -163,7 +163,7 @@ export const developmentController = {
         throw new AppError(401, 'Authentication required');
       }
 
-      const { id } = req.params as { id: string };
+      const id = req.params.id as string;
 
       const existingDevelopment = await developmentService.getDevelopmentById(id);
       if (!existingDevelopment || (existingDevelopment as any).isDeleted) {

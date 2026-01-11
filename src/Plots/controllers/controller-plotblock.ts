@@ -48,7 +48,7 @@ export const plotBlockController = {
    */
   getPlotBlock: async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { id } = req.params as { id: string };
+      const id = req.params.id as string;
 
       const plotBlock = await plotBlockService.getPlotBlockById(id);
 
@@ -101,7 +101,7 @@ export const plotBlockController = {
         throw new AppError(401, 'Authentication required');
       }
 
-      const { id } = req.params as { id: string };
+      const id = req.params.id as string;
       const updateData = req.body;
 
       // Check if plot block exists
@@ -146,7 +146,7 @@ export const plotBlockController = {
         throw new AppError(401, 'Authentication required');
       }
 
-      const { id } = req.params as { id: string };
+      const id = req.params.id as string;
 
       // Check if plot block exists
       const existingPlotBlock = await plotBlockService.getPlotBlockById(id);

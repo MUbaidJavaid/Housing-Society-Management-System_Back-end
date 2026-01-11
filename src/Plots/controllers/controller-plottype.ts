@@ -39,7 +39,7 @@ export const plotTypeController = {
 
   getPlotType: async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { id } = req.params as { id: string };
+      const id = req.params.id as string;
 
       const plotType = await plotTypeService.getPlotTypeById(id);
 
@@ -99,7 +99,7 @@ export const plotTypeController = {
         throw new AppError(401, 'Authentication required');
       }
 
-      const { id } = req.params as { id: string };
+      const id = req.params.id as string;
       const updateData = req.body;
 
       const existingPlotType = await plotTypeService.getPlotTypeById(id);
@@ -132,7 +132,7 @@ export const plotTypeController = {
         throw new AppError(401, 'Authentication required');
       }
 
-      const { id } = req.params as { id: string };
+      const id = req.params.id as string;
 
       const existingPlotType = await plotTypeService.getPlotTypeById(id);
       if (!existingPlotType || (existingPlotType as any).isDeleted) {

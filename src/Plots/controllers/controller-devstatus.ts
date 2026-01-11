@@ -39,7 +39,7 @@ export const srDevStatusController = {
 
   getSrDevStatus: async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { id } = req.params as { id: string };
+      const id = req.params.id as string;
 
       const srDevStatus = await srDevStatusService.getSrDevStatusById(id);
 
@@ -99,7 +99,7 @@ export const srDevStatusController = {
         throw new AppError(401, 'Authentication required');
       }
 
-      const { id } = req.params as { id: string };
+      const id = req.params.id as string;
       const updateData = req.body;
 
       const existingSrDevStatus = await srDevStatusService.getSrDevStatusById(id);
@@ -142,7 +142,7 @@ export const srDevStatusController = {
         throw new AppError(401, 'Authentication required');
       }
 
-      const { id } = req.params as { id: string };
+      const id = req.params.id as string;
 
       const existingSrDevStatus = await srDevStatusService.getSrDevStatusById(id);
       if (!existingSrDevStatus || (existingSrDevStatus as any).isDeleted) {

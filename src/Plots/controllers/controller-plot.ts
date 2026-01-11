@@ -62,7 +62,7 @@ export const plotController = {
 
   getPlot: async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { id } = req.params as { id: string };
+      const id = req.params.id as string;
 
       const plot = await plotService.getPlotById(id);
 
@@ -140,7 +140,7 @@ export const plotController = {
         throw new AppError(401, 'Authentication required');
       }
 
-      const { id } = req.params as { id: string };
+      const id = req.params.id as string;
       const updateData = req.body;
 
       const existingPlot = await plotService.getPlotById(id);
@@ -178,7 +178,7 @@ export const plotController = {
         throw new AppError(401, 'Authentication required');
       }
 
-      const { id } = req.params as { id: string };
+      const id = req.params.id as string;
 
       const existingPlot = await plotService.getPlotById(id);
       if (!existingPlot || (existingPlot as any).isDeleted) {

@@ -51,7 +51,7 @@ export const srApplicationTypeController = {
 
   getSrApplicationType: async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { id } = req.params as { id: string };
+      const id = req.params.id as string;
 
       const srApplicationType = await srApplicationTypeService.getSrApplicationTypeById(id);
 
@@ -111,7 +111,7 @@ export const srApplicationTypeController = {
         throw new AppError(401, 'Authentication required');
       }
 
-      const { id } = req.params as { id: string };
+      const id = req.params.id as string;
       const updateData = req.body;
 
       const existingSrApplicationType = await srApplicationTypeService.getSrApplicationTypeById(id);
@@ -154,7 +154,7 @@ export const srApplicationTypeController = {
         throw new AppError(401, 'Authentication required');
       }
 
-      const { id } = req.params as { id: string };
+      const id = req.params.id as string;
 
       const existingSrApplicationType = await srApplicationTypeService.getSrApplicationTypeById(id);
       if (!existingSrApplicationType || (existingSrApplicationType as any).isDeleted) {
