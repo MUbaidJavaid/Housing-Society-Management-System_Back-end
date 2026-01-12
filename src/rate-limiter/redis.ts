@@ -50,21 +50,28 @@ export function createRedisClient(config?: Partial<typeof defaultRedisConfig>) {
   if (!shouldUseRedis) {
     console.log('🚫 Redis not configured - using mock Redis client');
 
-    // Mock Redis client واپس کریں
+    // Return a mock client that doesn't try to connect
     const mockClient = {
       status: 'ready',
-      on: () => mockClient,
+      on: (event: string, callback: Function) => {
+        if (event === 'connect') {
+          setTimeout(() => callback(), 10);
+        }
+        return mockClient;
+      },
       ping: async () => 'PONG',
-      get: async () => null,
-      set: async () => 'OK',
-      incr: async () => 1,
-      expire: async () => 1,
-      quit: async () => 'OK',
+      get: async (_key: string) => null,
+      set: async (_key: string, _value: string) => 'OK',
+      incr: async (_key: string) => 1,
+      expire: async (_key: string, _seconds: number) => 1,
+      quit: async () => {
+        console.log('Mock Redis connection closed');
+        return 'OK';
+      },
       keys: async () => [],
-      del: async () => 1,
+      del: async () => 0,
       ttl: async () => -2,
-      emit: () => {},
-      // دیگر ضروری methods
+      // Add other Redis methods used in your code
     } as any;
 
     redisClient = mockClient;

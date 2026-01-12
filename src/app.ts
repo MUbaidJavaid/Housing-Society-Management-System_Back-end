@@ -28,7 +28,7 @@ import {
 
 // Import rate limiting middleware
 import rateLimitMiddleware from './middleware/rate-limit';
-import { initializeRateLimiter } from './rate-limiter';
+import { createRedisClient, initializeRateLimiter } from './rate-limiter';
 
 // Import logging middlewares
 import { setupSwagger } from './docs/swagger';
@@ -133,6 +133,7 @@ async function initializeRateLimiterSystem(): Promise<void> {
   if (!process.env.REDIS_URL && !process.env.REDIS_HOST) {
     console.log('⚠️ Redis temporarily disabled - using mock Redis');
     logger.warn('Redis temporarily disabled - using mock Redis');
+    createRedisClient();
     return;
   }
   try {
@@ -277,21 +278,21 @@ function setupRoutes(app: Application): void {
   //   });
   // });
 
-  // Apply global rate limiting to all API routes (from second codebase)
+  // // Apply global rate limiting to all API routes (from second codebase)
   // app.use('/api/v1', rateLimitMiddleware.globalRateLimit);
 
-  // Apply route-specific rate limiting (from second codebase)
+  // // Apply route-specific rate limiting (from second codebase)
   // app.use(rateLimitMiddleware.routeSpecificRateLimit);
 
-  // Mount API routes with specific rate limiting
-  app.use('/api/v1/auth', rateLimitMiddleware.authRateLimit, authRoutes);
-  app.use(
-    '/api/v1/public',
-    rateLimitMiddleware.publicApiRateLimit,
-    (_req: Request, res: Response) => {
-      res.json({ message: 'Public API endpoint' });
-    }
-  );
+  // // Mount API routes with specific rate limiting
+  // app.use('/api/v1/auth', rateLimitMiddleware.authRateLimit, authRoutes);
+  // app.use(
+  //   '/api/v1/public',
+  //   rateLimitMiddleware.publicApiRateLimit,
+  //   (_req: Request, res: Response) => {
+  //     res.json({ message: 'Public API endpoint' });
+  //   }
+  // );
   app.use('/api/v1/users', userRoutes);
   // app.use('/api/v1/admin', rateLimitMiddleware.adminRateLimit, adminRoutes);
   // app.use('/api/v1/upload', rateLimitMiddleware.uploadRateLimit, uploadRoutes);
@@ -493,40 +494,80 @@ export async function createApp(): Promise<Application> {
 //   }
 // }
 
+// export async function startServer(): Promise<Application> {
+//   try {
+//     console.log('🟡 [startServer-1] Creating app...');
+//     const app = await createApp();
+//     console.log('✅ [startServer-2] App created');
+
+//     // FIX: PORT must be a number, convert from string if needed
+//     // const PORT = Number(process.env.PORT) || config.port || 10000;
+//     // FIX: Use '0.0.0.0' for production (Render)
+//     // const HOST = process.env.NODE_ENV === 'production' ? '0.0.0.0' : config.host || 'localhost';
+//     // Render پر PORT ماحولیاتی متغیر سے آتا ہے
+//     const PORT = Number(process.env.PORT) || 3000;
+
+//     // Render پر ہمیشہ '0.0.0.0' استعمال کریں
+//     const HOST = '0.0.0.0';
+
+//     console.log(`🚀 Server starting on ${HOST}:${PORT}`);
+//     console.log(`🔧 Config: Port=${PORT}, Host=${HOST}, NODE_ENV=${process.env.NODE_ENV}`);
+//     const server = app.listen(PORT, HOST, () => {
+//       console.log(`🚀 [startServer-3] Server listening on ${HOST}:${PORT}`);
+//       logger.info(`Server started on ${HOST}:${PORT}`);
+//     });
+
+//     server.on('error', (error: NodeJS.ErrnoException) => {
+//       console.error('❌ [startServer-ERROR] Server error:', error);
+//       if (error.code === 'EADDRINUSE') {
+//         console.error(`Port ${config.port} is already in use`);
+//       }
+//       process.exit(1);
+//     });
+//     (app as any).server = server;
+//     return app;
+//   } catch (error) {
+//     console.error('❌ [startServer-CATCH] Failed to start server:', error);
+//     logger.error('Failed to start server:', error);
+//     process.exit(1);
+//   }
+// }
 export async function startServer(): Promise<Application> {
   try {
     console.log('🟡 [startServer-1] Creating app...');
     const app = await createApp();
     console.log('✅ [startServer-2] App created');
 
-    // FIX: PORT must be a number, convert from string if needed
-    // const PORT = Number(process.env.PORT) || config.port || 10000;
-    // FIX: Use '0.0.0.0' for production (Render)
-    // const HOST = process.env.NODE_ENV === 'production' ? '0.0.0.0' : config.host || 'localhost';
-    // Render پر PORT ماحولیاتی متغیر سے آتا ہے
-    const PORT = Number(process.env.PORT) || 3000;
+    // FIX: Render پر PORT ماحولیاتی متغیر سے آتا ہے
+    const PORT = Number(process.env.PORT) || 10000;
 
-    // Render پر ہمیشہ '0.0.0.0' استعمال کریں
+    // FIX: Render پر '0.0.0.0' استعمال کریں
     const HOST = '0.0.0.0';
 
-    console.log(`🚀 Server starting on ${HOST}:${PORT}`);
-    console.log(`🔧 Config: Port=${PORT}, Host=${HOST}, NODE_ENV=${process.env.NODE_ENV}`);
+    console.log(`🔧 Server Config: Port=${PORT}, Host=${HOST}`);
+
     const server = app.listen(PORT, HOST, () => {
-      console.log(`🚀 [startServer-3] Server listening on ${HOST}:${PORT}`);
+      console.log(`✅ Server successfully started on port ${PORT}`);
       logger.info(`Server started on ${HOST}:${PORT}`);
+
+      // یہ میسج Render کو دکھائے گا کہ سرور چل رہا ہے
+      console.log(`🚀 Application is running on http://${HOST}:${PORT}`);
+      console.log(`📡 Health check: http://${HOST}:${PORT}/health`);
+      console.log(`🔍 Ping endpoint: http://${HOST}:${PORT}/ping`);
     });
 
     server.on('error', (error: NodeJS.ErrnoException) => {
-      console.error('❌ [startServer-ERROR] Server error:', error);
+      console.error('❌ Server error:', error.message);
       if (error.code === 'EADDRINUSE') {
-        console.error(`Port ${config.port} is already in use`);
+        console.error(`Port ${PORT} is already in use`);
       }
       process.exit(1);
     });
+
     (app as any).server = server;
     return app;
   } catch (error) {
-    console.error('❌ [startServer-CATCH] Failed to start server:', error);
+    console.error('❌ Failed to start server:', error);
     logger.error('Failed to start server:', error);
     process.exit(1);
   }
