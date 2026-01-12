@@ -3,7 +3,7 @@ services:
     name: "Housing Society Management System Backend"
     env: node
     buildCommand: pnpm install && pnpm build
-    startCommand: pnpm start
+    startCommand: node dist/server.js
     healthCheckPath: /health
     autoDeploy: true
     envVars:
@@ -11,3 +11,7 @@ services:
         value: production
       - key: PORT
         value: 10000
+    disk:
+      name: logs
+      mountPath: /opt/render/project/src/logs
+      sizeGB: 1

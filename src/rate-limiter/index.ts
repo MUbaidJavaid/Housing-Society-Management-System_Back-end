@@ -52,17 +52,49 @@ export function initializeRateLimiter() {
 }
 
 // Setup cleanup on process exit
+// function setupCleanup() {
+//   const cleanup = async () => {
+//     logger.info('Closing Redis connection...');
+//     await closeRedisConnection();
+//   };
+
+//   process.on('SIGTERM', cleanup);
+//   process.on('SIGINT', cleanup);
+//   process.on('beforeExit', cleanup);
+// }
+let cleanupInProgress = false;
+
+// Setup cleanup on process exit
 function setupCleanup() {
   const cleanup = async () => {
+    if (cleanupInProgress) {
+      return;
+    }
+
+    cleanupInProgress = true;
     logger.info('Closing Redis connection...');
-    await closeRedisConnection();
+
+    try {
+      await closeRedisConnection();
+    } catch (error) {
+      logger.error('Error during cleanup:', error);
+    } finally {
+      cleanupInProgress = false;
+    }
   };
 
-  process.on('SIGTERM', cleanup);
-  process.on('SIGINT', cleanup);
-  process.on('beforeExit', cleanup);
-}
+  // Only register once
+  if (!process.listeners('SIGTERM').includes(cleanup)) {
+    process.on('SIGTERM', cleanup);
+  }
 
+  if (!process.listeners('SIGINT').includes(cleanup)) {
+    process.on('SIGINT', cleanup);
+  }
+
+  // Remove beforeExit handler as it can cause issues in Render
+  // process.on('beforeExit', cleanup);
+}
 // Default route configurations
 export const defaultRouteConfigs: RouteRateLimitConfig[] = [
   // Auth endpoints - stricter limits

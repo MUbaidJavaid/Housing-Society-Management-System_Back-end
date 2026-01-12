@@ -78,8 +78,7 @@ export function createRedisClient(config?: Partial<typeof defaultRedisConfig>) {
       // Add all methods used in strategies.ts
     } as any;
 
-    redisClient = mockClient;
-    return redisClient;
+    return mockClient;
   }
   const finalConfig = { ...defaultRedisConfig, ...config };
 

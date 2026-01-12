@@ -28,7 +28,7 @@ import {
 
 // Import rate limiting middleware
 import rateLimitMiddleware from './middleware/rate-limit';
-import { createRedisClient, initializeRateLimiter } from './rate-limiter';
+import { initializeRateLimiter } from './rate-limiter';
 
 // Import logging middlewares
 import { setupSwagger } from './docs/swagger';
@@ -130,12 +130,7 @@ async function initializeDatabase(): Promise<void> {
  */
 async function initializeRateLimiterSystem(): Promise<void> {
   console.log('initializeRateLimiterSystem');
-  if (!process.env.REDIS_URL && !process.env.REDIS_HOST) {
-    console.log('⚠️ Redis temporarily disabled - using mock Redis');
-    logger.warn('Redis temporarily disabled - using mock Redis');
-    createRedisClient();
-    return;
-  }
+
   try {
     initializeRateLimiter();
     logger.info('Rate limiter initialized');
