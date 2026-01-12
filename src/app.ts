@@ -405,12 +405,201 @@ function setupGracefulShutdown(app: Application): void {
   process.on('SIGINT', () => gracefulShutdownHandler('SIGINT'));
 }
 
+// Add this function after imports
+function validateEnvironment(): void {
+  console.log('🔍 Validating environment variables...');
+
+  // مرحلہ 1: ضروری متغیرات (Critical - app کام نہیں کرے گا)
+  const criticalVars = [
+    'MONGODB_URI', // یا MONGO_URI
+    'JWT_ACCESS_SECRET',
+    'JWT_REFRESH_SECRET',
+  ];
+
+  // مرحلہ 2: اہم متغیرات (Important - بعض features کام نہیں کریں گے)
+  const importantVars = ['SMTP_HOST', 'SMTP_USER', 'SMTP_PASS', 'FRONTEND_URL', 'CORS_ORIGIN'];
+
+  // مرحلہ 3: اختیاری متغیرات (Optional - warnings دیں گے)
+  const optionalVars = ['REDIS_URL', 'REDIS_HOST', 'GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET'];
+
+  const missingCritical: string[] = [];
+  const missingImportant: string[] = [];
+  const missingOptional: string[] = [];
+
+  // Check critical variables
+  criticalVars.forEach(varName => {
+    if (!process.env[varName]) {
+      // خاص صورت: MONGO_URI کو MONGODB_URI کے طور پر چیک کریں
+      if (varName === 'MONGODB_URI' && process.env.MONGO_URI) {
+        console.log(
+          `✅ Using MONGO_URI as MONGODB_URI: ${process.env.MONGO_URI.substring(0, 20)}...`
+        );
+        process.env.MONGODB_URI = process.env.MONGO_URI;
+      } else {
+        missingCritical.push(varName);
+      }
+    }
+  });
+
+  // Check important variables
+  importantVars.forEach(varName => {
+    if (!process.env[varName]) {
+      missingImportant.push(varName);
+    }
+  });
+
+  // Check optional variables
+  optionalVars.forEach(varName => {
+    if (!process.env[varName]) {
+      missingOptional.push(varName);
+    }
+  });
+
+  // مرحلہ 4: Render-specific checks (production میں ضروری)
+  if (process.env.NODE_ENV === 'production') {
+    console.log('🏗️  Production environment detected');
+
+    // Check for localhost URLs in production
+    const localhostUrls = ['CORS_ORIGIN', 'FRONTEND_URL', 'GOOGLE_REDIRECT_URI'];
+
+    localhostUrls.forEach(varName => {
+      const value = process.env[varName];
+      if (value && value.includes('localhost')) {
+        console.warn(`⚠️  WARNING: ${varName} contains localhost in production: ${value}`);
+        console.warn(`💡 In production, use your actual domain like https://your-app.onrender.com`);
+      }
+    });
+
+    // Check if Redis is configured
+    if (!process.env.REDIS_URL && !process.env.REDIS_HOST) {
+      console.warn('⚠️  Redis not configured in production - rate limiting will use memory store');
+      console.warn('💡 For production, consider using Redis for distributed rate limiting');
+    }
+  }
+
+  // مرحلہ 5: نتائج کا اعلان
+  console.log('\n📊 Environment Validation Summary:');
+  console.log('='.repeat(50));
+
+  if (missingCritical.length > 0) {
+    console.error('❌ MISSING CRITICAL VARIABLES (App may not start):');
+    missingCritical.forEach(varName => {
+      console.error(`   - ${varName}`);
+    });
+    console.error('💡 These variables are REQUIRED for the app to function');
+
+    if (process.env.NODE_ENV === 'production') {
+      console.error('🚨 In production, these must be set in Render dashboard');
+    } else {
+      console.error('💡 Add these to your .env file');
+    }
+  }
+
+  if (missingImportant.length > 0) {
+    console.warn('⚠️  MISSING IMPORTANT VARIABLES (Some features disabled):');
+    missingImportant.forEach(varName => {
+      console.warn(`   - ${varName}`);
+    });
+
+    // Provide helpful suggestions
+    missingImportant.forEach(varName => {
+      switch (varName) {
+        case 'SMTP_HOST':
+          console.warn('   💡 Email service will be disabled');
+          break;
+        case 'FRONTEND_URL':
+          console.warn('   💡 Using default frontend URL: http://localhost:3000');
+          process.env.FRONTEND_URL = 'http://localhost:3000';
+          break;
+        case 'CORS_ORIGIN':
+          console.warn('   💡 Using default CORS origin: *');
+          process.env.CORS_ORIGIN = '*';
+          break;
+      }
+    });
+  }
+
+  if (missingOptional.length > 0) {
+    console.log('ℹ️  MISSING OPTIONAL VARIABLES:');
+    missingOptional.forEach(varName => {
+      console.log(`   - ${varName}`);
+    });
+    console.log('💡 These are nice-to-have but not required');
+  }
+
+  // مرحلہ 6: JWT secrets length check
+  const jwtAccessSecret = process.env.JWT_ACCESS_SECRET || '';
+  const jwtRefreshSecret = process.env.JWT_REFRESH_SECRET || '';
+
+  if (jwtAccessSecret.length < 32) {
+    console.error(
+      `❌ JWT_ACCESS_SECRET is too short: ${jwtAccessSecret.length} chars (minimum 32)`
+    );
+    console.error('💡 Generate a strong secret: openssl rand -base64 32');
+  } else {
+    console.log(`✅ JWT_ACCESS_SECRET length: ${jwtAccessSecret.length} chars`);
+  }
+
+  if (jwtRefreshSecret.length < 32) {
+    console.error(
+      `❌ JWT_REFRESH_SECRET is too short: ${jwtRefreshSecret.length} chars (minimum 32)`
+    );
+  } else {
+    console.log(`✅ JWT_REFRESH_SECRET length: ${jwtRefreshSecret.length} chars`);
+  }
+
+  // مرحلہ 7: MongoDB URI format check
+  const mongoUri = process.env.MONGODB_URI || process.env.MONGO_URI;
+  if (mongoUri) {
+    if (mongoUri.includes('@')) {
+      // Hide password in logs
+      const safeUri = mongoUri.replace(/:(.*)@/, ':****@');
+      console.log(`✅ MongoDB URI: ${safeUri}`);
+    } else {
+      console.warn('⚠️  MongoDB URI may be incomplete (missing username/password)');
+    }
+  }
+
+  // مرحلہ 8: Port check
+  const port = process.env.PORT || '5000';
+  console.log(`✅ Server Port: ${port}`);
+
+  // مرحلہ 9: App name check
+  const appName = process.env.APP_NAME || 'Housing Society Management System';
+  console.log(`✅ App Name: ${appName}`);
+
+  console.log('='.repeat(50));
+
+  // مرحلہ 10: Decision - continue or exit
+  if (missingCritical.length > 0) {
+    if (process.env.NODE_ENV === 'production') {
+      console.error('🚨 CRITICAL: Missing required environment variables in production');
+      console.error('💡 Please set these variables in Render dashboard immediately');
+
+      // In production, we might want to continue with degraded functionality
+      // But for critical vars like MongoDB, we should exit
+      if (missingCritical.includes('MONGODB_URI')) {
+        console.error('🚨 FATAL: MongoDB URI is required. Exiting...');
+        process.exit(1);
+      }
+    } else {
+      console.error('🚨 Missing critical environment variables. Exiting...');
+      process.exit(1);
+    }
+  }
+
+  console.log('✅ Environment validation completed');
+}
+
 /**
  * Create and configure the Express application
  */
 export async function createApp(): Promise<Application> {
   // Setup log rotation
   console.log('createApp');
+
+  // Add this line at the beginning
+  validateEnvironment();
 
   setupLogRotation();
   scheduleLogRotation();
