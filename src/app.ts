@@ -131,9 +131,8 @@ async function initializeDatabase(): Promise<void> {
 async function initializeRateLimiterSystem(): Promise<void> {
   console.log('initializeRateLimiterSystem');
   if (!process.env.REDIS_URL && !process.env.REDIS_HOST) {
-    console.log('⚠️ Redis not configured - skipping rate limiter initialization');
-    console.log('🔧 Set REDIS_URL or REDIS_HOST environment variable to enable Redis');
-    logger.warn('Redis not configured - rate limiting disabled');
+    console.log('⚠️ Redis temporarily disabled - using mock Redis');
+    logger.warn('Redis temporarily disabled - using mock Redis');
     return;
   }
   try {

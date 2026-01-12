@@ -1,6 +1,6 @@
+import console from 'console';
 import Redis from 'ioredis';
 import { logger } from '../logger';
-import console from 'console';
 
 // Redis client instance
 let redisClient: Redis | null = null;
@@ -49,19 +49,25 @@ export function createRedisClient(config?: Partial<typeof defaultRedisConfig>) {
 
   if (!shouldUseRedis) {
     console.log('🚫 Redis not configured - using mock Redis client');
-    console.log('🔧 Set REDIS_URL or REDIS_HOST environment variable to use real Redis');
 
-    // Return a mock client
-    const MockRedis = require('../utils/mock-redis').MockRedis;
-    redisClient = new MockRedis() as any;
+    // Mock Redis client واپس کریں
+    const mockClient = {
+      status: 'ready',
+      on: () => mockClient,
+      ping: async () => 'PONG',
+      get: async () => null,
+      set: async () => 'OK',
+      incr: async () => 1,
+      expire: async () => 1,
+      quit: async () => 'OK',
+      keys: async () => [],
+      del: async () => 1,
+      ttl: async () => -2,
+      emit: () => {},
+      // دیگر ضروری methods
+    } as any;
 
-    // Mock the connect event
-    setTimeout(() => {
-      if (redisClient) {
-        redisClient.emit('connect');
-      }
-    }, 100);
-
+    redisClient = mockClient;
     return redisClient;
   }
 

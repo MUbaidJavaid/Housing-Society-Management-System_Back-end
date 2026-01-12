@@ -16,9 +16,11 @@ export function initializeRateLimiter() {
   if (!redisUrl && !redisHost) {
     logger.warn('Redis not configured - skipping Redis rate limiter initialization');
     console.log('⚠️ Redis not configured - using memory store for rate limiting');
-    return; // Exit early - don't initialize Redis
-  }
 
+    // بس mock client بنائیں اور واپس چلے جائیں
+    createRedisClient();
+    return;
+  }
   // Only initialize Redis if we have connection details
   console.log('🔧 Initializing Redis with:', {
     hasRedisUrl: !!redisUrl,
@@ -238,8 +240,4 @@ export async function resetRateLimit(pattern: string): Promise<number> {
 export * from './middleware';
 export * from './redis';
 export * from './strategies';
-export * from './types';
-export * from './types';
-export * from './strategies';
-export * from './types';
 export * from './types';
