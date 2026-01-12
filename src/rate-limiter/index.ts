@@ -10,6 +10,21 @@ import { RouteRateLimitConfig } from './types';
 
 // Initialize rate limiter
 export function initializeRateLimiter() {
+  const redisUrl = process.env.REDIS_URL;
+  const redisHost = process.env.REDIS_HOST;
+
+  if (!redisUrl && !redisHost) {
+    logger.warn('Redis not configured - skipping Redis rate limiter initialization');
+    console.log('⚠️ Redis not configured - using memory store for rate limiting');
+    return; // Exit early - don't initialize Redis
+  }
+
+  // Only initialize Redis if we have connection details
+  console.log('🔧 Initializing Redis with:', {
+    hasRedisUrl: !!redisUrl,
+    hasRedisHost: !!redisHost,
+  });
+
   try {
     // Create Redis client
     createRedisClient();
@@ -224,6 +239,7 @@ export * from './middleware';
 export * from './redis';
 export * from './strategies';
 export * from './types';
-
+export * from './types';
 export * from './strategies';
+export * from './types';
 export * from './types';
