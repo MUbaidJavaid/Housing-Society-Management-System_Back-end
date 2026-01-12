@@ -71,13 +71,16 @@ export function createRedisClient(config?: Partial<typeof defaultRedisConfig>) {
       keys: async () => [],
       del: async () => 0,
       ttl: async () => -2,
-      // Add other Redis methods used in your code
+      zadd: async () => 0,
+      zremrangebyscore: async () => 0,
+      zcard: async () => 0,
+      zrange: async () => [],
+      // Add all methods used in strategies.ts
     } as any;
 
     redisClient = mockClient;
     return redisClient;
   }
-
   const finalConfig = { ...defaultRedisConfig, ...config };
 
   try {
