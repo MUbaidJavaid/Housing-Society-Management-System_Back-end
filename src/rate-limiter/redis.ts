@@ -24,6 +24,27 @@ const defaultRedisConfig = {
 
 // Create Redis client
 export function createRedisClient(config?: Partial<typeof defaultRedisConfig>) {
+  // Check if Redis should be used
+  const shouldUseRedis = process.env.REDIS_URL || process.env.REDIS_HOST;
+
+  if (!shouldUseRedis) {
+    console.log('🚫 Redis not configured - using mock Redis client');
+    console.log('🔧 Set REDIS_URL or REDIS_HOST environment variable to use real Redis');
+
+    // Return a mock client
+    const MockRedis = require('../utils/mock-redis').MockRedis;
+    redisClient = new MockRedis() as any;
+
+    // Mock the connect event
+    setTimeout(() => {
+      if (redisClient) {
+        redisClient.emit('connect');
+      }
+    }, 100);
+
+    return redisClient;
+  }
+
   const finalConfig = { ...defaultRedisConfig, ...config };
 
   try {
