@@ -25,7 +25,6 @@ import {
   securityHeaders,
   securityMiddleware,
 } from './middleware/security.middleware';
-
 // Import rate limiting middleware
 import rateLimitMiddleware from './middleware/rate-limit';
 import { initializeRateLimiter } from './rate-limiter';
@@ -49,18 +48,18 @@ import { scheduleLogRotation, setupLogRotation } from './utils/log-rotation';
 import authRoutes from './auth/routes/auth.routes';
 // import uploadRoutes from './routes/upload.routes';
 import console from 'console';
+import dotenv from 'dotenv';
 import { memberRoutes } from './Member/index-member';
 import { plotRoutes } from './Plots/index-plot';
 import { plotBlockRoutes } from './Plots/index-plotblock';
 import { plotSizeRoutes } from './Plots/index-plotsize';
 import { plotTypeRoutes } from './Plots/index-plottype';
 import userRoutes from './routes/user.routes';
-
 //
 
 // Track graceful shutdown
 let isShuttingDown = false;
-
+dotenv.config();
 /**
  * Initialize database connection
  */
