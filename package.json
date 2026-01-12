@@ -4,7 +4,7 @@
   "description": "Node.js/Express TypeScript API",
   "main": "dist/app.js",
   "scripts": {
-    "dev": "nodemon src/server.ts",
+    "dev": "ts-node src/server.ts",
     "build": "tsc",
     "test": "jest",
     "start": "node dist/server.js",

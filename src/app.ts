@@ -501,11 +501,16 @@ export async function startServer(): Promise<Application> {
     console.log('✅ [startServer-2] App created');
 
     // FIX: PORT must be a number, convert from string if needed
-    const PORT = Number(process.env.PORT) || config.port || 10000;
+    // const PORT = Number(process.env.PORT) || config.port || 10000;
     // FIX: Use '0.0.0.0' for production (Render)
-    const HOST = process.env.NODE_ENV === 'production' ? '0.0.0.0' : config.host || 'localhost';
-    // const PORT = 10000;
-    // const HOST = '0.0.0.0';
+    // const HOST = process.env.NODE_ENV === 'production' ? '0.0.0.0' : config.host || 'localhost';
+    // Render پر PORT ماحولیاتی متغیر سے آتا ہے
+    const PORT = Number(process.env.PORT) || 3000;
+
+    // Render پر ہمیشہ '0.0.0.0' استعمال کریں
+    const HOST = '0.0.0.0';
+
+    console.log(`🚀 Server starting on ${HOST}:${PORT}`);
     console.log(`🔧 Config: Port=${PORT}, Host=${HOST}, NODE_ENV=${process.env.NODE_ENV}`);
     const server = app.listen(PORT, HOST, () => {
       console.log(`🚀 [startServer-3] Server listening on ${HOST}:${PORT}`);

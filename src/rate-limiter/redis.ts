@@ -1,5 +1,6 @@
 import Redis from 'ioredis';
 import { logger } from '../logger';
+import console from 'console';
 
 // Redis client instance
 let redisClient: Redis | null = null;
@@ -8,6 +9,19 @@ const MAX_RETRIES = 3;
 const RETRY_DELAY = 5000; // 5 seconds
 
 // Default Redis configuration
+// const defaultRedisConfig = {
+//   host: process.env.REDIS_HOST || 'localhost',
+//   port: parseInt(process.env.REDIS_PORT || '6379'),
+//   password: process.env.REDIS_PASSWORD,
+//   db: parseInt(process.env.REDIS_DB || '0'),
+//   keyPrefix: process.env.REDIS_KEY_PREFIX || 'rate-limit:',
+//   enableReadyCheck: true,
+//   maxRetriesPerRequest: 3,
+//   retryStrategy: (times: number) => {
+//     const delay = Math.min(times * 1000, 10000);
+//     return delay;
+//   },
+// };
 const defaultRedisConfig = {
   host: process.env.REDIS_HOST || 'localhost',
   port: parseInt(process.env.REDIS_PORT || '6379'),
@@ -16,12 +30,18 @@ const defaultRedisConfig = {
   keyPrefix: process.env.REDIS_KEY_PREFIX || 'rate-limit:',
   enableReadyCheck: true,
   maxRetriesPerRequest: 3,
+
+  // Render پر Redis SSL کی ضرورت ہوتی ہے
+  tls: process.env.NODE_ENV === 'production' ? {} : undefined,
+
+  // Render کے لیے درست retry strategy
   retryStrategy: (times: number) => {
-    const delay = Math.min(times * 1000, 10000);
-    return delay;
+    if (times > 10) {
+      return null; // Stop retrying after 10 attempts
+    }
+    return Math.min(times * 1000, 10000);
   },
 };
-
 // Create Redis client
 export function createRedisClient(config?: Partial<typeof defaultRedisConfig>) {
   // Check if Redis should be used
