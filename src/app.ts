@@ -269,20 +269,20 @@ function setupRoutes(app: Application): void {
   });
 
   // Rate limit endpoints from second codebase
-  app.get('/rate-limit/info', rateLimitMiddleware.rateLimitInfo);
-  app.get('/rate-limit/test', rateLimitMiddleware.testRateLimit, (_req: Request, res: Response) => {
-    res.json({
-      success: true,
-      message: 'Rate limit test passed',
-      timestamp: new Date().toISOString(),
-    });
-  });
+  // app.get('/rate-limit/info', rateLimitMiddleware.rateLimitInfo);
+  // app.get('/rate-limit/test', rateLimitMiddleware.testRateLimit, (_req: Request, res: Response) => {
+  //   res.json({
+  //     success: true,
+  //     message: 'Rate limit test passed',
+  //     timestamp: new Date().toISOString(),
+  //   });
+  // });
 
   // Apply global rate limiting to all API routes (from second codebase)
-  app.use('/api/v1', rateLimitMiddleware.globalRateLimit);
+  // app.use('/api/v1', rateLimitMiddleware.globalRateLimit);
 
   // Apply route-specific rate limiting (from second codebase)
-  app.use(rateLimitMiddleware.routeSpecificRateLimit);
+  // app.use(rateLimitMiddleware.routeSpecificRateLimit);
 
   // Mount API routes with specific rate limiting
   app.use('/api/v1/auth', rateLimitMiddleware.authRateLimit, authRoutes);
