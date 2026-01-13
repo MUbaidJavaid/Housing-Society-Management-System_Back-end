@@ -22,6 +22,7 @@ const RETRY_DELAY = 5000; // 5 seconds
 //     return delay;
 //   },
 // };
+// In redis.ts, update the defaultRedisConfig:
 const defaultRedisConfig = {
   host: process.env.REDIS_HOST || 'localhost',
   port: parseInt(process.env.REDIS_PORT || '6379'),
@@ -31,16 +32,22 @@ const defaultRedisConfig = {
   enableReadyCheck: true,
   maxRetriesPerRequest: 3,
 
-  // Render پر Redis SSL کی ضرورت ہوتی ہے
-  tls: process.env.NODE_ENV === 'production' ? {} : undefined,
+  // Enable TLS only when not connecting to localhost
+  tls:
+    process.env.NODE_ENV === 'production' && process.env.REDIS_HOST !== 'localhost'
+      ? {}
+      : undefined,
 
-  // Render کے لیے درست retry strategy
   retryStrategy: (times: number) => {
-    if (times > 10) {
-      return null; // Stop retrying after 10 attempts
+    if (times > 5) {
+      console.log('Redis connection failed after 5 attempts, using fallback');
+      return null; // Stop retrying
     }
-    return Math.min(times * 1000, 10000);
+    return Math.min(times * 1000, 5000);
   },
+
+  connectTimeout: 10000,
+  commandTimeout: 5000,
 };
 // Create Redis client
 export function createRedisClient(config?: Partial<typeof defaultRedisConfig>) {

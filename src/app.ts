@@ -263,30 +263,30 @@ function setupRoutes(app: Application): void {
   });
 
   // Rate limit endpoints from second codebase
-  // app.get('/rate-limit/info', rateLimitMiddleware.rateLimitInfo);
-  // app.get('/rate-limit/test', rateLimitMiddleware.testRateLimit, (_req: Request, res: Response) => {
-  //   res.json({
-  //     success: true,
-  //     message: 'Rate limit test passed',
-  //     timestamp: new Date().toISOString(),
-  //   });
-  // });
+  app.get('/rate-limit/info', rateLimitMiddleware.rateLimitInfo);
+  app.get('/rate-limit/test', rateLimitMiddleware.testRateLimit, (_req: Request, res: Response) => {
+    res.json({
+      success: true,
+      message: 'Rate limit test passed',
+      timestamp: new Date().toISOString(),
+    });
+  });
 
-  // // Apply global rate limiting to all API routes (from second codebase)
-  // app.use('/api/v1', rateLimitMiddleware.globalRateLimit);
+  // Apply global rate limiting to all API routes (from second codebase)
+  app.use('/api/v1', rateLimitMiddleware.globalRateLimit);
 
-  // // Apply route-specific rate limiting (from second codebase)
-  // app.use(rateLimitMiddleware.routeSpecificRateLimit);
+  // Apply route-specific rate limiting (from second codebase)
+  app.use(rateLimitMiddleware.routeSpecificRateLimit);
 
-  // // Mount API routes with specific rate limiting
-  // app.use('/api/v1/auth', rateLimitMiddleware.authRateLimit, authRoutes);
-  // app.use(
-  //   '/api/v1/public',
-  //   rateLimitMiddleware.publicApiRateLimit,
-  //   (_req: Request, res: Response) => {
-  //     res.json({ message: 'Public API endpoint' });
-  //   }
-  // );
+  // Mount API routes with specific rate limiting
+  app.use('/api/v1/auth', rateLimitMiddleware.authRateLimit, authRoutes);
+  app.use(
+    '/api/v1/public',
+    rateLimitMiddleware.publicApiRateLimit,
+    (_req: Request, res: Response) => {
+      res.json({ message: 'Public API endpoint' });
+    }
+  );
   app.use('/api/v1/users', userRoutes);
   // app.use('/api/v1/admin', rateLimitMiddleware.adminRateLimit, adminRoutes);
   // app.use('/api/v1/upload', rateLimitMiddleware.uploadRateLimit, uploadRoutes);

@@ -1,7 +1,7 @@
 import { authenticate, requireRole } from '@/auth/middleware/auth';
 import { Router } from 'express';
+import { UserRole } from '../../database/models/User';
 import { srDevStatusController } from '../index-devstatus';
-import { UserRole } from '@/auth';
 
 const router: Router = Router();
 

@@ -83,7 +83,7 @@ export function shouldSkipRateLimit(req: Request, config: RateLimitConfig): bool
 
   return false;
 }
-
+// let redisAvailable = true;
 // Apply rate limiting
 export async function applyRateLimit(
   req: Request,

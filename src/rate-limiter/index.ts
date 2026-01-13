@@ -16,38 +16,66 @@ export function initializeRateLimiter() {
   if (!redisUrl && !redisHost) {
     logger.warn('Redis not configured - skipping Redis rate limiter initialization');
     console.log('⚠️ Redis not configured - using memory store for rate limiting');
-
-    // بس mock client بنائیں اور واپس چلے جائیں
-    createRedisClient();
     return;
   }
-  // Only initialize Redis if we have connection details
-  console.log('🔧 Initializing Redis with:', {
+
+  // Check if trying to connect to localhost in production
+  if (process.env.NODE_ENV === 'production') {
+    const isLocalhost = redisHost === 'localhost' || (redisUrl && redisUrl.includes('localhost'));
+
+    if (isLocalhost) {
+      logger.warn('Cannot connect to localhost Redis in production');
+      console.log('⚠️ Localhost Redis detected in production - using memory store');
+      return; // Skip Redis initialization
+    }
+  }
+
+  console.log('🔧 Attempting to initialize Redis with:', {
     hasRedisUrl: !!redisUrl,
     hasRedisHost: !!redisHost,
+    url: redisUrl ? `${redisUrl.substring(0, 20)}...` : undefined,
+    host: redisHost,
   });
-
   try {
-    // Create Redis client
-    createRedisClient();
+    // Create Redis client with timeout
+    const client = createRedisClient();
 
-    logger.info('Rate limiter initialized with Redis');
+    // Set up connection timeout
+    const connectionTimeout = setTimeout(() => {
+      logger.warn('Redis connection timeout - using fallback mode');
+      console.log('⚠️ Redis connection timeout - rate limiting may use memory store');
+    }, 10000);
 
-    // Test Redis connection
-    setTimeout(async () => {
-      const isConnected = await testRedisConnection();
-      if (isConnected) {
-        logger.info('Redis connection test passed');
-      } else {
-        logger.warn('Redis connection test failed - rate limiting may not work properly');
-      }
-    }, 1000);
+    client.on('connect', () => {
+      clearTimeout(connectionTimeout);
+      logger.info('Redis client connected');
+
+      // Test connection immediately
+      setTimeout(async () => {
+        try {
+          const isConnected = await testRedisConnection();
+          if (isConnected) {
+            logger.info('Redis connection test passed');
+          } else {
+            logger.warn('Redis connection test failed - using memory store fallback');
+          }
+        } catch (error) {
+          logger.warn('Redis test failed:', error);
+        }
+      }, 1000);
+    });
+
+    client.on('error', (error: any) => {
+      clearTimeout(connectionTimeout);
+      logger.warn('Redis connection error:', error.message);
+      console.log('⚠️ Redis connection failed - using memory store for rate limiting');
+    });
 
     // Setup cleanup on exit
     setupCleanup();
   } catch (error) {
-    logger.error('Failed to initialize rate limiter:', error);
-    throw error;
+    logger.warn('Failed to initialize Redis rate limiter, using memory store:', error);
+    console.log('⚠️ Using memory store for rate limiting (Redis failed)');
   }
 }
 

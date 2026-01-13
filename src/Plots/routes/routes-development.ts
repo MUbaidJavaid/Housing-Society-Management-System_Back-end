@@ -1,5 +1,6 @@
-import { authenticate, requireRole, UserRole } from '@/auth';
 import { Router } from 'express';
+import { authenticate, requireRole } from '../../auth/middleware/auth';
+import { UserRole } from '../../database/models/User';
 import { developmentController } from '../index-development';
 
 const router: Router = Router();

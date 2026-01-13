@@ -1,6 +1,7 @@
 import { Router } from 'express';
+import { authenticate, requireRole } from '../../auth/middleware/auth';
+import { UserRole } from '../../database/models/User';
 import { plotTypeController } from '../index-plottype';
-import { authenticate, requireRole, UserRole } from '@/auth';
 
 const router: Router = Router();
 
