@@ -225,7 +225,35 @@ function setupRoutes(app: Application): void {
   // Mount health routes
   console.log('setupRoutes');
   app.use('/health', healthRoutes);
-
+  app.get('/', (_req: Request, res: Response) => {
+    res.json({
+      success: true,
+      message: '🚀 HSMS API is Live & Running!',
+      data: {
+        service: 'Housing Society Management System',
+        version: '1.0.0',
+        status: 'operational',
+        environment: process.env.NODE_ENV || 'development',
+        timestamp: new Date().toISOString(),
+        uptime: `${Math.floor(process.uptime())} seconds`,
+        endpoints: {
+          api: 'https://hsms-backend.onrender.com/api/v1',
+          docs: 'https://hsms-backend.onrender.com/api-docs',
+          health: 'https://hsms-backend.onrender.com/health',
+          plots: 'https://hsms-backend.onrender.com/plots',
+          members: 'https://hsms-backend.onrender.com/members',
+        },
+        developer: {
+          name: 'M. Ubaid Javaid',
+          github: 'https://github.com/MUbaidJavaid',
+        },
+      },
+      support: {
+        documentation: 'https://hsms-backend.onrender.com/api-docs',
+        issues: 'https://github.com/MUbaidJavaid/Housing-Society-Management-System_Back-end/issues',
+      },
+    });
+  });
   // Simple ping endpoint at root (from both codebases)
   app.get('/ping', (_req: Request, res: Response) => {
     res.json({
@@ -306,7 +334,6 @@ function setupRoutes(app: Application): void {
   // Plot routes
   app.use('/plots', plotRoutes);
 
-  //Member routes
   app.use('/members', memberRoutes);
   // API welcome route with health check
   app.get('/api/v1', requireHealthy, (req: Request, res: Response) => {
