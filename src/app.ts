@@ -30,7 +30,6 @@ import rateLimitMiddleware from './middleware/rate-limit';
 import { initializeRateLimiter } from './rate-limiter';
 
 // Import logging middlewares
-import { setupSwagger } from './docs/swagger';
 import {
   databaseLogger,
   errorLogger,
@@ -42,19 +41,20 @@ import {
   swaggerRateLimit,
   swaggerRequestValidator,
 } from './middleware/swagger.middleware';
-import { scheduleLogRotation, setupLogRotation } from './utils/log-rotation';
 
 // Import routes from the second codebase
 import authRoutes from './auth/routes/auth.routes';
 // import uploadRoutes from './routes/upload.routes';
 import console from 'console';
 import dotenv from 'dotenv';
+import { setupSwagger } from './docs/swagger';
 import { memberRoutes } from './Member/index-member';
 import { plotRoutes } from './Plots/index-plot';
 import { plotBlockRoutes } from './Plots/index-plotblock';
 import { plotSizeRoutes } from './Plots/index-plotsize';
 import { plotTypeRoutes } from './Plots/index-plottype';
 import userRoutes from './routes/user.routes';
+import { scheduleLogRotation, setupLogRotation } from './utils/log-rotation';
 //
 
 // Track graceful shutdown
@@ -120,7 +120,7 @@ async function initializeDatabase(): Promise<void> {
     }
 
     logger.error('Failed to initialize MongoDB Atlas:', error);
-    process.exit(1);
+    // process.exit(1);
   }
 }
 
@@ -593,43 +593,91 @@ function validateEnvironment(): void {
 /**
  * Create and configure the Express application
  */
+// export async function createApp(): Promise<Application> {
+//   // Setup log rotation
+//   console.log('createApp');
+
+//   // Add this line at the beginning
+//   validateEnvironment();
+
+//   setupLogRotation();
+//   scheduleLogRotation();
+//   console.log('🟡 [createApp-1] Starting...');
+//   // Create Express app
+//   const app = express();
+//   console.log('✅ [createApp-2] Express app created');
+//   // Initialize database
+//   await initializeDatabase();
+
+//   // Initialize rate limiter
+//   await initializeRateLimiterSystem();
+
+//   // Setup middleware
+//   setupMiddleware(app);
+
+//   // Setup Swagger documentation
+//   setupSwagger(app);
+
+//   // Setup routes
+//   setupRoutes(app);
+
+//   // Setup error handling
+//   setupErrorHandling(app);
+
+//   // Setup graceful shutdown
+//   setupGracefulShutdown(app);
+//   console.log('✅ [createApp-3] Returning app');
+//   return app;
+// }
 export async function createApp(): Promise<Application> {
-  // Setup log rotation
-  console.log('createApp');
-
-  // Add this line at the beginning
-  validateEnvironment();
-
-  setupLogRotation();
-  scheduleLogRotation();
   console.log('🟡 [createApp-1] Starting...');
-  // Create Express app
+
+  // Create Express app first
   const app = express();
   console.log('✅ [createApp-2] Express app created');
-  // Initialize database
-  await initializeDatabase();
 
-  // Initialize rate limiter
-  await initializeRateLimiterSystem();
+  try {
+    // Add environment validation
+    validateEnvironment();
 
-  // Setup middleware
-  setupMiddleware(app);
+    // Setup log rotation
+    setupLogRotation();
+    scheduleLogRotation();
 
-  // Setup Swagger documentation
-  setupSwagger(app);
+    // Initialize database - but don't fail the entire app if it fails
+    try {
+      await initializeDatabase();
+    } catch (dbError) {
+      console.warn('⚠️ Database initialization failed, but continuing...');
+      logger.warn('Database initialization failed:', dbError);
+    }
 
-  // Setup routes
-  setupRoutes(app);
+    // Initialize rate limiter
+    await initializeRateLimiterSystem();
 
-  // Setup error handling
-  setupErrorHandling(app);
+    // Setup middleware
+    setupMiddleware(app);
 
-  // Setup graceful shutdown
-  setupGracefulShutdown(app);
+    // Setup Swagger documentation
+    setupSwagger(app);
+
+    // Setup routes
+    setupRoutes(app);
+
+    // Setup error handling
+    setupErrorHandling(app);
+
+    // Setup graceful shutdown
+    setupGracefulShutdown(app);
+  } catch (error) {
+    console.error('❌ Error during app initialization:', error);
+    logger.error('App initialization error:', error);
+    // Don't throw - return the app anyway
+  }
+
   console.log('✅ [createApp-3] Returning app');
   return app;
 }
-
 /**
  * Start the Express server and return the app instance
  */
@@ -723,8 +771,6 @@ export async function startServer(): Promise<Application> {
 
     // FIX: Render پر PORT ماحولیاتی متغیر سے آتا ہے
     const PORT = Number(process.env.PORT) || 10000;
-
-    // FIX: Render پر '0.0.0.0' استعمال کریں
     const HOST = '0.0.0.0';
 
     console.log(`🔧 Server Config: Port=${PORT}, Host=${HOST}`);
@@ -733,7 +779,6 @@ export async function startServer(): Promise<Application> {
       console.log(`✅ Server successfully started on port ${PORT}`);
       logger.info(`Server started on ${HOST}:${PORT}`);
 
-      // یہ میسج Render کو دکھائے گا کہ سرور چل رہا ہے
       console.log(`🚀 Application is running on http://${HOST}:${PORT}`);
       console.log(`📡 Health check: http://${HOST}:${PORT}/health`);
       console.log(`🔍 Ping endpoint: http://${HOST}:${PORT}/ping`);
@@ -744,7 +789,8 @@ export async function startServer(): Promise<Application> {
       if (error.code === 'EADDRINUSE') {
         console.error(`Port ${PORT} is already in use`);
       }
-      process.exit(1);
+      // Don't exit immediately
+      setTimeout(() => process.exit(1), 5000);
     });
 
     (app as any).server = server;
@@ -752,6 +798,8 @@ export async function startServer(): Promise<Application> {
   } catch (error) {
     console.error('❌ Failed to start server:', error);
     logger.error('Failed to start server:', error);
-    process.exit(1);
+    // Give time for logs to flush before exiting
+    setTimeout(() => process.exit(1), 1000);
+    throw error; // Re-throw to maintain the promise rejection
   }
 }

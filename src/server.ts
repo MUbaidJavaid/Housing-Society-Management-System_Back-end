@@ -16,24 +16,16 @@
 import { startServer } from './app';
 import { logger } from './logger';
 
-// Add this immediately
-console.log('🚀 [server.ts] Starting application...');
-console.log('🔍 [server.ts] Checking environment variables...');
-
-// Manually check critical variables
-const criticalVars = ['MONGODB_URI', 'MONGO_URI', 'JWT_ACCESS_SECRET', 'JWT_REFRESH_SECRET'];
-criticalVars.forEach(varName => {
-  const value = process.env[varName];
-  console.log(`${varName}: ${value ? '✓ SET' : '✗ NOT SET'}`);
-
-  // Special case for MONGO_URI
-  if (varName === 'MONGO_URI' && value) {
-    console.log(`MONGO_URI value: ${value.substring(0, 30)}...`);
-  }
+// Add error handling for uncaught exceptions
+process.on('uncaughtException', error => {
+  console.error('Uncaught Exception:', error);
+  logger.error('Uncaught Exception:', error);
 });
 
-console.log('PORT:', process.env.PORT || '10000 (default)');
-console.log('NODE_ENV:', process.env.NODE_ENV || 'not set');
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  logger.error('Unhandled Rejection:', reason);
+});
 
 // Start the server
 startServer()
@@ -50,5 +42,6 @@ startServer()
   .catch(error => {
     console.error('❌ Failed to start server in server.ts:', error);
     logger.error('Failed to start server:', error);
-    process.exit(1);
+    // Don't exit immediately, give time for logs to flush
+    setTimeout(() => process.exit(1), 1000);
   });
