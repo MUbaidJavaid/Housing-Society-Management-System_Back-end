@@ -11,37 +11,47 @@
 //     logger.error('Failed to start server:', error);
 //     process.exit(1);
 //   });
-// src/server.ts
-// src/server.ts
 import { startServer } from './app';
 import { logger } from './logger';
 
-// Add error handling for uncaught exceptions
-process.on('uncaughtException', error => {
-  console.error('Uncaught Exception:', error);
-  logger.error('Uncaught Exception:', error);
-});
-
+// CRITICAL: Handle unhandled rejections and exceptions
 process.on('unhandledRejection', (reason, promise) => {
-  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
-  logger.error('Unhandled Rejection:', reason);
+  console.error('UNHANDLED REJECTION at:', promise);
+  console.error('Reason:', reason);
+  logger.error('Unhandled Rejection:', { reason, promise });
+  // DO NOT EXIT
 });
 
-// Start the server
-startServer()
-  .then(app => {
+process.on('uncaughtException', error => {
+  console.error('UNCAUGHT EXCEPTION:', error);
+  logger.error('Uncaught Exception:', error);
+  // DO NOT EXIT
+});
+
+console.log('🚀 [server.ts] Starting application...');
+console.log('🔍 [server.ts] Checking environment...');
+console.log('PORT:', process.env.PORT || '10000 (default)');
+console.log('NODE_ENV:', process.env.NODE_ENV || 'not set');
+
+// Wrap everything in try-catch
+(async () => {
+  try {
+    console.log('🟡 Starting server...');
+    const app = await startServer();
+    console.log('✅ Server started successfully');
+
     const server = (app as any).server;
     if (server) {
       const address = server.address();
-      if (typeof address === 'object' && address !== null) {
-        logger.info(`Server started on port ${address.port}`);
-        console.log(`✅ Server confirmed listening on port ${address.port}`);
+      if (address && typeof address === 'object') {
+        console.log(`🌐 Server listening on port ${address.port}`);
       }
     }
-  })
-  .catch(error => {
-    console.error('❌ Failed to start server in server.ts:', error);
-    logger.error('Failed to start server:', error);
-    // Don't exit immediately, give time for logs to flush
-    setTimeout(() => process.exit(1), 1000);
-  });
+  } catch (error) {
+    console.error('❌ FATAL: Failed to start server:', error);
+    // Wait 5 seconds before exiting to see logs
+    setTimeout(() => {
+      process.exit(1);
+    }, 5000);
+  }
+})();

@@ -630,53 +630,84 @@ function validateEnvironment(): void {
 //   return app;
 // }
 export async function createApp(): Promise<Application> {
-  console.log('🟡 [createApp-1] Starting...');
-
-  // Create Express app first
-  const app = express();
-  console.log('✅ [createApp-2] Express app created');
+  console.log('🔍 [createApp-0] Starting createApp...');
 
   try {
     // Add environment validation
+    console.log('🔍 [createApp-1] Validating environment...');
     validateEnvironment();
+    console.log('✅ [createApp-1] Environment validated');
 
     // Setup log rotation
+    console.log('🔍 [createApp-2] Setting up log rotation...');
     setupLogRotation();
     scheduleLogRotation();
+    console.log('✅ [createApp-2] Log rotation setup');
 
-    // Initialize database - but don't fail the entire app if it fails
+    // Create Express app
+    console.log('🔍 [createApp-3] Creating Express app...');
+    const app = express();
+    console.log('✅ [createApp-3] Express app created');
+
+    // Initialize database
+    console.log('🔍 [createApp-4] Initializing database...');
     try {
       await initializeDatabase();
-    } catch (dbError) {
-      console.warn('⚠️ Database initialization failed, but continuing...');
-      logger.warn('Database initialization failed:', dbError);
+      console.log('✅ [createApp-4] Database initialized');
+    } catch (dbError: any) {
+      console.warn('⚠️ [createApp-4] Database initialization failed:', dbError.message);
+      console.log('✅ [createApp-4] Continuing without database...');
     }
 
     // Initialize rate limiter
-    await initializeRateLimiterSystem();
+    console.log('🔍 [createApp-5] Initializing rate limiter...');
+    try {
+      await initializeRateLimiterSystem();
+      console.log('✅ [createApp-5] Rate limiter initialized');
+    } catch (rateLimitError: any) {
+      console.warn('⚠️ [createApp-5] Rate limiter initialization failed:', rateLimitError.message);
+    }
 
     // Setup middleware
+    console.log('🔍 [createApp-6] Setting up middleware...');
     setupMiddleware(app);
+    console.log('✅ [createApp-6] Middleware setup');
 
-    // Setup Swagger documentation
+    // Setup Swagger
+    console.log('🔍 [createApp-7] Setting up Swagger...');
     setupSwagger(app);
+    console.log('✅ [createApp-7] Swagger setup');
 
     // Setup routes
+    console.log('🔍 [createApp-8] Setting up routes...');
     setupRoutes(app);
+    console.log('✅ [createApp-8] Routes setup');
 
     // Setup error handling
+    console.log('🔍 [createApp-9] Setting up error handling...');
     setupErrorHandling(app);
+    console.log('✅ [createApp-9] Error handling setup');
 
     // Setup graceful shutdown
+    console.log('🔍 [createApp-10] Setting up graceful shutdown...');
     setupGracefulShutdown(app);
-  } catch (error) {
-    console.error('❌ Error during app initialization:', error);
-    logger.error('App initialization error:', error);
-    // Don't throw - return the app anyway
-  }
+    console.log('✅ [createApp-10] Graceful shutdown setup');
 
-  console.log('✅ [createApp-3] Returning app');
-  return app;
+    console.log('✅ [createApp-11] App creation complete');
+    return app;
+  } catch (error: any) {
+    console.error('❌ [createApp-ERROR] Error during app creation:', error);
+    // Still return an Express app even if initialization fails
+    const app = express();
+    app.get('/', (_req, res) => {
+      res.json({
+        status: 'error',
+        message: 'App initialization failed',
+        error: error.message as string,
+      });
+    });
+    return app;
+  }
 }
 /**
  * Start the Express server and return the app instance
@@ -769,37 +800,34 @@ export async function startServer(): Promise<Application> {
     const app = await createApp();
     console.log('✅ [startServer-2] App created');
 
-    // FIX: Render پر PORT ماحولیاتی متغیر سے آتا ہے
     const PORT = Number(process.env.PORT) || 10000;
     const HOST = '0.0.0.0';
 
     console.log(`🔧 Server Config: Port=${PORT}, Host=${HOST}`);
 
-    const server = app.listen(PORT, HOST, () => {
-      console.log(`✅ Server successfully started on port ${PORT}`);
-      logger.info(`Server started on ${HOST}:${PORT}`);
+    // Return a promise that resolves when server starts
+    return new Promise((resolve, reject) => {
+      const server = app.listen(PORT, HOST, () => {
+        console.log(`✅ Server successfully started on port ${PORT}`);
+        console.log(`🚀 Application is running on http://${HOST}:${PORT}`);
+        console.log(`📡 Health check: http://${HOST}:${PORT}/health`);
+        console.log(`🔍 Ping endpoint: http://${HOST}:${PORT}/ping`);
 
-      console.log(`🚀 Application is running on http://${HOST}:${PORT}`);
-      console.log(`📡 Health check: http://${HOST}:${PORT}/health`);
-      console.log(`🔍 Ping endpoint: http://${HOST}:${PORT}/ping`);
+        (app as any).server = server;
+        resolve(app);
+      });
+
+      server.on('error', (error: NodeJS.ErrnoException) => {
+        console.error('❌ Server error:', error.message);
+        if (error.code === 'EADDRINUSE') {
+          console.error(`Port ${PORT} is already in use`);
+        }
+        reject(error);
+      });
     });
-
-    server.on('error', (error: NodeJS.ErrnoException) => {
-      console.error('❌ Server error:', error.message);
-      if (error.code === 'EADDRINUSE') {
-        console.error(`Port ${PORT} is already in use`);
-      }
-      // Don't exit immediately
-      setTimeout(() => process.exit(1), 5000);
-    });
-
-    (app as any).server = server;
-    return app;
   } catch (error) {
     console.error('❌ Failed to start server:', error);
-    logger.error('Failed to start server:', error);
-    // Give time for logs to flush before exiting
-    setTimeout(() => process.exit(1), 1000);
-    throw error; // Re-throw to maintain the promise rejection
+    // Don't exit, throw the error so it can be handled
+    throw error;
   }
 }
