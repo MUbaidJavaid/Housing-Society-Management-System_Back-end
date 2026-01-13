@@ -126,6 +126,14 @@ function setupCleanup() {
 // Default route configurations
 export const defaultRouteConfigs: RouteRateLimitConfig[] = [
   // Auth endpoints - stricter limits
+  {
+    path: '/health',
+    method: 'GET',
+    strategy: 'fixed-window',
+    scope: 'ip',
+    windowMs: 60 * 1000, // 1 minute
+    max: 1000, // 1000 requests per minute
+  },
 
   {
     path: '/api/v1/auth/register',
