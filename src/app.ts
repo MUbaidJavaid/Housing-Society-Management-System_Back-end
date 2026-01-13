@@ -225,6 +225,7 @@ function setupRoutes(app: Application): void {
   // Mount health routes
   console.log('setupRoutes');
   app.use('/health', healthRoutes);
+  app.head('/healths', healthRoutes);
   app.get('/', (_req: Request, res: Response) => {
     res.json({
       success: true,
