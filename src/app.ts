@@ -55,8 +55,10 @@ import { plotSizeRoutes } from './Plots/index-plotsize';
 import { plotTypeRoutes } from './Plots/index-plottype';
 import userRoutes from './routes/user.routes';
 import { scheduleLogRotation, setupLogRotation } from './utils/log-rotation';
-//
-
+//cityRoutes
+import { cityRoutes } from './CityState/index-city';
+import { stateRoutes } from './CityState/index-state';
+import { statusRoutes } from './CityState/index-status';
 // Track graceful shutdown
 let isShuttingDown = false;
 dotenv.config();
@@ -324,18 +326,22 @@ function setupRoutes(app: Application): void {
   app.use('/api/auth', authRoutes);
 
   // PlotBlock routes
-  app.use('/plotblocks', plotBlockRoutes);
+  app.use('/api/plotblocks', plotBlockRoutes);
 
   // PlotType routes
-  app.use('/plottypes', plotTypeRoutes);
+  app.use('/api/plottypes', plotTypeRoutes);
 
   // PlotSize routes
-  app.use('/plotsizes', plotSizeRoutes);
+  app.use('/api/plotsizes', plotSizeRoutes);
 
   // Plot routes
-  app.use('/plots', plotRoutes);
+  app.use('/api/plots', plotRoutes);
 
-  app.use('/members', memberRoutes);
+  app.use('/api/members', memberRoutes);
+
+  app.use('/api/cities', cityRoutes);
+  app.use('/api/states', stateRoutes);
+  app.use('/api/statuses', statusRoutes);
   // API welcome route with health check
   app.get('/api/v1', requireHealthy, (req: Request, res: Response) => {
     res.json({

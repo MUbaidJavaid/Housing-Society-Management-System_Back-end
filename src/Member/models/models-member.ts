@@ -52,7 +52,7 @@ const memberSchema = new Schema<IMember>(
 
     statusId: {
       type: Schema.Types.ObjectId,
-      ref: 'MemberStatus', // You need to create this model
+      ref: 'Status', // You need to create this model
       index: true,
     },
 
@@ -260,7 +260,7 @@ const memberSchema = new Schema<IMember>(
 );
 
 // Compound indexes for common queries
-memberSchema.index({ memName: 'text', memNic: 'text', memContMob: 'text' });
+memberSchema.index({ memName: 'text', memNIC: 'text', memContMob: 'text' });
 memberSchema.index({ statusId: 1, isDeleted: 1 });
 memberSchema.index({ cityId: 1, isDeleted: 1 });
 memberSchema.index({ memIsOverseas: 1, isDeleted: 1 });

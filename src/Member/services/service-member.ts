@@ -36,7 +36,7 @@ export const memberService = {
 
   async getMemberByNic(nic: string): Promise<any | null> {
     const member = await Member.findOne({
-      memNic: nic.toUpperCase(),
+      memNIC: nic.toUpperCase(),
       isDeleted: false,
     })
       .populate('statusId', 'statusName')
@@ -45,6 +45,66 @@ export const memberService = {
     return member?.toObject() || null;
   },
 
+  // async getMembers(params: MemberQueryParams): Promise<any> {
+  //   const {
+  //     page = 1,
+  //     limit = 10,
+  //     search = '',
+  //     statusId,
+  //     cityId,
+  //     memIsOverseas,
+  //     sortBy = 'createdAt',
+  //     sortOrder = 'desc',
+  //   } = params;
+
+  //   const skip = (page - 1) * limit;
+  //   const sort: Record<string, 1 | -1> = {
+  //     [sortBy]: sortOrder === 'asc' ? 1 : -1,
+  //   };
+
+  //   const query: any = { isDeleted: false };
+
+  //   if (search) {
+  //     query.$or = [
+  //       { memName: { $regex: search, $options: 'i' } },
+  //       { memNIC: { $regex: search, $options: 'i' } },
+  //       { memContMob: { $regex: search, $options: 'i' } },
+  //       { memContEmail: { $regex: search, $options: 'i' } },
+  //       { memRegNo: { $regex: search, $options: 'i' } },
+  //     ];
+  //   }
+
+  //   if (statusId) query.statusId = new Types.ObjectId(statusId);
+  //   if (cityId) query.cityId = new Types.ObjectId(cityId);
+  //   if (memIsOverseas !== undefined) query.memIsOverseas = memIsOverseas;
+  //   console.log('=== DEBUG: Query Details ===');
+  //   console.log('Query:', JSON.stringify(query, null, 2));
+  //   console.log('Collection count:', await Member.countDocuments({}));
+  //   console.log('Active members count:', await Member.countDocuments({ isDeleted: false }));
+  //   console.log('=== END DEBUG ===');
+
+  //   const [members, total] = await Promise.all([
+  //     Member.find(query)
+  //       .populate('statusId', 'statusName')
+  //       .populate('cityId', 'cityName')
+  //       .skip(skip)
+  //       .limit(limit)
+  //       .sort(sort)
+  //       .then(docs => docs.map(doc => doc.toObject())),
+  //     Member.countDocuments(query),
+  //   ]);
+  //   console.log('Returning members:', members.length);
+  //   console.log('Total in query:', total);
+  //   return {
+  //     members,
+  //     pagination: {
+  //       page,
+  //       limit,
+  //       total,
+  //       pages: Math.ceil(total / limit),
+  //     },
+  //   };
+  // },
   async getMembers(params: MemberQueryParams): Promise<any> {
     const {
       page = 1,
@@ -62,12 +122,22 @@ export const memberService = {
       [sortBy]: sortOrder === 'asc' ? 1 : -1,
     };
 
+    console.log('=== DEBUG: Full Document Structure ===');
+
+    // Check one document to see all fields
+    const sampleDoc = await Member.findOne({});
+    if (sampleDoc) {
+      const docObject = sampleDoc.toObject();
+      console.log('Sample document fields:', Object.keys(docObject));
+      console.log('Sample document values:', docObject);
+    }
+
     const query: any = { isDeleted: false };
 
     if (search) {
       query.$or = [
         { memName: { $regex: search, $options: 'i' } },
-        { memNic: { $regex: search, $options: 'i' } },
+        { memNIC: { $regex: search, $options: 'i' } }, // Changed from memNic to memNIC
         { memContMob: { $regex: search, $options: 'i' } },
         { memContEmail: { $regex: search, $options: 'i' } },
         { memRegNo: { $regex: search, $options: 'i' } },
@@ -76,7 +146,24 @@ export const memberService = {
 
     if (statusId) query.statusId = new Types.ObjectId(statusId);
     if (cityId) query.cityId = new Types.ObjectId(cityId);
-    if (memIsOverseas !== undefined) query.memIsOverseas = memIsOverseas;
+
+    // memIsOverseas handling change
+    if (memIsOverseas !== undefined) {
+      // Always add to query
+      query.memIsOverseas = memIsOverseas;
+      console.log('memIsOverseas filter applied:', memIsOverseas);
+
+      if (memIsOverseas === false) {
+        query.$or = [{ memIsOverseas: false }, { memIsOverseas: { $exists: false } }];
+      } else {
+        query.memIsOverseas = true;
+      }
+    }
+
+    console.log('=== Query being executed ===');
+    console.log('Query:', JSON.stringify(query, null, 2));
+    console.log('Sort:', sort);
+    console.log('Skip:', skip, 'Limit:', limit);
 
     const [members, total] = await Promise.all([
       Member.find(query)
@@ -85,9 +172,19 @@ export const memberService = {
         .skip(skip)
         .limit(limit)
         .sort(sort)
-        .then(docs => docs.map(doc => doc.toObject())),
+        .then(docs => {
+          console.log('Raw documents found:', docs.length);
+          docs.forEach((doc, index) => {
+            console.log(`Document ${index + 1}:`, doc.toObject());
+          });
+          return docs.map(doc => doc.toObject());
+        }),
       Member.countDocuments(query),
     ]);
+
+    console.log('=== Final Result ===');
+    console.log('Members returned:', members.length);
+    console.log('Total count:', total);
 
     return {
       members,
@@ -99,7 +196,6 @@ export const memberService = {
       },
     };
   },
-
   async updateMember(
     id: string,
     data: UpdateMemberDto,
@@ -145,7 +241,7 @@ export const memberService = {
 
   async checkNicExists(nic: string, excludeId?: string): Promise<boolean> {
     const query: any = {
-      memNic: nic.toUpperCase(),
+      memNIC: nic.toUpperCase(),
       isDeleted: false,
     };
 
@@ -200,13 +296,13 @@ export const memberService = {
     const members = await Member.find({
       $or: [
         { memName: { $regex: query, $options: 'i' } },
-        { memNic: { $regex: query, $options: 'i' } },
+        { memNIC: { $regex: query, $options: 'i' } },
         { memRegNo: { $regex: query, $options: 'i' } },
         { memContMob: { $regex: query, $options: 'i' } },
       ],
       isDeleted: false,
     })
-      .select('memName memNic memRegNo memContMob memImg')
+      .select('memName memNIC memRegNo memContMob memImg')
       .limit(20)
       .then(docs => docs.map(doc => doc.toObject()));
 

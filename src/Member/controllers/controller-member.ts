@@ -1,4 +1,5 @@
 import { AuthRequest } from '@/auth';
+import console from 'console';
 import { NextFunction, Request, Response } from 'express';
 import { AppError } from '../../middleware/error.middleware';
 import { CreateMemberDto, MemberQueryParams, memberService } from '../index-member';
@@ -106,6 +107,7 @@ export const memberController = {
       };
 
       const result = await memberService.getMembers(queryParams);
+      console.log('Member data:', result);
 
       res.json({
         success: true,
