@@ -1,6 +1,8 @@
-import { AuthRequest } from '@/auth';
+import { AuthRequest } from '../../auth/types';
+
 import console from 'console';
 import { NextFunction, Request, Response } from 'express';
+import { UploadService, uploadService } from '../../imageUpload/services/upload.service';
 import { AppError } from '../../middleware/error.middleware';
 import { CreateMemberDto, MemberQueryParams, memberService } from '../index-member';
 
@@ -41,6 +43,10 @@ export const memberController = {
       const mobileExists = await memberService.checkMobileExists(createData.memContMob);
       if (mobileExists) {
         throw new AppError(409, 'Member with this mobile number already exists');
+      }
+      if (createData.memImg && !createData.memImg.includes('cloudinary.com')) {
+        // If it's not a Cloudinary URL, remove it
+        delete createData.memImg;
       }
 
       const member = await memberService.createMember(createData, req.user.userId);
@@ -182,7 +188,23 @@ export const memberController = {
           throw new AppError(409, 'Member with this mobile number already exists');
         }
       }
-
+      // Check if image is being updated
+      if (updateData.memImg !== undefined) {
+        // If new image is empty string, remove image
+        if (updateData.memImg === '') {
+          // Delete old image from Cloudinary if exists
+          if (existingMember.memImg) {
+            const publicId = UploadService.getFilesByEntity(existingMember.memImg);
+            if (publicId) {
+              await uploadService.deleteFromCloudinary(publicId);
+            }
+          }
+        }
+        // If new image is not a Cloudinary URL, don't update it
+        else if (!updateData.memImg.includes('cloudinary.com')) {
+          delete updateData.memImg;
+        }
+      }
       const updatedMember = await memberService.updateMember(id, updateData, req.user.userId);
 
       res.json({
@@ -206,6 +228,13 @@ export const memberController = {
       const existingMember = await memberService.getMemberById(id);
       if (!existingMember || (existingMember as any).isDeleted) {
         throw new AppError(404, 'Member not found');
+      }
+      // Delete image from Cloudinary if exists
+      if (existingMember.memImg) {
+        const publicId = uploadService.extractPublicIdFromUrl(existingMember.memImg);
+        if (publicId) {
+          await uploadService.deleteMemberImage(publicId);
+        }
       }
 
       const deleted = await memberService.deleteMember(id, req.user.userId);

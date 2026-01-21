@@ -29,21 +29,21 @@ export const plotController = {
       if (!createData.plotTypeId) {
         throw new AppError(400, 'Plot Type is required');
       }
-      if (!createData.srDevStatId) {
-        throw new AppError(400, 'SR Development Status is required');
+      if (!createData.statusId) {
+        throw new AppError(400, 'Status is required');
       }
       if (createData.plotAmount === undefined || createData.plotAmount < 0) {
         throw new AppError(400, 'Valid Plot Amount is required');
       }
-      if (!createData.developmentStatusId) {
-        throw new AppError(400, 'Development Status is required');
-      }
+      // if (!createData.developmentStatusId) {
+      //   throw new AppError(400, 'Development Status is required');
+      // }
       if (!createData.applicationTypeId) {
         throw new AppError(400, 'Application Type is required');
       }
 
       // Check if plot number already exists
-      const exists = await plotService.checkPlotNoExists(createData.plotNo, createData.projId);
+      const exists = await plotService.checkPlotNoExists(createData.plotNo, createData.projectId);
       if (exists) {
         throw new AppError(409, 'Plot Number already exists in this project');
       }
@@ -88,7 +88,9 @@ export const plotController = {
         plotBlockId: req.query.plotBlockId as string,
         plotSizeId: req.query.plotSizeId as string,
         plotTypeId: req.query.plotTypeId as string,
-        developmentStatusId: req.query.developmentStatusId as string,
+        projectId: req.query.projectId as string,
+        statusId: req.query.statusId as string,
+        // developmentStatusId: req.query.developmentStatusId as string,
         applicationTypeId: req.query.applicationTypeId as string,
         sortBy: req.query.sortBy as string,
         sortOrder: req.query.sortOrder as 'asc' | 'desc',
@@ -152,7 +154,7 @@ export const plotController = {
       if (updateData.plotNo && updateData.plotNo !== existingPlot.plotNo) {
         const exists = await plotService.checkPlotNoExists(
           updateData.plotNo,
-          updateData.projId || existingPlot.projId?._id?.toString(),
+          updateData.projectId || existingPlot.projectId?._id?.toString(),
           id
         );
         if (exists) {

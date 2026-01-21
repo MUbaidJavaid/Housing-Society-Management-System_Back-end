@@ -1,4 +1,13 @@
 import { body, param, query, ValidationChain } from 'express-validator';
+import Plot from '../models/models-plot';
+
+// Middleware to load existing plot for updates
+export const loadExistingPlot = async (req: any, _res: any, next: any) => {
+  if (req.params.id) {
+    req.existingPlot = await Plot.findById(req.params.id);
+  }
+  next();
+};
 
 export const validateCreatePlot = (): ValidationChain[] => [
   body('plotNo')
@@ -14,18 +23,27 @@ export const validateCreatePlot = (): ValidationChain[] => [
 
   body('plotTypeId').isMongoId().withMessage('Invalid Plot Type ID'),
 
-  body('srDevStatId').isMongoId().withMessage('Invalid SR Development Status ID'),
+  body('statusId').isMongoId().withMessage('Invalid Status ID'),
 
-  body('plotAmount').isFloat({ min: 0 }).withMessage('Plot Amount must be a positive number'),
-
-  body('developmentStatusId').isMongoId().withMessage('Invalid Development Status ID'),
+  body('plotAmount')
+    .isFloat({ min: 0 })
+    .withMessage('Plot Amount must be a positive number')
+    .toFloat(),
 
   body('applicationTypeId').isMongoId().withMessage('Invalid Application Type ID'),
 
   body('discountAmount')
     .optional()
     .isFloat({ min: 0 })
-    .withMessage('Discount Amount must be a positive number'),
+    .withMessage('Discount Amount must be a positive number')
+    .toFloat()
+    .custom((value, { req }) => {
+      const plotAmount = req.body.plotAmount;
+      if (plotAmount != null && value > plotAmount) {
+        throw new Error('Discount Amount cannot exceed Plot Amount');
+      }
+      return true;
+    }),
 
   body('discountDate').optional().isISO8601().withMessage('Invalid discount date format'),
 
@@ -62,8 +80,6 @@ export const validateGetPlots = (): ValidationChain[] => [
   query('plotSizeId').optional().isMongoId().withMessage('Invalid Plot Size ID'),
 
   query('plotTypeId').optional().isMongoId().withMessage('Invalid Plot Type ID'),
-
-  query('developmentStatusId').optional().isMongoId().withMessage('Invalid Development Status ID'),
 
   query('applicationTypeId').optional().isMongoId().withMessage('Invalid Application Type ID'),
 

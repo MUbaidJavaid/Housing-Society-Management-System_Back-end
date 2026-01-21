@@ -2,7 +2,7 @@ import { NextFunction, Request, Response } from 'express';
 import User from '../../database/models/User';
 import { AppError } from '../../middleware/error.middleware';
 
-import { authService } from '../services/auth.service';
+import { authMemberService, authService } from '../services/auth.service';
 import { AuthRequest } from '../types';
 
 // Error handler utility
@@ -380,3 +380,26 @@ export const authController = {
     }
   },
 };
+export class AuthMemberController {
+  register = async (req: Request, res: Response) => {
+    const member = await authMemberService.register(req.body);
+    res.json({ success: true, member });
+  };
+
+  login = async (req: Request, res: Response) => {
+    const data = await authMemberService.login(req.body);
+    res.json({ ...data });
+  };
+
+  forgotPassword = async (req: Request, res: Response) => {
+    await authMemberService.forgotPassword(req.body.memNic);
+    res.json({ success: true, message: 'If account exists, email sent' });
+  };
+
+  resetPassword = async (req: Request, res: Response) => {
+    await authMemberService.resetPassword(req.body);
+    res.json({ success: true, message: 'Password reset successful' });
+  };
+}
+
+export const authMemberController = new AuthMemberController();

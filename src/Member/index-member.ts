@@ -11,8 +11,4 @@ export { memberController } from './controllers/controller-member';
 export { default as memberRoutes } from './routes/routes-member';
 
 // Export validators
-export {
-  validateCreateMember,
-  validateGetMembers,
-  validateUpdateMember,
-} from './validator/validator-member';
+export { validateCreateMember, validateGetMembers, validateUpdateMember } from './validator/validator-member';

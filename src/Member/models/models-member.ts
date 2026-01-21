@@ -1,4 +1,4 @@
-import { Document, Model, Schema, Types, model } from 'mongoose';
+import { Document, Model, Schema, Types, UpdateQuery, model } from 'mongoose';
 
 export interface IMember extends Document {
   memName: string;
@@ -21,6 +21,7 @@ export interface IMember extends Document {
   memRemarks?: string;
   memRegNo?: string;
   dateOfBirth?: Date;
+
   memOccupation?: string;
   memState?: string;
   memCountry?: string;
@@ -31,12 +32,31 @@ export interface IMember extends Document {
   memberFingerTemplate?: string;
   memberFingerPrint?: string;
   gender?: 'male' | 'female' | 'other';
+
+  // Authentication fields
+  password?: string;
+  isActive: boolean;
+  lastLogin?: Date;
+  emailVerified: boolean;
+  loginAttempts: number;
+  lockUntil?: Date;
+  resetPasswordToken?: string;
+  resetPasswordExpires?: Date;
+  emailVerificationToken?: string;
+  emailVerificationExpires?: Date;
+
+  // Audit fields
   createdBy: Types.ObjectId;
   createdAt: Date;
   updatedBy?: Types.ObjectId;
   updatedAt: Date;
   isDeleted: boolean;
   deletedAt?: Date;
+
+  // Methods
+  comparePassword(candidatePassword: string): Promise<boolean>;
+  incrementLoginAttempts(): Promise<void>;
+  resetLoginAttempts(): Promise<void>;
 }
 
 const memberSchema = new Schema<IMember>(
@@ -52,7 +72,7 @@ const memberSchema = new Schema<IMember>(
 
     statusId: {
       type: Schema.Types.ObjectId,
-      ref: 'Status', // You need to create this model
+      ref: 'Status',
       index: true,
     },
 
@@ -103,7 +123,7 @@ const memberSchema = new Schema<IMember>(
 
     cityId: {
       type: Schema.Types.ObjectId,
-      ref: 'City', // You need to create this model
+      ref: 'City',
       index: true,
     },
 
@@ -231,6 +251,61 @@ const memberSchema = new Schema<IMember>(
       index: true,
     },
 
+    // Authentication fields
+    password: {
+      type: String,
+      select: false,
+      minlength: [6, 'Password must be at least 6 characters'],
+    },
+
+    isActive: {
+      type: Boolean,
+      default: true,
+      index: true,
+    },
+
+    lastLogin: {
+      type: Date,
+    },
+
+    emailVerified: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+
+    loginAttempts: {
+      type: Number,
+      default: 0,
+      select: false,
+    },
+
+    lockUntil: {
+      type: Date,
+      select: false,
+    },
+
+    resetPasswordToken: {
+      type: String,
+      select: false,
+    },
+
+    resetPasswordExpires: {
+      type: Date,
+      select: false,
+    },
+
+    emailVerificationToken: {
+      type: String,
+      select: false,
+    },
+
+    emailVerificationExpires: {
+      type: Date,
+      select: false,
+    },
+
+    // Audit fields
     createdBy: {
       type: Schema.Types.ObjectId,
       ref: 'User',
@@ -260,12 +335,84 @@ const memberSchema = new Schema<IMember>(
 );
 
 // Compound indexes for common queries
-memberSchema.index({ memName: 'text', memNIC: 'text', memContMob: 'text' });
+memberSchema.index({ memName: 'text', memNic: 'text', memContMob: 'text' });
 memberSchema.index({ statusId: 1, isDeleted: 1 });
 memberSchema.index({ cityId: 1, isDeleted: 1 });
 memberSchema.index({ memIsOverseas: 1, isDeleted: 1 });
 memberSchema.index({ createdBy: 1, isDeleted: 1 });
 memberSchema.index({ gender: 1, isDeleted: 1 });
+memberSchema.index({ isActive: 1, isDeleted: 1 });
+memberSchema.index({ emailVerified: 1, isDeleted: 1 });
+
+// Virtual for isLocked
+memberSchema.virtual('isLocked').get(function (this: IMember) {
+  return !!(this.lockUntil && this.lockUntil > new Date());
+});
+
+// Compound index for efficient signup verification (CNIC + Email)
+// This speeds up the query: {memNic: X, memContEmail: Y, isDeleted: false, isActive: true}
+memberSchema.index(
+  { memNic: 1, memContEmail: 1, isDeleted: 1, isActive: 1 },
+  { name: 'idx_signup_verification' }
+);
+
+// Pre-save hook to hash password
+memberSchema.pre('save', async function (next) {
+  if (!this.isModified('password')) return next();
+
+  try {
+    if (this.password) {
+      const bcrypt = await import('bcryptjs');
+      const salt = await bcrypt.genSalt(10);
+      this.password = await bcrypt.hash(this.password, salt);
+    }
+    next();
+  } catch (error: any) {
+    next(error);
+  }
+});
+
+// Method to compare password
+memberSchema.methods.comparePassword = async function (
+  candidatePassword: string
+): Promise<boolean> {
+  try {
+    const bcrypt = await import('bcryptjs');
+    return await bcrypt.compare(candidatePassword, this.password);
+  } catch (error) {
+    return false;
+  }
+};
+
+memberSchema.methods.incrementLoginAttempts = async function (): Promise<void> {
+  const updates: UpdateQuery<IMember> = {
+    $inc: { loginAttempts: 1 },
+  };
+
+  if (this.loginAttempts + 1 >= 5) {
+    updates.$set = {
+      lockUntil: new Date(Date.now() + 30 * 60 * 1000),
+    };
+  }
+
+  await this.model('Member').updateOne({ _id: this._id }, updates);
+};
+// Method to reset login attempts
+memberSchema.methods.resetLoginAttempts = async function (): Promise<void> {
+  await this.model('Member').updateOne(
+    { _id: this._id },
+    {
+      $set: {
+        loginAttempts: 0,
+        lockUntil: undefined,
+      },
+    }
+  );
+};
+
+// Ensure virtuals are included
+memberSchema.set('toObject', { virtuals: true });
+memberSchema.set('toJSON', { virtuals: true });
 
 const Member: Model<IMember> = model<IMember>('Member', memberSchema);
 

@@ -43,6 +43,7 @@ export interface DecodedToken extends JwtPayload {
 // Login DTO
 export interface LoginDto {
   email: string;
+  memNic: string;
   password: string;
   rememberMe?: boolean;
 }
@@ -50,6 +51,7 @@ export interface LoginDto {
 // Register DTO
 export interface RegisterDto {
   email: string;
+  memNic: string;
   password: string;
   firstName: string;
   lastName: string;
@@ -75,6 +77,7 @@ export interface ForgotPasswordDto {
 // Reset password DTO
 export interface ResetPasswordDto {
   token: string;
+  password: string;
   newPassword: string;
 }
 
@@ -89,6 +92,8 @@ export enum UserRole {
   ADMIN = 'admin',
   MODERATOR = 'moderator',
   SUPER_ADMIN = 'super_admin',
+  ACCOUNTANT = 'accountant',
+  MEMBER = 'member',
 }
 
 // Permission levels
@@ -118,11 +123,25 @@ export enum Permission {
 
 // Role-Permission mapping
 export const RolePermissions: Record<UserRole, Permission[]> = {
+  [UserRole.MEMBER]: [
+    Permission.READ_OWN_PROFILE,
+    Permission.UPDATE_OWN_PROFILE,
+    Permission.DELETE_OWN_ACCOUNT,
+    Permission.READ_CONTENT,
+  ],
   [UserRole.USER]: [
     Permission.READ_OWN_PROFILE,
     Permission.UPDATE_OWN_PROFILE,
     Permission.DELETE_OWN_ACCOUNT,
     Permission.READ_CONTENT,
+  ],
+  [UserRole.ACCOUNTANT]: [
+    Permission.READ_OWN_PROFILE,
+    Permission.UPDATE_OWN_PROFILE,
+    Permission.READ_CONTENT,
+    Permission.CREATE_CONTENT,
+    Permission.UPDATE_CONTENT,
+    Permission.DELETE_CONTENT,
   ],
   [UserRole.MODERATOR]: [
     Permission.READ_OWN_PROFILE,

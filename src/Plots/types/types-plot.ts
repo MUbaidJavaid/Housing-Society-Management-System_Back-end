@@ -3,17 +3,17 @@ import { Types } from 'mongoose';
 export interface Plot {
   _id: Types.ObjectId;
   plotNo: string;
-  projId?: Types.ObjectId; // Project reference
+  projectId?: Types.ObjectId; // Project reference
   plotBlockId: Types.ObjectId;
   plotSizeId: Types.ObjectId;
   plotTypeId: Types.ObjectId;
   plotStreet?: string;
-  srDevStatId: Types.ObjectId;
+  statusId: Types.ObjectId;
   plotRemarks?: string;
   plotAmount: number;
   discountAmount?: number;
   discountDate?: Date;
-  developmentStatusId: Types.ObjectId;
+  // developmentStatusId: Types.ObjectId;
   applicationTypeId: Types.ObjectId;
   developmentChargeMethod?: string;
   discountMethod?: string;
@@ -27,17 +27,17 @@ export interface Plot {
 
 export interface CreatePlotDto {
   plotNo: string;
-  projId?: string;
+  projectId?: string;
   plotBlockId: string;
   plotSizeId: string;
   plotTypeId: string;
   plotStreet?: string;
-  srDevStatId: string;
+  statusId: string;
   plotRemarks?: string;
   plotAmount: number;
   discountAmount?: number;
   discountDate?: string;
-  developmentStatusId: string;
+  // developmentStatusId: string;
   applicationTypeId: string;
   developmentChargeMethod?: string;
   discountMethod?: string;
@@ -45,17 +45,19 @@ export interface CreatePlotDto {
 
 export interface UpdatePlotDto {
   plotNo?: string;
-  projId?: string;
+  projectId?: string | null;
   plotBlockId?: string;
   plotSizeId?: string;
   plotTypeId?: string;
   plotStreet?: string;
-  srDevStatId?: string;
+  statusId?: string;
   plotRemarks?: string;
   plotAmount?: number;
   discountAmount?: number;
   discountDate?: string;
-  developmentStatusId?: string;
+  updatedAt?: string;
+  updatedBy?: string;
+  // developmentStatusId?: string;
   applicationTypeId?: string;
   developmentChargeMethod?: string;
   discountMethod?: string;
@@ -68,7 +70,9 @@ export interface PlotQueryParams {
   plotBlockId?: string;
   plotSizeId?: string;
   plotTypeId?: string;
-  developmentStatusId?: string;
+  projectId?: string;
+  statusId?: string;
+  // developmentStatusId?: string;
   applicationTypeId?: string;
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';

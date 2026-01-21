@@ -2,17 +2,17 @@ import { Document, Model, Schema, Types, model } from 'mongoose';
 
 export interface IPlot extends Document {
   plotNo: string;
-  projId?: Types.ObjectId;
+  projectId?: Types.ObjectId;
   plotBlockId: Types.ObjectId;
   plotSizeId: Types.ObjectId;
   plotTypeId: Types.ObjectId;
   plotStreet?: string;
-  srDevStatId: Types.ObjectId;
+  statusId: Types.ObjectId;
   plotRemarks?: string;
   plotAmount: number;
   discountAmount?: number;
   discountDate?: Date;
-  developmentStatusId: Types.ObjectId;
+  // developmentStatusId: Types.ObjectId;
   applicationTypeId: Types.ObjectId;
   developmentChargeMethod?: string;
   discountMethod?: string;
@@ -36,7 +36,7 @@ const plotSchema = new Schema<IPlot>(
       index: true,
     },
 
-    projId: {
+    projectId: {
       type: Schema.Types.ObjectId,
       ref: 'Project',
       index: true,
@@ -69,10 +69,9 @@ const plotSchema = new Schema<IPlot>(
       maxlength: [100, 'Street cannot exceed 100 characters'],
     },
 
-    srDevStatId: {
+    statusId: {
       type: Schema.Types.ObjectId,
-      ref: 'SrDevStat',
-      required: true,
+      ref: 'Status', // You need to create this model
       index: true,
     },
 
@@ -103,16 +102,16 @@ const plotSchema = new Schema<IPlot>(
       type: Date,
     },
 
-    developmentStatusId: {
-      type: Schema.Types.ObjectId,
-      ref: 'DevelopmentStatus',
-      required: true,
-      index: true,
-    },
+    // developmentStatusId: {
+    //   type: Schema.Types.ObjectId,
+    //   ref: 'DevelopmentStatus',
+    //   required: true,
+    //   index: true,
+    // },
 
     applicationTypeId: {
       type: Schema.Types.ObjectId,
-      ref: 'ApplicationType',
+      ref: 'SrApplicationType',
       required: true,
       index: true,
     },
@@ -179,7 +178,9 @@ plotSchema.index(
 plotSchema.index({ plotBlockId: 1, isDeleted: 1 });
 plotSchema.index({ plotSizeId: 1, isDeleted: 1 });
 plotSchema.index({ plotTypeId: 1, isDeleted: 1 });
-plotSchema.index({ developmentStatusId: 1, isDeleted: 1 });
+plotSchema.index({ statusId: 1, isDeleted: 1 });
+plotSchema.index({ projectId: 1, isDeleted: 1 });
+// plotSchema.index({ developmentStatusId: 1, isDeleted: 1 });
 plotSchema.index({ applicationTypeId: 1, isDeleted: 1 });
 plotSchema.index({ createdBy: 1, isDeleted: 1 });
 

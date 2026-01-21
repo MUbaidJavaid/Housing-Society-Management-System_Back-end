@@ -1,7 +1,8 @@
 import { Types } from 'mongoose';
 import { CreatePlotDto, PlotQueryParams, UpdatePlotDto } from '../index-plot';
-import SrApplicationType from '../models/models-applicationtype';
-import SrDevStatus from '../models/models-devstatus';
+
+import SrApplicationType from '../../Application/models/models-applicationtype';
+import Status from '../../CityState/models/models-status';
 import Plot from '../models/models-plot';
 import PlotBlock from '../models/models-plotblock';
 import PlotSize from '../models/models-plotsize';
@@ -11,12 +12,13 @@ export const plotService = {
   async createPlot(data: CreatePlotDto, userId: Types.ObjectId): Promise<any> {
     const plot = await Plot.create({
       ...data,
-      projId: data.projId ? new Types.ObjectId(data.projId) : undefined,
+      projectId: data.projectId ? new Types.ObjectId(data.projectId) : undefined,
       plotBlockId: new Types.ObjectId(data.plotBlockId),
       plotSizeId: new Types.ObjectId(data.plotSizeId),
       plotTypeId: new Types.ObjectId(data.plotTypeId),
-      srDevStatId: new Types.ObjectId(data.srDevStatId),
-      developmentStatusId: new Types.ObjectId(data.developmentStatusId),
+      statusId: new Types.ObjectId(data.statusId),
+
+      // developmentStatusId: new Types.ObjectId(data.developmentStatusId),
       applicationTypeId: new Types.ObjectId(data.applicationTypeId),
       discountDate: data.discountDate ? new Date(data.discountDate) : undefined,
       createdBy: userId,
@@ -28,16 +30,17 @@ export const plotService = {
 
   async getPlotById(id: string): Promise<any | null> {
     const plot = await Plot.findById(id)
-      .populate('projId', 'projectName')
+      .populate('projectId', 'projName')
       .populate('plotBlockId', 'plotBlockName')
       .populate('plotSizeId', 'plotSizeName')
       .populate('plotTypeId', 'plotTypeName')
-      .populate('srDevStatId', 'statusName')
-      .populate('developmentStatusId', 'statusName')
-      .populate('applicationTypeId', 'typeName')
+      .populate('statusId', 'statusName')
+
+      // .populate('developmentStatusId', 'statusName')
+      .populate('applicationTypeId', 'applicationName')
       .populate('createdBy', 'firstName lastName email')
       .populate('updatedBy', 'firstName lastName email');
-
+    console.log(plot);
     return plot?.toObject() || null;
   },
 
@@ -49,7 +52,8 @@ export const plotService = {
       plotBlockId,
       plotSizeId,
       plotTypeId,
-      developmentStatusId,
+      projectId,
+      // developmentStatusId,
       applicationTypeId,
       sortBy = 'createdAt',
       sortOrder = 'desc',
@@ -73,7 +77,8 @@ export const plotService = {
     if (plotBlockId) query.plotBlockId = new Types.ObjectId(plotBlockId);
     if (plotSizeId) query.plotSizeId = new Types.ObjectId(plotSizeId);
     if (plotTypeId) query.plotTypeId = new Types.ObjectId(plotTypeId);
-    if (developmentStatusId) query.developmentStatusId = new Types.ObjectId(developmentStatusId);
+    if (projectId) query.projectId = new Types.ObjectId(projectId);
+    // if (developmentStatusId) query.developmentStatusId = new Types.ObjectId(developmentStatusId);
     if (applicationTypeId) query.applicationTypeId = new Types.ObjectId(applicationTypeId);
 
     const [plots, total] = await Promise.all([
@@ -81,8 +86,10 @@ export const plotService = {
         .populate('plotBlockId', 'plotBlockName')
         .populate('plotSizeId', 'plotSizeName')
         .populate('plotTypeId', 'plotTypeName')
-        .populate('developmentStatusId', 'statusName')
-        .populate('applicationTypeId', 'typeName')
+        .populate('statusId', 'statusName')
+        .populate('projectId', 'projName')
+        // .populate('developmentStatusId', 'statusName')
+        .populate('applicationTypeId', 'applicationName')
         .skip(skip)
         .limit(limit)
         .sort(sort)
@@ -100,40 +107,151 @@ export const plotService = {
       },
     };
   },
+  // async updatePlot(id: string, data: UpdatePlotDto, userId: Types.ObjectId) {
+  //   const plot = await Plot.findById(id);
+  //   if (!plot) throw new Error('Plot not found');
+  //   console.log(data);
+  //   // Ensure discountAmount <= plotAmount
+  //   if (data.discountAmount != null) {
+  //     const plotAmount = data.plotAmount ?? plot.plotAmount;
+  //     if (data.discountAmount > plotAmount) {
+  //       throw new Error('Discount Amount cannot exceed Plot Amount');
+  //     }
+  //   }
 
-  async updatePlot(id: string, data: UpdatePlotDto, userId: Types.ObjectId): Promise<any | null> {
-    const updateData: any = { ...data };
+  //   // Update fields
+  //   if (data.plotAmount != null) plot.plotAmount = data.plotAmount;
+  //   if (data.discountAmount != null) plot.discountAmount = data.discountAmount;
+  //   if (data.plotNo != null) plot.plotNo = data.plotNo;
+  //   if (data.plotBlockId) plot.plotBlockId = new Types.ObjectId(data.plotBlockId);
+  //   if (data.plotSizeId) plot.plotSizeId = new Types.ObjectId(data.plotSizeId);
+  //   if (data.plotTypeId) plot.plotTypeId = new Types.ObjectId(data.plotTypeId);
+  //   if (data.statusId) plot.statusId = new Types.ObjectId(data.statusId);
+  //   if (data.applicationTypeId) plot.applicationTypeId = new Types.ObjectId(data.applicationTypeId);
+  //   if (data.projectId != null) plot.projectId = new Types.ObjectId(data.projectId);
+  //   // if (data.developmentStatusId)
+  //   //   plot.developmentStatusId = new Types.ObjectId(data.developmentStatusId);
+  //   if (data.discountDate) plot.discountDate = new Date(data.discountDate);
+  //   if (data.plotStreet != null) plot.plotStreet = data.plotStreet;
+  //   if (data.plotRemarks != null) plot.plotRemarks = data.plotRemarks;
+  //   if (data.statusId != null) plot.statusId = new Types.ObjectId(data.statusId);
+  //   if (data.updatedBy != null) plot.updatedBy = userId;
+  //   if (data.updatedAt != null) plot.updatedAt = new Date(data.updatedAt);
+  //   await plot.save(); // full validators run here
 
-    // Convert string IDs to ObjectId if provided
-    if (data.projId) updateData.projId = new Types.ObjectId(data.projId);
-    if (data.plotBlockId) updateData.plotBlockId = new Types.ObjectId(data.plotBlockId);
-    if (data.plotSizeId) updateData.plotSizeId = new Types.ObjectId(data.plotSizeId);
-    if (data.plotTypeId) updateData.plotTypeId = new Types.ObjectId(data.plotTypeId);
-    if (data.srDevStatId) updateData.srDevStatId = new Types.ObjectId(data.srDevStatId);
-    if (data.developmentStatusId)
-      updateData.developmentStatusId = new Types.ObjectId(data.developmentStatusId);
-    if (data.applicationTypeId)
-      updateData.applicationTypeId = new Types.ObjectId(data.applicationTypeId);
-    if (data.discountDate) updateData.discountDate = new Date(data.discountDate);
+  //   return plot.toObject();
+  // },
 
-    updateData.updatedBy = userId;
+  // async updatePlot(id: string, data: UpdatePlotDto, userId: Types.ObjectId): Promise<any | null> {
+  //   const updateData: any = { ...data };
 
-    const plot = await Plot.findByIdAndUpdate(
-      id,
-      { $set: updateData },
-      { new: true, runValidators: true }
-    )
+  //   // Convert string IDs to ObjectId if provided
+  //   if (data.projectId) updateData.projectId = new Types.ObjectId(data.projectId);
+  //   if (data.plotBlockId) updateData.plotBlockId = new Types.ObjectId(data.plotBlockId);
+  //   if (data.plotSizeId) updateData.plotSizeId = new Types.ObjectId(data.plotSizeId);
+  //   if (data.plotTypeId) updateData.plotTypeId = new Types.ObjectId(data.plotTypeId);
+  //   if (data.statusId) updateData.statusId = new Types.ObjectId(data.statusId);
+  //   if (data.projectId) updateData.projectId = new Types.ObjectId(data.projectId);
+  //   // if (data.developmentStatusId)
+  //   //   updateData.developmentStatusId = new Types.ObjectId(data.developmentStatusId);
+  //   if (data.applicationTypeId)
+  //     updateData.applicationTypeId = new Types.ObjectId(data.applicationTypeId);
+  //   if (data.discountDate) updateData.discountDate = new Date(data.discountDate);
+
+  //   updateData.updatedBy = userId;
+
+  //   const plot = await Plot.findByIdAndUpdate(
+  //     id,
+  //     { $set: updateData },
+  //     { new: true, runValidators: true, context: 'query' }
+  //   )
+  //     .populate('plotBlockId', 'plotBlockName')
+  //     .populate('plotSizeId', 'plotSizeName')
+  //     .populate('plotTypeId', 'plotTypeName')
+  //     .populate('statusId', 'statusName')
+  //     .populate('projectId', 'projName')
+  //     // .populate('developmentStatusId', 'statusName')
+  //     .populate('applicationTypeId', 'typeName')
+  //     .populate('createdBy', 'firstName lastName email')
+  //     .populate('updatedBy', 'firstName lastName email');
+
+  //   return plot?.toObject() || null;
+  // },
+  async updatePlot(id: string, data: UpdatePlotDto, userId: Types.ObjectId) {
+    const plot = await Plot.findById(id);
+    if (!plot) throw new Error('Plot not found');
+
+    console.log('Update Data Received:', data);
+    console.log('ProjectId in data:', data.projectId);
+    console.log('ProjectId type:', typeof data.projectId);
+
+    // Ensure discountAmount <= plotAmount
+    if (data.discountAmount != null) {
+      const plotAmount = data.plotAmount ?? plot.plotAmount;
+      if (data.discountAmount > plotAmount) {
+        throw new Error('Discount Amount cannot exceed Plot Amount');
+      }
+    }
+
+    // Update fields
+    if (data.plotAmount != null) plot.plotAmount = data.plotAmount;
+    if (data.discountAmount != null) plot.discountAmount = data.discountAmount;
+    if (data.plotNo != null) plot.plotNo = data.plotNo;
+    if (data.plotBlockId) plot.plotBlockId = new Types.ObjectId(data.plotBlockId);
+    if (data.plotSizeId) plot.plotSizeId = new Types.ObjectId(data.plotSizeId);
+    if (data.plotTypeId) plot.plotTypeId = new Types.ObjectId(data.plotTypeId);
+    if (data.statusId) plot.statusId = new Types.ObjectId(data.statusId);
+    if (data.applicationTypeId) plot.applicationTypeId = new Types.ObjectId(data.applicationTypeId);
+
+    // PROJECT ID FIX - Ye sahi tarika hai:
+    if (data.projectId !== undefined) {
+      if (data.projectId) {
+        // Agar projectId string hai (not empty)
+        plot.projectId = new Types.ObjectId(data.projectId);
+        console.log('Setting projectId to:', data.projectId);
+      } else {
+        // Agar projectId empty string ya null hai
+        plot.projectId = undefined;
+        console.log('Clearing projectId');
+      }
+    }
+
+    if (data.discountDate) plot.discountDate = new Date(data.discountDate);
+    if (data.plotStreet !== undefined) plot.plotStreet = data.plotStreet;
+    if (data.plotRemarks !== undefined) plot.plotRemarks = data.plotRemarks;
+    if (data.developmentChargeMethod !== undefined)
+      plot.developmentChargeMethod = data.developmentChargeMethod;
+    if (data.discountMethod !== undefined) plot.discountMethod = data.discountMethod;
+
+    plot.updatedBy = userId;
+
+    console.log('Plot before save:', {
+      plotNo: plot.plotNo,
+      projectId: plot.projectId,
+      hasProjectId: !!plot.projectId,
+    });
+
+    await plot.save(); // full validators run here
+
+    console.log('Plot after save:', {
+      plotNo: plot.plotNo,
+      projectId: plot.projectId,
+      hasProjectId: !!plot.projectId,
+    });
+
+    // Ab populate karke return karein
+    const populatedPlot = await Plot.findById(plot._id)
+      .populate('projectId', 'projName')
       .populate('plotBlockId', 'plotBlockName')
       .populate('plotSizeId', 'plotSizeName')
       .populate('plotTypeId', 'plotTypeName')
-      .populate('developmentStatusId', 'statusName')
-      .populate('applicationTypeId', 'typeName')
+      .populate('statusId', 'statusName')
+      .populate('applicationTypeId', 'applicationName')
       .populate('createdBy', 'firstName lastName email')
       .populate('updatedBy', 'firstName lastName email');
 
-    return plot?.toObject() || null;
+    return populatedPlot?.toObject() || null;
   },
-
   async deletePlot(id: string, userId: Types.ObjectId): Promise<boolean> {
     const result = await Plot.findByIdAndUpdate(
       id,
@@ -150,16 +268,20 @@ export const plotService = {
     return !!result;
   },
 
-  async checkPlotNoExists(plotNo: string, projId?: string, excludeId?: string): Promise<boolean> {
+  async checkPlotNoExists(
+    plotNo: string,
+    projectId?: string,
+    excludeId?: string
+  ): Promise<boolean> {
     const query: any = {
       plotNo: { $regex: new RegExp(`^${plotNo}$`, 'i') },
       isDeleted: false,
     };
 
-    if (projId) {
-      query.projId = new Types.ObjectId(projId);
+    if (projectId) {
+      query.projectId = new Types.ObjectId(projectId);
     } else {
-      query.projId = { $exists: false };
+      query.projectId = { $exists: false };
     }
 
     if (excludeId) {
@@ -177,7 +299,7 @@ export const plotService = {
         { $match: { isDeleted: false } },
         { $group: { _id: null, total: { $sum: '$plotAmount' } } },
       ]),
-      Plot.countDocuments({ isDeleted: false, developmentStatusId: { $exists: true } }),
+      Plot.countDocuments({ isDeleted: false, statusId: { $exists: true } }),
     ]);
 
     return {
@@ -220,7 +342,7 @@ export const plotService = {
               name: doc.plotTypeName,
             }))
           ),
-        SrDevStatus.find({ isDeleted: false })
+        Status.find({ isDeleted: false })
           .select('statusName')
           .sort('statusName')
           .lean()
@@ -231,23 +353,23 @@ export const plotService = {
             }))
           ),
         SrApplicationType.find({ isDeleted: false })
-          .select('typeName')
-          .sort('typeName')
+          .select('applicationName')
+          .sort('applicationName')
           .lean()
           .then(docs =>
             docs.map((doc: any) => ({
               id: doc._id,
-              name: doc.typeName,
+              name: doc.applicationName,
             }))
           ),
-        SrDevStatus.find({ isDeleted: false })
-          .select('srDevStatName')
-          .sort('srDevStatName')
+        Status.find({ isDeleted: false })
+          .select('statusName')
+          .sort('statusName')
           .lean()
           .then(docs =>
             docs.map((doc: any) => ({
               id: doc._id,
-              name: doc.srDevStatName,
+              name: doc.statusName,
             }))
           ),
       ]);

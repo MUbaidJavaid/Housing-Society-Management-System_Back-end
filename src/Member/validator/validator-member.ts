@@ -48,6 +48,15 @@ export const validateCreateMember = (): ValidationChain[] => [
   body('statusId').optional().isMongoId().withMessage('Invalid Status ID'),
 
   body('cityId').optional().isMongoId().withMessage('Invalid City ID'),
+
+  body('password')
+    .optional()
+    .isLength({ min: 6 })
+    .withMessage('Password must be at least 6 characters'),
+
+  body('isActive').optional().isBoolean().withMessage('isActive must be true or false'),
+
+  body('emailVerified').optional().isBoolean().withMessage('emailVerified must be true or false'),
 ];
 
 export const validateUpdateMember = (): ValidationChain[] => [
@@ -78,9 +87,11 @@ export const validateGetMembers = (): ValidationChain[] => [
     .isBoolean()
     .withMessage('Overseas filter must be true or false'),
 
+  query('isActive').optional().isBoolean().withMessage('Active filter must be true or false'),
+
   query('sortBy')
     .optional()
-    .isIn(['memName', 'memNic', 'createdAt', 'updatedAt'])
+    .isIn(['memName', 'memNic', 'createdAt', 'updatedAt', 'lastLogin'])
     .withMessage('Invalid sort field'),
 
   query('sortOrder').optional().isIn(['asc', 'desc']).withMessage('Sort order must be asc or desc'),

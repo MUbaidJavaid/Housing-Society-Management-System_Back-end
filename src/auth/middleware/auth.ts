@@ -2,6 +2,8 @@ import { NextFunction, Request, Response } from 'express';
 import logger from '../../core/logger';
 import Token from '../../database/models/Token';
 import User from '../../database/models/User';
+import Member from '../../Member/models/models-member';
+import { AppError } from '../../middleware/error.middleware';
 import { jwtService } from '../jwt';
 import { AuthRequest, Permission, RolePermissions, UserRole } from '../types';
 
@@ -27,7 +29,12 @@ const extractToken = (req: Request): string | null => {
 
   return null;
 };
-
+export const requireMember = (req: Request, _res: Response, next: NextFunction) => {
+  if (!(req as any).user || (req as any).user.role !== UserRole.MEMBER) {
+    throw new AppError(403, 'Access denied. Member account required');
+  }
+  next();
+};
 /**
  * Authentication middleware
  */
@@ -51,7 +58,26 @@ export const authenticate = async (
 
     // Verify token
     const decoded = jwtService.verifyAccessToken(token);
+    // Check if user is member
+    if (decoded.role === UserRole.MEMBER) {
+      // For members, check if member exists and is active
+      const member = await Member.findById(decoded.userId);
 
+      if (!member || member.isDeleted || !member.isActive) {
+        res.status(401).json({
+          success: false,
+          error: 'Member account is inactive or deleted',
+          code: 'ACCOUNT_INACTIVE',
+        });
+        return;
+      }
+
+      // Attach member info to request
+      req.user = decoded;
+
+      next();
+      return;
+    }
     // Get user from database
     const user = await User.findById(decoded.userId).select('+lastLogin +status +isDeleted').exec();
 

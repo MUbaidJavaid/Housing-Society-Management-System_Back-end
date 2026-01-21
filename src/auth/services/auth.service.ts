@@ -4,11 +4,20 @@ import { emailService } from '../../core/email';
 import logger from '../../core/logger';
 import { PhoneService } from '../../core/phone.utils';
 import Token from '../../database/models/Token';
-import User, { UserRole, UserStatus } from '../../database/models/User';
+import User, { UserStatus } from '../../database/models/User';
+import Member from '../../Member/models/models-member';
 import { AppError } from '../../middleware/error.middleware';
 import { jwtService } from '../jwt';
 import { passwordValidator } from '../password';
-import { ChangePasswordDto, LoginDto, RefreshTokenDto, RegisterDto, TokenPair } from '../types';
+import {
+  ChangePasswordDto,
+  LoginDto,
+  RefreshTokenDto,
+  RegisterDto,
+  ResetPasswordDto,
+  TokenPair,
+  UserRole,
+} from '../types';
 /**
 import { number } from 'zod/v4';
  * Authentication service - Updated for your models
@@ -1009,4 +1018,85 @@ export class AuthService {
   // Export singleton instance
   // authService = new AuthService();
 }
+
+export class AuthMemberService {
+  async register(dto: RegisterDto) {
+    const exists = await Member.findOne({ memNic: dto.memNic });
+    if (exists) throw new Error('Member already exists');
+
+    const member = await Member.create(dto);
+    return member;
+  }
+
+  async login(dto: LoginDto) {
+    const member = await Member.findOne({ memNic: dto.memNic }).select('+password');
+    if (!member) throw new Error('Invalid credentials');
+
+    if (member.lockUntil && member.lockUntil > new Date()) {
+      throw new Error('Account locked. Try later.');
+    }
+
+    const valid = await member.comparePassword(dto.password);
+    if (!valid) {
+      await member.incrementLoginAttempts();
+      throw new Error('Invalid credentials');
+    }
+
+    await member.resetLoginAttempts();
+
+    const tokens = await jwtService.generateTokenPair(
+      member._id,
+      member.memContEmail || 'unknown@email.com',
+      UserRole.MEMBER
+    );
+
+    return {
+      success: true,
+      tokens,
+      member: {
+        id: member._id,
+        memName: member.memName,
+      },
+    };
+  }
+
+  async forgotPassword(memNic: string) {
+    const member = await Member.findOne({ memNic });
+    if (!member) return true; // silent
+
+    const token = crypto.randomBytes(32).toString('hex');
+
+    member.resetPasswordToken = crypto.createHash('sha256').update(token).digest('hex');
+
+    member.resetPasswordExpires = new Date(Date.now() + 15 * 60 * 1000);
+    await member.save();
+    const otp = crypto.randomInt(100000, 999999).toString();
+
+    member.resetPasswordToken = otp;
+    member.resetPasswordExpires = new Date(Date.now() + 10 * 60 * 1000);
+    await member.save();
+
+    await emailService.sendPasswordResetEmail(member.memContEmail!, member.memName, otp);
+    return true;
+  }
+
+  async resetPassword(dto: ResetPasswordDto) {
+    const hashed = crypto.createHash('sha256').update(dto.token).digest('hex');
+
+    const member = await Member.findOne({
+      resetPasswordToken: hashed,
+      resetPasswordExpires: { $gt: new Date() },
+    });
+
+    if (!member) throw new Error('Invalid or expired token');
+
+    member.password = dto.password;
+    member.resetPasswordToken = undefined;
+    member.resetPasswordExpires = undefined;
+
+    await member.save();
+    return true;
+  }
+}
+export const authMemberService = new AuthMemberService();
 export const authService = new AuthService();

@@ -56,9 +56,18 @@ import { plotTypeRoutes } from './Plots/index-plottype';
 import userRoutes from './routes/user.routes';
 import { scheduleLogRotation, setupLogRotation } from './utils/log-rotation';
 //cityRoutes
+
+import { srApplicationTypeRoutes } from './Application/index-applicationtype';
 import { cityRoutes } from './CityState/index-city';
 import { stateRoutes } from './CityState/index-state';
 import { statusRoutes } from './CityState/index-status';
+
+import rateLimit from 'express-rate-limit';
+import uploadRoutes from './imageUpload/routes/upload.routes';
+import { ApiError } from './imageUpload/utils/error-handler';
+import { authMemberRoutes } from './Member/indexa-member';
+import { paymentModeRoutes } from './Payment/index-paymentmodule';
+import { projectRoutes } from './Project/index-project';
 // Track graceful shutdown
 let isShuttingDown = false;
 dotenv.config();
@@ -176,12 +185,23 @@ function setupMiddleware(app: Application): void {
   // 8. Performance monitoring
   app.use(performanceLogger());
   app.use(responseTimeMiddleware);
+  // Rate limiting
+  const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 100,
+    message: 'Too many requests from this IP, please try again later.',
+  });
+  app.use('/api/uploads', limiter);
 
+  // Body parsing
+  app.use(express.json({ limit: '10mb' }));
+  app.use(express.urlencoded({ extended: true, limit: '10mb' }));
   // 9. Body parsers and cookie parser
-  app.use(express.json());
-  app.use(express.urlencoded({ extended: true }));
+  // app.use(express.json());
+  // app.use(express.urlencoded({ extended: true }));
   app.use(cookieParser());
-
+  // Compression
+  app.use(compression());
   // 10. Request logging (conditional based on environment)
   if (config.isDevelopment) {
     app.use(morgan('dev'));
@@ -303,6 +323,34 @@ function setupRoutes(app: Application): void {
     });
   });
 
+  // API Routes
+  app.use('/api/uploads', uploadRoutes);
+
+  // Global error handler
+  app.use((error: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+    console.error('Error:', error);
+
+    if (error instanceof ApiError) {
+      return res.status(error.statusCode).json({
+        success: false,
+        errorCode: error.errorCode,
+        message: error.message,
+        details: error.details,
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    // Multer errors
+    if (error.name === 'MulterError') {
+      return res.status(400).json({
+        success: false,
+        errorCode: 'UPLOAD_ERROR',
+        message: error.message,
+        timestamp: new Date().toISOString(),
+      });
+    }
+  });
+
   // Apply global rate limiting to all API routes (from second codebase)
   app.use('/api/v1', rateLimitMiddleware.globalRateLimit);
 
@@ -323,7 +371,12 @@ function setupRoutes(app: Application): void {
   // app.use('/api/v1/upload', rateLimitMiddleware.uploadRateLimit, uploadRoutes);
 
   // Also support the original API routes structure
+  // User/Admin auth at /api/auth
   app.use('/api/auth', authRoutes);
+
+  // Member authentication routes - ALSO at /api/auth, routes will handle path
+  // But given the structure, member routes at /api/auth/member is cleaner
+  app.use('/api/auth/member', authMemberRoutes);
 
   // PlotBlock routes
   app.use('/api/plotblocks', plotBlockRoutes);
@@ -339,9 +392,39 @@ function setupRoutes(app: Application): void {
 
   app.use('/api/members', memberRoutes);
 
+  app.use('/api/application', srApplicationTypeRoutes);
+
   app.use('/api/cities', cityRoutes);
+
   app.use('/api/states', stateRoutes);
+
   app.use('/api/statuses', statusRoutes);
+
+  app.use('/api/projects', projectRoutes);
+
+  app.use('/api/paymentmodes', paymentModeRoutes);
+
+  // Debug route
+  app.get('/api/test', (_req: Request, res: Response) => {
+    res.json({ success: true, message: 'API is working' });
+  });
+
+  // List all auth routes
+  app.get('/api/auth-routes', (_req: Request, res: Response) => {
+    res.json({
+      success: true,
+      routes: {
+        userAuth: '/api/auth',
+        memberAuth: '/api/auth/member',
+        examples: {
+          userLogin: 'POST /api/auth/login',
+          memberSignup: 'POST /api/auth/member/signup',
+          memberLogin: 'POST /api/auth/member/login',
+        },
+      },
+    });
+  });
+
   // API welcome route with health check
   app.get('/api/v1', requireHealthy, (req: Request, res: Response) => {
     res.json({
@@ -365,6 +448,14 @@ function setupRoutes(app: Application): void {
 
   // Admin-only rate limit reset endpoint (from second codebase)
   app.post('/api/v1/admin/rate-limit/reset', rateLimitMiddleware.rateLimitReset);
+  // 404 handler
+  app.use('*', (req, res) => {
+    res.status(404).json({
+      success: false,
+      message: `Route ${req.originalUrl} not found`,
+      timestamp: new Date().toISOString(),
+    });
+  });
 }
 
 /**
