@@ -4,13 +4,15 @@ import { AuthRequest } from '../../auth/types';
 import { AuditAction, EntityType } from '../models/models-auditLog';
 import { auditLogService } from '../services/service';
 
+const getParamId = (req: Request) =>
+  Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+
 export const auditMiddleware = {
   logCreate: (entityType: EntityType, getDescription?: (req: Request, res: Response) => string) => {
     return async (req: AuthRequest, res: Response, next: NextFunction) => {
       const originalSend = res.json;
 
       res.json = function (body) {
-        // Log after response is sent
         if (req.user && body?.success && body?.data) {
           const description = getDescription ? getDescription(req, res) : `${entityType} created`;
 
@@ -22,7 +24,7 @@ export const auditMiddleware = {
             {
               entityId: body.data._id || body.data.id,
               ipAddress: req.ip,
-              userAgent: req.get('user-agent'),
+              userAgent: req.get('user-agent') as string,
               newValues: body.data,
               metadata: {
                 endpoint: req.originalUrl,
@@ -42,21 +44,17 @@ export const auditMiddleware = {
   logUpdate: (entityType: EntityType, getDescription?: (req: Request, res: Response) => string) => {
     return async (req: AuthRequest, res: Response, next: NextFunction) => {
       const originalSend = res.json;
-      const oldData = req.oldData; // You need to attach old data before update
+      const oldData = req.oldData;
 
       res.json = function (body) {
         if (req.user && body?.success && body?.data) {
           const description = getDescription ? getDescription(req, res) : `${entityType} updated`;
 
-          // Calculate changes
           const changes: Record<string, { old: any; new: any }> = {};
           if (oldData && body.data) {
             Object.keys(body.data).forEach(key => {
               if (JSON.stringify(oldData[key]) !== JSON.stringify(body.data[key])) {
-                changes[key] = {
-                  old: oldData[key],
-                  new: body.data[key],
-                };
+                changes[key] = { old: oldData[key], new: body.data[key] };
               }
             });
           }
@@ -67,9 +65,9 @@ export const auditMiddleware = {
             entityType,
             description,
             {
-              entityId: req.params.id,
+              entityId: getParamId(req),
               ipAddress: req.ip,
-              userAgent: req.get('user-agent'),
+              userAgent: req.get('user-agent') as string,
               oldValues: oldData,
               newValues: body.data,
               changes: Object.keys(changes).length > 0 ? changes : undefined,
@@ -103,9 +101,9 @@ export const auditMiddleware = {
             entityType,
             description,
             {
-              entityId: req.params.id,
+              entityId: getParamId(req),
               ipAddress: req.ip,
-              userAgent: req.get('user-agent'),
+              userAgent: req.get('user-agent') as string,
               oldValues: oldData,
               metadata: {
                 endpoint: req.originalUrl,
@@ -128,9 +126,9 @@ export const auditMiddleware = {
         const description = getDescription ? getDescription(req, res) : `${entityType} viewed`;
 
         auditLogService.logActivity(req.user.userId, AuditAction.VIEW, entityType, description, {
-          entityId: req.params.id,
+          entityId: getParamId(req),
           ipAddress: req.ip,
-          userAgent: req.get('user-agent'),
+          userAgent: req.get('user-agent') as string,
           metadata: {
             endpoint: req.originalUrl,
             method: req.method,
@@ -151,9 +149,7 @@ export const auditMiddleware = {
       {
         ipAddress,
         userAgent,
-        metadata: {
-          timestamp: new Date().toISOString(),
-        },
+        metadata: { timestamp: new Date().toISOString() },
       }
     );
   },
@@ -167,9 +163,7 @@ export const auditMiddleware = {
       {
         ipAddress,
         userAgent,
-        metadata: {
-          timestamp: new Date().toISOString(),
-        },
+        metadata: { timestamp: new Date().toISOString() },
       }
     );
   },
