@@ -51,7 +51,7 @@ export const applicationController = {
 
   getApplication: async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { id } = req.params;
+      const id = req.params.id as string;
 
       const application = await applicationService.getApplicationById(id);
 
@@ -110,7 +110,7 @@ export const applicationController = {
 
   getApplicationsByType: async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { typeId } = req.params;
+      const typeId = req.params.typeId as string;
 
       const applications = await applicationService.getApplicationsByType(typeId);
 
@@ -144,7 +144,7 @@ export const applicationController = {
         throw new AppError(401, 'Authentication required');
       }
 
-      const { id } = req.params;
+      const id = req.params.id as string;
       const updateData = req.body;
 
       const existingApplication = await applicationService.getApplicationById(id);
@@ -192,7 +192,7 @@ export const applicationController = {
         throw new AppError(401, 'Authentication required');
       }
 
-      const { id } = req.params;
+      const id = req.params.id as string;
 
       const existingApplication = await applicationService.getApplicationById(id);
       if (!existingApplication || (existingApplication as any).isDeleted) {

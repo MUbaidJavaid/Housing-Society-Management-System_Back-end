@@ -53,7 +53,7 @@ export const paymentModeController = {
 
   getPaymentMode: async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { id } = req.params;
+      const id = req.params.id as string;
 
       const paymentMode = await paymentModeService.getPaymentModeById(id);
 
@@ -140,7 +140,7 @@ export const paymentModeController = {
         throw new AppError(401, 'Authentication required');
       }
 
-      const { id } = req.params;
+      const id = req.params.id as string;
       const updateData = req.body;
 
       const existingPaymentMode = await paymentModeService.getPaymentModeById(id);
@@ -189,7 +189,7 @@ export const paymentModeController = {
         throw new AppError(401, 'Authentication required');
       }
 
-      const { id } = req.params;
+      const id = req.params.id as string;
 
       const existingPaymentMode = await paymentModeService.getPaymentModeById(id);
       if (!existingPaymentMode || (existingPaymentMode as any).isDeleted) {
@@ -223,7 +223,7 @@ export const paymentModeController = {
         throw new AppError(401, 'Authentication required');
       }
 
-      const { id } = req.params;
+      const id = req.params.id as string;
 
       const existingPaymentMode = await paymentModeService.getPaymentModeById(id);
       if (!existingPaymentMode || (existingPaymentMode as any).isDeleted) {

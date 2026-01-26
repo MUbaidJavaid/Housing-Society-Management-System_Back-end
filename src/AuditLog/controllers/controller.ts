@@ -119,7 +119,8 @@ export const auditLogController = {
         throw new AppError(401, 'Authentication required');
       }
 
-      const { entityType, entityId } = req.params;
+      const entityId = req.params.entityId as string;
+      const entityType = req.params.entityType as string;
 
       // Validate entity type
       if (!Object.values(EntityType).includes(entityType as EntityType)) {

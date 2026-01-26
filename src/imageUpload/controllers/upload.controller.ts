@@ -141,7 +141,8 @@ export class UploadController {
    */
   async getFilesByEntity(req: Request, res: Response, next: NextFunction) {
     try {
-      const { entityType, entityId } = req.params;
+      const entityType = req.params.entityType as string;
+      const entityId = req.params.entityId as string;
 
       // Validate entity type
       if (!Object.values(EntityType).includes(entityType as EntityType)) {
@@ -165,7 +166,7 @@ export class UploadController {
    */
   async getFileById(req: Request, res: Response, next: NextFunction) {
     try {
-      const { id } = req.params;
+      const id = req.params.id as string;
 
       const file = await uploadService.getFileById(id);
 
@@ -184,7 +185,7 @@ export class UploadController {
    */
   async updateFile(req: Request, res: Response, next: NextFunction) {
     try {
-      const { id } = req.params;
+      const id = req.params.id as string;
       const { metadata, updatedBy } = req.body;
 
       if (!updatedBy) {
@@ -214,7 +215,7 @@ export class UploadController {
    */
   async deleteFile(req: Request, res: Response, next: NextFunction) {
     try {
-      const { id } = req.params;
+      const id = req.params.id as string;
       const { deletedBy } = req.body;
 
       if (!deletedBy) {

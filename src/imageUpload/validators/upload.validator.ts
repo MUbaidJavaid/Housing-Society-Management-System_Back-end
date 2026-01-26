@@ -19,7 +19,7 @@ export const validateUploadFile = (req: Request, _res: Response, next: NextFunct
 
 // Validation for file ID parameter
 export const validateFileId = (req: Request, _res: Response, next: NextFunction) => {
-  const { id } = req.params;
+  const id = req.params.id as string;
 
   if (!id || id.length !== 24) {
     throw createApiError(400, 'INVALID_ID', 'Invalid file ID format');
@@ -30,8 +30,8 @@ export const validateFileId = (req: Request, _res: Response, next: NextFunction)
 
 // Validation for entity parameters
 export const validateEntityParams = (req: Request, _res: Response, next: NextFunction) => {
-  const { entityType, entityId } = req.params;
-
+  const entityId = req.params.entityId as string;
+  const entityType = req.params.entityType as string;
   if (!entityType || !entityId) {
     throw createApiError(400, 'INVALID_PARAMS', 'Missing entityType or entityId parameters');
   }
@@ -56,7 +56,7 @@ export const validateGetFiles = (req: Request, _res: Response, next: NextFunctio
 
 // Validation for delete file
 export const validateDeleteFile = (req: Request, _res: Response, next: NextFunction) => {
-  const { id } = req.params;
+  const id = req.params.id as string;
   const { deletedBy } = req.body;
 
   if (!id || id.length !== 24) {

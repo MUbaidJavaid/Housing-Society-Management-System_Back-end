@@ -69,7 +69,7 @@ export const installmentController = {
 
   getInstallment: async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { id } = req.params;
+      const id = req.params.id as string;
 
       const installment = await installmentService.getInstallmentById(id);
 
@@ -135,7 +135,7 @@ export const installmentController = {
 
   getMemberInstallmentSummary: async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { memberId } = req.params;
+      const memberId = req.params.memberId as string;
 
       const summary = await installmentService.getMemberInstallmentSummary(memberId);
 
@@ -182,7 +182,7 @@ export const installmentController = {
 
   getInstallmentsByMember: async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { memberId } = req.params;
+      const memberId = req.params.memberId as string;
 
       const installments = await installmentService.getInstallmentsByMember(memberId);
 
@@ -197,7 +197,7 @@ export const installmentController = {
 
   getInstallmentsByPlot: async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { plotId } = req.params;
+      const plotId = req.params.plotId as string;
 
       const installments = await installmentService.getInstallmentsByPlot(plotId);
 
@@ -272,7 +272,7 @@ export const installmentController = {
         throw new AppError(401, 'Authentication required');
       }
 
-      const { id } = req.params;
+      const id = req.params.id as string;
       const paymentData = req.body;
 
       // Validate payment data
@@ -328,7 +328,7 @@ export const installmentController = {
         throw new AppError(401, 'Authentication required');
       }
 
-      const { id } = req.params;
+      const id = req.params.id as string;
       const updateData = req.body;
 
       const existingInstallment = await installmentService.getInstallmentById(id);
@@ -362,7 +362,7 @@ export const installmentController = {
         throw new AppError(401, 'Authentication required');
       }
 
-      const { id } = req.params;
+      const id = req.params.id as string;
 
       const existingInstallment = await installmentService.getInstallmentById(id);
       if (!existingInstallment || (existingInstallment as any).isDeleted) {

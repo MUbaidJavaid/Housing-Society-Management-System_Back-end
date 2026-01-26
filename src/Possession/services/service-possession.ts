@@ -751,7 +751,7 @@ export const possessionService = {
 
     const bulkOps = validUpdates.map(result => ({
       updateOne: {
-        filter: { _id: result!.possessionId },
+        filter: { _id: new Types.ObjectId(result!.possessionId) },
         update: { $set: result!.updateData },
       },
     }));

@@ -42,7 +42,7 @@ export const cityController = {
 
   getCity: async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { id } = req.params;
+      const id = req.params.id as string;
 
       const city = await cityService.getCityById(id);
 
@@ -87,7 +87,7 @@ export const cityController = {
 
   getCitiesByState: async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { stateId } = req.params;
+      const stateId = req.params.stateId as string;
 
       const cities = await cityService.getCitiesByState(stateId);
 
@@ -119,7 +119,7 @@ export const cityController = {
         throw new AppError(401, 'Authentication required');
       }
 
-      const { id } = req.params;
+      const id = req.params.id as string;
       const updateData = req.body;
 
       const existingCity = await cityService.getCityById(id);
@@ -156,7 +156,7 @@ export const cityController = {
         throw new AppError(401, 'Authentication required');
       }
 
-      const { id } = req.params;
+      const id = req.params.id as string;
 
       const existingCity = await cityService.getCityById(id);
       if (!existingCity || (existingCity as any).isDeleted) {

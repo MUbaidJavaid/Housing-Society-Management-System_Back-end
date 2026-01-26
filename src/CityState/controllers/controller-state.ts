@@ -39,7 +39,7 @@ export const stateController = {
 
   getState: async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { id } = req.params;
+      const id = req.params.id as string;
 
       const state = await stateService.getStateById(id);
 
@@ -58,7 +58,7 @@ export const stateController = {
 
   getStateWithCities: async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { id } = req.params;
+      const id = req.params.id as string;
 
       const state = await stateService.getStateWithCities(id);
 
@@ -132,7 +132,7 @@ export const stateController = {
         throw new AppError(401, 'Authentication required');
       }
 
-      const { id } = req.params;
+      const id = req.params.id as string;
       const updateData = req.body;
 
       const existingState = await stateService.getStateById(id);
@@ -165,7 +165,7 @@ export const stateController = {
         throw new AppError(401, 'Authentication required');
       }
 
-      const { id } = req.params;
+      const id = req.params.id as string;
 
       const existingState = await stateService.getStateById(id);
       if (!existingState || (existingState as any).isDeleted) {

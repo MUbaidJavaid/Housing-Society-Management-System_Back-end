@@ -602,7 +602,7 @@ export const srDevStatusService = {
   ): Promise<boolean> {
     const updates = statusOrders.map(order => ({
       updateOne: {
-        filter: { _id: order.id, isDeleted: false },
+        filter: { _id: new Types.ObjectId(order.id), isDeleted: false },
         update: {
           $set: {
             sequence: order.sequence,

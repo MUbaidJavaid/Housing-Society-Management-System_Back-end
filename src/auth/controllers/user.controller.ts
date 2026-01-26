@@ -2,6 +2,7 @@ import { Response } from 'express';
 import User from '../../database/models/User';
 import { AppError } from '../../middleware/error.middleware';
 import { AuthRequest } from '../types';
+import { Types } from 'mongoose';
 
 // Utility functions
 const handleError = (error: any, next: Function) => {
@@ -139,7 +140,7 @@ export const userController = {
    */
   getUserById: async (req: AuthRequest, res: Response, next: Function) => {
     try {
-      const { id } = req.params;
+      const id = req.params.id as string;
 
       // Check permissions
       if (req.user?.role !== 'admin' && req.user?.userId.toString() !== id) {
@@ -176,7 +177,7 @@ export const userController = {
    */
   updateUser: async (req: AuthRequest, res: Response, next: Function) => {
     try {
-      const { id } = req.params;
+      const id = req.params.id as string;
       const updateData = req.body;
 
       // Check permissions
@@ -227,7 +228,7 @@ export const userController = {
    */
   deleteUser: async (req: AuthRequest, res: Response, next: Function) => {
     try {
-      const { id } = req.params;
+      const id = req.params.id as string;
 
       // Check permissions
       if (req.user?.role !== 'admin' && req.user?.userId.toString() !== id) {

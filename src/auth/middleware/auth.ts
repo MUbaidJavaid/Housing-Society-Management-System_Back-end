@@ -351,7 +351,7 @@ export const requireOwnership = (paramName = 'userId') => {
       return;
     }
 
-    const resourceId = req.params[paramName];
+    const resourceId = req.params[paramName] as string;
 
     if (req.user.userId.toString() !== resourceId && req.user.role !== 'admin') {
       res.status(403).json({

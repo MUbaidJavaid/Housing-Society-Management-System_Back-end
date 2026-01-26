@@ -867,7 +867,7 @@ export const plotService = {
 
     const bulkOps = validUpdates.map(result => ({
       updateOne: {
-        filter: { _id: result!.plotId },
+        filter: { _id: new Types.ObjectId(result!.plotId) },
         update: {
           $set: {
             [data.field]: data.value,
