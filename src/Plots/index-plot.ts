@@ -1,4 +1,5 @@
-// Export types
+// Export types and enums
+export { PlotType } from './models/models-plot';
 export * from './types/types-plot';
 
 // Export services
@@ -12,7 +13,11 @@ export { default as plotRoutes } from './routes/routes-plot';
 
 // Export validators
 export {
+  validateBulkPlotUpdate,
   validateCreatePlot,
   validateGetPlots,
+  validatePlotAssignment,
+  validatePlotDocuments,
+  validatePriceCalculation,
   validateUpdatePlot,
 } from './validators/validator-plot';

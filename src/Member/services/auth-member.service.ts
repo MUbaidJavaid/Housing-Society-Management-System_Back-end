@@ -343,7 +343,6 @@ export const authMemberService = {
       filteredUpdate.emailVerificationToken = verificationToken;
       filteredUpdate.emailVerificationExpires = new Date(Date.now() + 24 * 3600000);
     }
-
     const updatedMember = await Member.findByIdAndUpdate(
       memberId,
       { $set: filteredUpdate },
@@ -352,14 +351,17 @@ export const authMemberService = {
       .populate('statusId', 'statusName')
       .populate('cityId', 'cityName');
 
-    // Send verification email if email was updated
-    if (filteredUpdate.memContEmail && filteredUpdate.memContEmail !== member.memContEmail) {
-      async function sendVerificationEmail(email: string, name: string, otp: string) {
-        return emailService.sendVerificationEmail(email, name, otp);
-      }
+    if (!updatedMember) {
+      throw new Error('Failed to update member');
     }
 
-    return this.formatMemberResponse(updatedMember);
+    if (filteredUpdate.memContEmail && filteredUpdate.memContEmail !== member.memContEmail) {
+      await emailService.sendVerificationEmail(
+        filteredUpdate.memContEmail,
+        updatedMember.memName,
+        filteredUpdate.emailVerificationToken
+      );
+    }
   },
 
   /**
@@ -422,10 +424,11 @@ export const authMemberService = {
     member.emailVerificationExpires = new Date(Date.now() + 24 * 3600000);
     await member.save({ validateBeforeSave: false });
 
-    // Send verification email
-    async function sendVerificationEmail(email: string, name: string, otp: string) {
-      return emailService.sendVerificationEmail(email, name, otp);
-    }
+    await emailService.sendVerificationEmail(
+      member.memContEmail,
+      member.memName,
+      verificationToken
+    );
   },
 
   /**

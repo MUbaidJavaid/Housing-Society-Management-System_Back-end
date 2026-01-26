@@ -63,11 +63,15 @@ import { stateRoutes } from './CityState/index-state';
 import { statusRoutes } from './CityState/index-status';
 
 import rateLimit from 'express-rate-limit';
+import { srDevStatusRoutes } from './Development/index-srdevstatus';
 import uploadRoutes from './imageUpload/routes/upload.routes';
 import { ApiError } from './imageUpload/utils/error-handler';
 import { authMemberRoutes } from './Member/indexa-member';
 import { paymentModeRoutes } from './Payment/index-paymentmodule';
+import { plotCategoryRoutes } from './Plots/index-plotcategory';
+import { possessionRoutes } from './Possession/index-possession';
 import { projectRoutes } from './Project/index-project';
+import { salesStatusRoutes } from './Sales/index-salesstatus';
 // Track graceful shutdown
 let isShuttingDown = false;
 dotenv.config();
@@ -327,29 +331,39 @@ function setupRoutes(app: Application): void {
   app.use('/api/uploads', uploadRoutes);
 
   // Global error handler
-  app.use((error: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-    console.error('Error:', error);
+  app.use(
+    (error: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+      console.error('Error:', error);
 
-    if (error instanceof ApiError) {
-      return res.status(error.statusCode).json({
+      if (error instanceof ApiError) {
+        return res.status(error.statusCode).json({
+          success: false,
+          errorCode: error.errorCode,
+          message: error.message,
+          details: error.details,
+          timestamp: new Date().toISOString(),
+        });
+      }
+
+      // Multer errors
+      if (error.name === 'MulterError') {
+        return res.status(400).json({
+          success: false,
+          errorCode: 'UPLOAD_ERROR',
+          message: error.message,
+          timestamp: new Date().toISOString(),
+        });
+      }
+
+      // ✅ IMPORTANT: always return a fallback response
+      return res.status(500).json({
         success: false,
-        errorCode: error.errorCode,
-        message: error.message,
-        details: error.details,
+        errorCode: 'INTERNAL_SERVER_ERROR',
+        message: 'Something went wrong',
         timestamp: new Date().toISOString(),
       });
     }
-
-    // Multer errors
-    if (error.name === 'MulterError') {
-      return res.status(400).json({
-        success: false,
-        errorCode: 'UPLOAD_ERROR',
-        message: error.message,
-        timestamp: new Date().toISOString(),
-      });
-    }
-  });
+  );
 
   // Apply global rate limiting to all API routes (from second codebase)
   app.use('/api/v1', rateLimitMiddleware.globalRateLimit);
@@ -401,9 +415,11 @@ function setupRoutes(app: Application): void {
   app.use('/api/statuses', statusRoutes);
 
   app.use('/api/projects', projectRoutes);
-
+  app.use('/api/possession', possessionRoutes);
   app.use('/api/paymentmodes', paymentModeRoutes);
-
+  app.use('/api/plotcategories', plotCategoryRoutes);
+  app.use('/api/sr-dev-status', srDevStatusRoutes);
+  app.use('/api/sales-status', salesStatusRoutes);
   // Debug route
   app.get('/api/test', (_req: Request, res: Response) => {
     res.json({ success: true, message: 'API is working' });

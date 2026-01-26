@@ -1,18 +1,26 @@
 import { Document, Model, Schema, Types, model } from 'mongoose';
 
 export interface IPlotBlock extends Document {
+  projectId: Types.ObjectId; // Added: Foreign key to Project
   plotBlockName: string;
   plotBlockDesc?: string;
+  blockTotalArea?: number; // Added
+  blockAreaUnit?: string; // Added: e.g., 'acres', 'hectares', 'sqft'
   createdBy: Types.ObjectId;
-  createdAt: Date;
   updatedBy?: Types.ObjectId;
-  updatedAt: Date;
   isDeleted: boolean;
   deletedAt?: Date;
 }
 
 const plotBlockSchema = new Schema<IPlotBlock>(
   {
+    projectId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Project',
+      required: [true, 'Project ID is required'],
+      index: true,
+    },
+
     plotBlockName: {
       type: String,
       required: [true, 'Plot Block Name is required'],
@@ -26,6 +34,21 @@ const plotBlockSchema = new Schema<IPlotBlock>(
       type: String,
       trim: true,
       maxlength: [500, 'Description cannot exceed 500 characters'],
+    },
+
+    blockTotalArea: {
+      type: Number,
+      min: [0, 'Area cannot be negative'],
+      default: 0,
+    },
+
+    blockAreaUnit: {
+      type: String,
+      enum: {
+        values: ['acres', 'hectares', 'sqft', 'sqm', 'km²'],
+        message: '{VALUE} is not a valid area unit',
+      },
+      default: 'acres',
     },
 
     createdBy: {
@@ -52,13 +75,13 @@ const plotBlockSchema = new Schema<IPlotBlock>(
     },
   },
   {
-    timestamps: true,
+    timestamps: true, // This automatically creates createdAt and updatedAt
   }
 );
 
-// Compound index for name uniqueness (excluding deleted)
+// Compound index for name uniqueness within the same project
 plotBlockSchema.index(
-  { plotBlockName: 1, isDeleted: 1 },
+  { projectId: 1, plotBlockName: 1, isDeleted: 1 },
   {
     unique: true,
     partialFilterExpression: { isDeleted: false },
@@ -73,6 +96,9 @@ plotBlockSchema.index(
     name: 'plotblock_text_search',
   }
 );
+
+// Index for filtering by project
+plotBlockSchema.index({ projectId: 1, isDeleted: 1 });
 
 const PlotBlock: Model<IPlotBlock> = model<IPlotBlock>('PlotBlock', plotBlockSchema);
 

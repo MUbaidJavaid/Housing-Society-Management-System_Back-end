@@ -1,6 +1,6 @@
 import { Types } from 'mongoose';
-import PlotBlock from '../models/models-plotblock';
 import { CreatePlotBlockDto, PlotBlockQueryParams, UpdatePlotBlockDto } from '../index-plotblock';
+import PlotBlock from '../models/models-plotblock';
 
 export const plotBlockService = {
   /**
@@ -9,6 +9,7 @@ export const plotBlockService = {
   async createPlotBlock(data: CreatePlotBlockDto, userId: Types.ObjectId): Promise<any> {
     const plotBlock = await PlotBlock.create({
       ...data,
+      projectId: new Types.ObjectId(data.projectId),
       createdBy: userId,
       updatedBy: userId,
     });
@@ -21,19 +22,27 @@ export const plotBlockService = {
    */
   async getPlotBlockById(id: string): Promise<any | null> {
     const plotBlock = await PlotBlock.findById(id)
+      .populate('projectId', 'projName projectCode') // Added: populate project info
       .populate('createdBy', 'firstName lastName email')
       .populate('updatedBy', 'firstName lastName email');
 
     if (!plotBlock) return null;
 
-    return plotBlock.toObject(); // Convert to plain object instead of using .lean()
+    return plotBlock.toObject();
   },
 
   /**
    * Get all plot blocks with pagination
    */
   async getPlotBlocks(params: PlotBlockQueryParams): Promise<any> {
-    const { page = 1, limit = 10, search = '', sortBy = 'createdAt', sortOrder = 'desc' } = params;
+    const {
+      page = 1,
+      limit = 10,
+      search = '',
+      sortBy = 'createdAt',
+      sortOrder = 'desc',
+      projectId,
+    } = params;
 
     const skip = (page - 1) * limit;
     const sort: Record<string, 1 | -1> = {
@@ -42,6 +51,11 @@ export const plotBlockService = {
 
     // Build query
     const query: any = { isDeleted: false };
+
+    if (projectId) {
+      query.projectId = new Types.ObjectId(projectId);
+    }
+
     if (search) {
       query.$or = [
         { plotBlockName: { $regex: search, $options: 'i' } },
@@ -52,17 +66,25 @@ export const plotBlockService = {
     // Execute queries
     const [plotBlocks, total] = await Promise.all([
       PlotBlock.find(query)
+        .populate('projectId', 'projName projectCode') // Added
         .populate('createdBy', 'firstName lastName email')
         .populate('updatedBy', 'firstName lastName email')
         .skip(skip)
         .limit(limit)
         .sort(sort)
-        .then(docs => docs.map(doc => doc.toObject())), // Convert all to plain objects
+        .then(docs => docs.map(doc => doc.toObject())),
       PlotBlock.countDocuments(query),
     ]);
 
+    // Calculate total area for the query result
+    const totalArea = plotBlocks.reduce((sum, block) => sum + (block.blockTotalArea || 0), 0);
+
     return {
       plotBlocks,
+      summary: {
+        totalArea,
+        unit: plotBlocks[0]?.blockAreaUnit || 'acres',
+      },
       pagination: {
         page,
         limit,
@@ -90,12 +112,13 @@ export const plotBlockService = {
       },
       { new: true, runValidators: true }
     )
+      .populate('projectId', 'projName projectCode')
       .populate('createdBy', 'firstName lastName email')
       .populate('updatedBy', 'firstName lastName email');
 
     if (!plotBlock) return null;
 
-    return plotBlock.toObject(); // Convert to plain object
+    return plotBlock.toObject();
   },
 
   /**
@@ -118,11 +141,16 @@ export const plotBlockService = {
   },
 
   /**
-   * Check if plot block exists
+   * Check if plot block exists within a project
    */
-  async checkPlotBlockExists(plotBlockName: string, excludeId?: string): Promise<boolean> {
+  async checkPlotBlockExists(
+    plotBlockName: string,
+    projectId: string,
+    excludeId?: string
+  ): Promise<boolean> {
     const query: any = {
       plotBlockName: { $regex: new RegExp(`^${plotBlockName}$`, 'i') },
+      projectId: new Types.ObjectId(projectId),
       isDeleted: false,
     };
 
@@ -132,5 +160,43 @@ export const plotBlockService = {
 
     const count = await PlotBlock.countDocuments(query);
     return count > 0;
+  },
+
+  /**
+   * Get plot blocks by project ID
+   */
+  async getPlotBlocksByProject(projectId: string): Promise<any[]> {
+    const plotBlocks = await PlotBlock.find({
+      projectId: new Types.ObjectId(projectId),
+      isDeleted: false,
+    })
+      .populate('createdBy', 'firstName lastName email')
+      .sort({ plotBlockName: 1 });
+
+    return plotBlocks.map(block => block.toObject());
+  },
+
+  /**
+   * Calculate total area for a project
+   */
+  async getProjectTotalArea(projectId: string): Promise<{ totalArea: number; unit: string }> {
+    const result = await PlotBlock.aggregate([
+      {
+        $match: {
+          projectId: new Types.ObjectId(projectId),
+          isDeleted: false,
+        },
+      },
+      {
+        $group: {
+          _id: '$blockAreaUnit',
+          totalArea: { $sum: '$blockTotalArea' },
+        },
+      },
+    ]);
+
+    return result.length > 0
+      ? { totalArea: result[0].totalArea, unit: result[0]._id || 'acres' }
+      : { totalArea: 0, unit: 'acres' };
   },
 };

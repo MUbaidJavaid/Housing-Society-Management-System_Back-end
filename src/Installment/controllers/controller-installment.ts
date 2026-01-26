@@ -1,4 +1,5 @@
-import { AuthRequest } from '@/auth';
+import { AuthRequest } from '../../auth/types';
+
 import { NextFunction, Request, Response } from 'express';
 import { AppError } from '../../middleware/error.middleware';
 import {

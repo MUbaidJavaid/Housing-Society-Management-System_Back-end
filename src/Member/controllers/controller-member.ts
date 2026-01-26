@@ -2,7 +2,8 @@ import { AuthRequest } from '../../auth/types';
 
 import console from 'console';
 import { NextFunction, Request, Response } from 'express';
-import { UploadService, uploadService } from '../../imageUpload/services/upload.service';
+import { EntityType } from '../../imageUpload/types/upload.types';
+import { uploadService } from '../../imageUpload/services/upload.service';
 import { AppError } from '../../middleware/error.middleware';
 import { CreateMemberDto, MemberQueryParams, memberService } from '../index-member';
 
@@ -192,11 +193,13 @@ export const memberController = {
       if (updateData.memImg !== undefined) {
         // If new image is empty string, remove image
         if (updateData.memImg === '') {
-          // Delete old image from Cloudinary if exists
           if (existingMember.memImg) {
-            const publicId = UploadService.getFilesByEntity(existingMember.memImg);
-            if (publicId) {
-              await uploadService.deleteFromCloudinary(publicId);
+            const files = await uploadService.getFilesByEntity(
+              EntityType.MEMBER, // correct enum
+              existingMember._id.toString() // ensure string
+            );
+            if (files.length > 0) {
+              await uploadService.deleteFromCloudinary(files[0].publicId); // instance method
             }
           }
         }
@@ -229,7 +232,6 @@ export const memberController = {
       if (!existingMember || (existingMember as any).isDeleted) {
         throw new AppError(404, 'Member not found');
       }
-      // Delete image from Cloudinary if exists
       if (existingMember.memImg) {
         const publicId = uploadService.extractPublicIdFromUrl(existingMember.memImg);
         if (publicId) {

@@ -1,4 +1,5 @@
-// Export types
+// Export types and enums
+export { ProjectStatus, ProjectType } from './models/models-project';
 export * from './types/types-project';
 
 // Export services
@@ -12,7 +13,11 @@ export { default as projectRoutes } from './routes/routes-project';
 
 // Export validators
 export {
+  validateBulkUpdateStatus,
   validateCreateProject,
   validateGetProjects,
+  validateLocationSearch,
+  validatePlotCountUpdate,
   validateUpdateProject,
+  validateUpdateProjectStatus,
 } from './validator/validator-project';

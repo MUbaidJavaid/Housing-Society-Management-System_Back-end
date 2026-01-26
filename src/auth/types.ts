@@ -31,6 +31,7 @@ export interface UserSession {
 // Authentication request
 export interface AuthRequest extends Request {
   user?: DecodedToken;
+  oldData?: any;
   session?: UserSession;
 }
 

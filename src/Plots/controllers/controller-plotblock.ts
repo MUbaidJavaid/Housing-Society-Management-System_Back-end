@@ -1,5 +1,5 @@
-import { AuthRequest } from '@/auth';
 import { NextFunction, Request, Response } from 'express';
+import { AuthRequest } from '../../auth/types';
 import { AppError } from '../../middleware/error.middleware';
 import { plotBlockService } from '../index-plotblock';
 import { CreatePlotBlockDto, PlotBlockQueryParams } from '../types/types-plotblock';
@@ -25,10 +25,18 @@ export const plotBlockController = {
         throw new AppError(400, 'Plot Block Name is required');
       }
 
-      // Check if plot block already exists
-      const exists = await plotBlockService.checkPlotBlockExists(createData.plotBlockName);
+      if (!createData.projectId) {
+        throw new AppError(400, 'Project ID is required');
+      }
+
+      // Check if plot block already exists in the same project
+      const exists = await plotBlockService.checkPlotBlockExists(
+        createData.plotBlockName,
+        createData.projectId
+      );
+
       if (exists) {
-        throw new AppError(409, 'Plot Block with this name already exists');
+        throw new AppError(409, 'Plot Block with this name already exists in this project');
       }
 
       const plotBlock = await plotBlockService.createPlotBlock(createData, req.user.userId);

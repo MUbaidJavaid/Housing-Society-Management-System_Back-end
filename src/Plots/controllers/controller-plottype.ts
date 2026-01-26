@@ -1,5 +1,5 @@
-import { AuthRequest } from '@/auth';
 import { NextFunction, Request, Response } from 'express';
+import { AuthRequest } from '../../auth/types';
 import { AppError } from '../../middleware/error.middleware';
 import { CreatePlotTypeDto, PlotTypeQueryParams, plotTypeService } from '../index-plottype';
 

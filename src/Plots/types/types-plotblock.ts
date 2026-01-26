@@ -2,8 +2,11 @@ import { Types } from 'mongoose';
 
 export interface PlotBlock {
   _id: Types.ObjectId;
+  projectId: Types.ObjectId; // Added
   plotBlockName: string;
   plotBlockDesc?: string;
+  blockTotalArea?: number; // Added
+  blockAreaUnit?: string; // Added
   createdBy: any;
   createdAt: Date;
   updatedBy?: any;
@@ -11,13 +14,18 @@ export interface PlotBlock {
 }
 
 export interface CreatePlotBlockDto {
+  projectId: string; // Added
   plotBlockName: string;
   plotBlockDesc?: string;
+  blockTotalArea?: number; // Added
+  blockAreaUnit?: string; // Added
 }
 
 export interface UpdatePlotBlockDto {
   plotBlockName?: string;
   plotBlockDesc?: string;
+  blockTotalArea?: number; // Added
+  blockAreaUnit?: string; // Added
 }
 
 export interface PlotBlockQueryParams {
@@ -26,6 +34,7 @@ export interface PlotBlockQueryParams {
   search?: string;
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
+  projectId?: string; // Added: filter by project
 }
 
 export interface PlotBlockResponse {

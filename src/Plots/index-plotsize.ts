@@ -12,6 +12,8 @@ export { default as plotSizeRoutes } from './routes/routes-plotsize';
 
 // Export validators
 export {
+  validateCalculatePrice,
+  validateConvertArea,
   validateCreatePlotSize,
   validateGetPlotSizes,
   validateUpdatePlotSize,

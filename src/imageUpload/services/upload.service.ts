@@ -243,7 +243,20 @@ export class UploadService {
       session.endSession();
     }
   }
+  async deleteFromCloudinary(publicId: string) {
+    return deleteFromCloudinary(publicId);
+  }
 
+  // Extract publicId from a Cloudinary URL
+  extractPublicIdFromUrl(url: string): string | null {
+    const match = url.match(/\/([^/]+)\.[a-z]+$/);
+    return match ? match[1] : null;
+  }
+
+  // Convenience method for deleting a member's image
+  async deleteMemberImage(publicId: string) {
+    return this.deleteFromCloudinary(publicId);
+  }
   /**
    * Delete file (soft delete)
    */
