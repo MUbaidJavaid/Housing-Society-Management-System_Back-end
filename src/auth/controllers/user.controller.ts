@@ -2,7 +2,6 @@ import { Response } from 'express';
 import User from '../../database/models/User';
 import { AppError } from '../../middleware/error.middleware';
 import { AuthRequest } from '../types';
-import { Types } from 'mongoose';
 
 // Utility functions
 const handleError = (error: any, next: Function) => {
