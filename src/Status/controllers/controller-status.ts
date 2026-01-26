@@ -7,6 +7,14 @@ const handleError = (error: any, next: NextFunction) => {
   next(error);
 };
 
+// Helper function to extract ID from params
+const extractId = (idParam: string | string[]): string => {
+  if (Array.isArray(idParam)) {
+    return idParam[0];
+  }
+  return idParam;
+};
+
 export const statusController = {
   createStatus: async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
@@ -42,7 +50,7 @@ export const statusController = {
 
   getStatus: async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const id = req.params.id as string;
+      const id = extractId(req.params.id);
 
       const status = await statusService.getStatusById(id);
 
@@ -86,7 +94,7 @@ export const statusController = {
 
   getStatusesByType: async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const type = req.params.type as string;
+      const type = extractId(req.params.type);
 
       const statuses = await statusService.getStatusesByType(type);
 
@@ -129,7 +137,7 @@ export const statusController = {
     try {
       if (!req.user) throw new AppError(401, 'Authentication required');
 
-      const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+      const id = extractId(req.params.id);
       const updateData = req.body;
 
       const existingStatus = await statusService.getStatusById(id);
@@ -164,7 +172,7 @@ export const statusController = {
         throw new AppError(401, 'Authentication required');
       }
 
-      const id = req.params.id as string;
+      const id = extractId(req.params.id);
 
       const existingStatus = await statusService.getStatusById(id);
       if (!existingStatus || (existingStatus as any).isDeleted) {
