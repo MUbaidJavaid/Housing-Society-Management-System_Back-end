@@ -42,7 +42,7 @@ export const statusController = {
   getStatusById: async (req: Request, res: Response, next: NextFunction) => {
     // Renamed for clarity
     try {
-      const { id } = req.params;
+      const id = req.params.id as string;
 
       const status = await statusService.getStatusById(id);
 
@@ -103,7 +103,7 @@ export const statusController = {
         throw new AppError(401, 'Authentication required');
       }
 
-      const { id } = req.params;
+      const id = req.params.id as string;
       const updateData = req.body;
 
       const existingStatus = await statusService.getStatusById(id);
@@ -136,7 +136,7 @@ export const statusController = {
         throw new AppError(401, 'Authentication required');
       }
 
-      const { id } = req.params;
+      const id = req.params.id as string;
 
       const existingStatus = await statusService.getStatusById(id);
       if (!existingStatus || (existingStatus as any).isDeleted) {
