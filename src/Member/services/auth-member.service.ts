@@ -1,4 +1,4 @@
-import bcrypt, { genSalt, hash } from 'bcryptjs';
+import bcrypt, { genSalt, hash } from 'bcrypt';
 import { Types } from 'mongoose';
 import { jwtService } from '../../auth/jwt';
 import { TokenPair, UserRole } from '../../auth/types';
