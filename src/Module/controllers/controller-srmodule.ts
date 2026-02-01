@@ -410,7 +410,7 @@ export const srModuleController = {
    */
   getModulesByPermission: async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { permission } = req.params;
+      const permission = req.params.permission as string;
 
       if (!permission?.trim()) {
         throw new AppError(400, 'Permission is required');
