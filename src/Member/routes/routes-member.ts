@@ -35,4 +35,11 @@ router.delete(
   memberController.deleteMember
 );
 
+router.post(
+  '/:id/unlock',
+  authenticate,
+  requireRole(UserRole.MODERATOR, UserRole.ADMIN, UserRole.SUPER_ADMIN),
+  memberController.unlockMember
+);
+
 export default router;

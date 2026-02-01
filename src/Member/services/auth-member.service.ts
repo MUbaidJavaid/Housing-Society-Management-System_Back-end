@@ -1,4 +1,4 @@
-import bcrypt from 'bcryptjs';
+import bcrypt, { genSalt, hash } from 'bcryptjs';
 import { Types } from 'mongoose';
 import { jwtService } from '../../auth/jwt';
 import { TokenPair, UserRole } from '../../auth/types';
@@ -63,19 +63,19 @@ export const authMemberService = {
       throw new Error('This account already has a password set. Use login or forgot password.');
     }
 
-    // Hash the new password
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
+    // Hash the new password using bcryptjs functions
+    const salt = await genSalt(10);
+    const hashedPassword = await hash(password, salt);
 
     // Update member: set password and mark as activated
     member.password = hashedPassword;
-    member.emailVerified = false; // Email needs verification after signup
+    member.emailVerified = false;
     member.lastLogin = new Date();
     member.updatedAt = new Date();
 
     await member.save();
 
-    // Generate tokens (memContEmail is guaranteed to exist at this point from validation above)
+    // Generate tokens
     const tokens = await jwtService.generateTokenPair(
       member._id,
       member.memContEmail as string,
@@ -96,9 +96,10 @@ export const authMemberService = {
    * Accepts Email identifier
    */
   async login(loginCredentials: LoginCredentials): Promise<{ member: any; tokens: TokenPair }> {
-    const { email, password } = loginCredentials;
+    console.log('🔍 [LOGIN-DEBUG] Starting login...');
+    const { memContEmail, password } = loginCredentials;
 
-    if (!email || !email.trim()) {
+    if (!memContEmail || !memContEmail.trim()) {
       throw new Error('Email is required');
     }
 
@@ -106,15 +107,19 @@ export const authMemberService = {
       throw new Error('Password is required');
     }
 
-    const normalizedEmail = email.trim().toLowerCase();
-
+    const normalizedEmail = memContEmail.trim().toLowerCase();
+    console.log('🔍 [LOGIN-DEBUG] Looking for:', normalizedEmail);
     // Find member by email
     const member = await Member.findOne({
       memContEmail: normalizedEmail,
       isDeleted: false,
       isActive: true,
     }).select('+password +lockUntil +loginAttempts');
-
+    console.log('🔍 [LOGIN-DEBUG] Member found:', !!member);
+    console.log('🔍 [LOGIN-DEBUG] Member ID:', member?._id);
+    console.log('🔍 [LOGIN-DEBUG] Has password:', !!member?.password);
+    console.log('🔍 [LOGIN-DEBUG] Password length:', member?.password?.length);
+    console.log('🔍 [LOGIN-DEBUG] Password first 10 chars:', member?.password?.substring(0, 10));
     if (!member) {
       throw new Error('Invalid email or password');
     }
@@ -125,6 +130,9 @@ export const authMemberService = {
       throw new Error(`Account is temporarily locked. Try again in ${remainingTime} minutes.`);
     }
 
+    console.log('🔍 [LOGIN-DEBUG] Attempting password comparison...');
+    console.log('🔍 [LOGIN-DEBUG] Provided password:', password);
+    console.log('🔍 [LOGIN-DEBUG] Stored password hash exists:', !!member.password);
     // Verify password
     const isPasswordValid = await bcrypt.compare(password, member.password || '');
     if (!isPasswordValid) {

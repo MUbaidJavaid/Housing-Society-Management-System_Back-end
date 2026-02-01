@@ -1,20 +1,24 @@
-import { AuthRequest } from '../../auth/types';
-
 import { NextFunction, Request, Response } from 'express';
+import { AuthRequest } from '../../auth/types';
 import { AppError } from '../../middleware/error.middleware';
+import { installmentService } from '../services/service-installment';
 import {
+  BulkInstallmentCreationDto,
   CreateInstallmentDto,
   InstallmentQueryParams,
-  InstallmentStatus,
-  InstallmentType,
-} from '../index-installment';
-import { installmentService } from '../services/service-installment';
+  InstallmentReportParams,
+  RecordPaymentDto,
+  UpdateInstallmentDto,
+} from '../types/types-installment';
 
 const handleError = (error: any, next: NextFunction) => {
   next(error);
 };
 
 export const installmentController = {
+  /**
+   * Create new installment
+   */
   createInstallment: async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
       if (!req.user) {
@@ -24,35 +28,40 @@ export const installmentController = {
       const createData: CreateInstallmentDto = req.body;
 
       // Validate required fields
-      if (!createData.memID) {
-        throw new AppError(400, 'Member ID is required');
-      }
-      if (!createData.plotID) {
-        throw new AppError(400, 'Plot ID is required');
-      }
-      if (!createData.installmentNo) {
-        throw new AppError(400, 'Installment Number is required');
-      }
-      if (!createData.installmentType) {
-        throw new AppError(400, 'Installment Type is required');
-      }
-      if (!createData.dueDate) {
-        throw new AppError(400, 'Due Date is required');
-      }
-      if (!createData.amountDue || createData.amountDue <= 0) {
-        throw new AppError(400, 'Valid Amount Due is required');
+      if (!createData.fileId) {
+        throw new AppError(400, 'File ID is required');
       }
 
-      // Check if installment number already exists for this plot
-      const existingInstallment = await installmentService.getInstallmentsByPlot(createData.plotID);
-      const duplicate = existingInstallment.find(
-        (inst: any) => inst.installmentNo === createData.installmentNo
-      );
-      if (duplicate) {
-        throw new AppError(
-          409,
-          `Installment number ${createData.installmentNo} already exists for this plot`
-        );
+      if (!createData.memId) {
+        throw new AppError(400, 'Member ID is required');
+      }
+
+      if (!createData.plotId) {
+        throw new AppError(400, 'Plot ID is required');
+      }
+
+      if (!createData.installmentCategoryId) {
+        throw new AppError(400, 'Installment category is required');
+      }
+
+      if (!createData.installmentNo) {
+        throw new AppError(400, 'Installment number is required');
+      }
+
+      if (!createData.installmentTitle) {
+        throw new AppError(400, 'Installment title is required');
+      }
+
+      if (!createData.installmentType) {
+        throw new AppError(400, 'Installment type is required');
+      }
+
+      if (!createData.dueDate) {
+        throw new AppError(400, 'Due date is required');
+      }
+
+      if (!createData.amountDue) {
+        throw new AppError(400, 'Amount due is required');
       }
 
       const installment = await installmentService.createInstallment(createData, req.user.userId);
@@ -67,15 +76,77 @@ export const installmentController = {
     }
   },
 
+  /**
+   * Create bulk installments
+   */
+  createBulkInstallments: async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+      if (!req.user) {
+        throw new AppError(401, 'Authentication required');
+      }
+
+      const bulkData: BulkInstallmentCreationDto = req.body;
+
+      // Validate required fields
+      if (!bulkData.fileId) {
+        throw new AppError(400, 'File ID is required');
+      }
+
+      if (!bulkData.memId) {
+        throw new AppError(400, 'Member ID is required');
+      }
+
+      if (!bulkData.plotId) {
+        throw new AppError(400, 'Plot ID is required');
+      }
+
+      if (!bulkData.installmentCategoryId) {
+        throw new AppError(400, 'Installment category is required');
+      }
+
+      if (!bulkData.installmentType) {
+        throw new AppError(400, 'Installment type is required');
+      }
+
+      if (!bulkData.totalInstallments || bulkData.totalInstallments < 1) {
+        throw new AppError(400, 'Valid total installments is required');
+      }
+
+      if (!bulkData.amountPerInstallment || bulkData.amountPerInstallment <= 0) {
+        throw new AppError(400, 'Valid amount per installment is required');
+      }
+
+      if (!bulkData.startDate) {
+        throw new AppError(400, 'Start date is required');
+      }
+
+      if (!bulkData.frequency) {
+        throw new AppError(400, 'Payment frequency is required');
+      }
+
+      const installments = await installmentService.createBulkInstallments(
+        bulkData,
+        req.user.userId
+      );
+
+      res.status(201).json({
+        success: true,
+        data: installments,
+        message: `Successfully created ${installments.length} installments`,
+      });
+    } catch (error) {
+      handleError(error, next);
+    }
+  },
+
+  /**
+   * Get installment by ID
+   */
   getInstallment: async (req: Request, res: Response, next: NextFunction) => {
     try {
       const id = req.params.id as string;
 
       const installment = await installmentService.getInstallmentById(id);
-
-      if (!installment || (installment as any).isDeleted) {
-        throw new AppError(404, 'Installment not found');
-      }
 
       res.json({
         success: true,
@@ -86,22 +157,25 @@ export const installmentController = {
     }
   },
 
+  /**
+   * Get all installments
+   */
   getInstallments: async (req: Request, res: Response, next: NextFunction) => {
     try {
       const queryParams: InstallmentQueryParams = {
         page: req.query.page ? parseInt(req.query.page as string) : 1,
-        limit: req.query.limit ? parseInt(req.query.limit as string) : 10,
+        limit: req.query.limit ? parseInt(req.query.limit as string) : 20,
+        fileId: req.query.fileId as string,
+        memId: req.query.memId as string,
+        plotId: req.query.plotId as string,
+        installmentCategoryId: req.query.installmentCategoryId as string,
+        status: req.query.status as any,
+        installmentType: req.query.installmentType as any,
+        paymentMode: req.query.paymentMode as any,
+        fromDate: req.query.fromDate ? new Date(req.query.fromDate as string) : undefined,
+        toDate: req.query.toDate ? new Date(req.query.toDate as string) : undefined,
+        overdue: req.query.overdue ? req.query.overdue === 'true' : undefined,
         search: req.query.search as string,
-        status: req.query.status as InstallmentStatus,
-        installmentType: req.query.installmentType as InstallmentType,
-        memID: req.query.memID as string,
-        plotID: req.query.plotID as string,
-        paymentModeID: req.query.paymentModeID as string,
-        startDate: req.query.startDate as string,
-        endDate: req.query.endDate as string,
-        dueDateStart: req.query.dueDateStart as string,
-        dueDateEnd: req.query.dueDateEnd as string,
-        isOverdue: req.query.isOverdue ? req.query.isOverdue === 'true' : undefined,
         sortBy: req.query.sortBy as string,
         sortOrder: req.query.sortOrder as 'asc' | 'desc',
       };
@@ -120,208 +194,9 @@ export const installmentController = {
     }
   },
 
-  getInstallmentSummary: async (_req: Request, res: Response, next: NextFunction) => {
-    try {
-      const summary = await installmentService.getInstallmentSummary();
-
-      res.json({
-        success: true,
-        data: summary,
-      });
-    } catch (error) {
-      handleError(error, next);
-    }
-  },
-
-  getMemberInstallmentSummary: async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const memberId = req.params.memberId as string;
-
-      const summary = await installmentService.getMemberInstallmentSummary(memberId);
-
-      if (!summary) {
-        throw new AppError(404, 'Member not found');
-      }
-
-      res.json({
-        success: true,
-        data: summary,
-      });
-    } catch (error) {
-      handleError(error, next);
-    }
-  },
-
-  getUpcomingInstallments: async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const days = req.query.days ? parseInt(req.query.days as string) : 30;
-
-      const installments = await installmentService.getUpcomingInstallments(days);
-
-      res.json({
-        success: true,
-        data: installments,
-      });
-    } catch (error) {
-      handleError(error, next);
-    }
-  },
-
-  getOverdueInstallments: async (_req: Request, res: Response, next: NextFunction) => {
-    try {
-      const installments = await installmentService.getOverdueInstallments();
-
-      res.json({
-        success: true,
-        data: installments,
-      });
-    } catch (error) {
-      handleError(error, next);
-    }
-  },
-
-  getInstallmentsByMember: async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const memberId = req.params.memberId as string;
-
-      const installments = await installmentService.getInstallmentsByMember(memberId);
-
-      res.json({
-        success: true,
-        data: installments,
-      });
-    } catch (error) {
-      handleError(error, next);
-    }
-  },
-
-  getInstallmentsByPlot: async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const plotId = req.params.plotId as string;
-
-      const installments = await installmentService.getInstallmentsByPlot(plotId);
-
-      res.json({
-        success: true,
-        data: installments,
-      });
-    } catch (error) {
-      handleError(error, next);
-    }
-  },
-
-  generateInstallments: async (req: AuthRequest, res: Response, next: NextFunction) => {
-    try {
-      if (!req.user) {
-        throw new AppError(401, 'Authentication required');
-      }
-
-      const { memberId, plotId, totalAmount, numberOfInstallments, installmentType, startDate } =
-        req.body;
-
-      // Validate required fields
-      if (
-        !memberId ||
-        !plotId ||
-        !totalAmount ||
-        !numberOfInstallments ||
-        !installmentType ||
-        !startDate
-      ) {
-        throw new AppError(
-          400,
-          'All fields are required: memberId, plotId, totalAmount, numberOfInstallments, installmentType, startDate'
-        );
-      }
-
-      if (totalAmount <= 0) {
-        throw new AppError(400, 'Total Amount must be positive');
-      }
-
-      if (numberOfInstallments <= 0) {
-        throw new AppError(400, 'Number of Installments must be positive');
-      }
-
-      if (!Object.values(InstallmentType).includes(installmentType)) {
-        throw new AppError(400, 'Invalid Installment Type');
-      }
-
-      const installments = await installmentService.generateInstallments(
-        memberId,
-        plotId,
-        totalAmount,
-        numberOfInstallments,
-        installmentType,
-        new Date(startDate),
-        req.user.userId
-      );
-
-      res.status(201).json({
-        success: true,
-        data: installments,
-        message: `${installments.length} installments generated successfully`,
-      });
-    } catch (error) {
-      handleError(error, next);
-    }
-  },
-
-  makePayment: async (req: AuthRequest, res: Response, next: NextFunction) => {
-    try {
-      if (!req.user) {
-        throw new AppError(401, 'Authentication required');
-      }
-
-      const id = req.params.id as string;
-      const paymentData = req.body;
-
-      // Validate payment data
-      if (!paymentData.amountPaid || paymentData.amountPaid <= 0) {
-        throw new AppError(400, 'Valid payment amount is required');
-      }
-
-      if (!paymentData.paymentModeID) {
-        throw new AppError(400, 'Payment Mode is required');
-      }
-
-      if (!paymentData.paidDate) {
-        throw new AppError(400, 'Payment Date is required');
-      }
-
-      const existingInstallment = await installmentService.getInstallmentById(id);
-      if (!existingInstallment || (existingInstallment as any).isDeleted) {
-        throw new AppError(404, 'Installment not found');
-      }
-
-      // Check if payment exceeds remaining amount
-      const remainingAmount = (existingInstallment as any).remainingAmount;
-      if (paymentData.amountPaid > remainingAmount) {
-        throw new AppError(
-          400,
-          `Payment amount cannot exceed remaining amount of ${remainingAmount}`
-        );
-      }
-
-      const updatedInstallment = await installmentService.makePayment(
-        id,
-        paymentData,
-        req.user.userId
-      );
-
-      if (!updatedInstallment) {
-        throw new AppError(500, 'Failed to process payment');
-      }
-
-      res.json({
-        success: true,
-        data: updatedInstallment,
-        message: 'Payment processed successfully',
-      });
-    } catch (error) {
-      handleError(error, next);
-    }
-  },
-
+  /**
+   * Update installment
+   */
   updateInstallment: async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
       if (!req.user) {
@@ -329,12 +204,7 @@ export const installmentController = {
       }
 
       const id = req.params.id as string;
-      const updateData = req.body;
-
-      const existingInstallment = await installmentService.getInstallmentById(id);
-      if (!existingInstallment || (existingInstallment as any).isDeleted) {
-        throw new AppError(404, 'Installment not found');
-      }
+      const updateData: UpdateInstallmentDto = req.body;
 
       const updatedInstallment = await installmentService.updateInstallment(
         id,
@@ -343,7 +213,7 @@ export const installmentController = {
       );
 
       if (!updatedInstallment) {
-        throw new AppError(500, 'Failed to update Installment');
+        throw new AppError(404, 'Installment not found');
       }
 
       res.json({
@@ -356,6 +226,9 @@ export const installmentController = {
     }
   },
 
+  /**
+   * Delete installment (soft delete)
+   */
   deleteInstallment: async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
       if (!req.user) {
@@ -364,20 +237,316 @@ export const installmentController = {
 
       const id = req.params.id as string;
 
-      const existingInstallment = await installmentService.getInstallmentById(id);
-      if (!existingInstallment || (existingInstallment as any).isDeleted) {
-        throw new AppError(404, 'Installment not found');
-      }
-
       const deleted = await installmentService.deleteInstallment(id, req.user.userId);
 
       if (!deleted) {
-        throw new AppError(500, 'Failed to delete Installment');
+        throw new AppError(404, 'Installment not found');
       }
 
       res.json({
         success: true,
         message: 'Installment deleted successfully',
+      });
+    } catch (error) {
+      handleError(error, next);
+    }
+  },
+
+  /**
+   * Record payment for installment
+   */
+  recordPayment: async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+      if (!req.user) {
+        throw new AppError(401, 'Authentication required');
+      }
+
+      const id = req.params.id as string;
+      const paymentData: RecordPaymentDto = req.body;
+
+      // Validate required fields
+      if (!paymentData.amountPaid || paymentData.amountPaid <= 0) {
+        throw new AppError(400, 'Valid payment amount is required');
+      }
+
+      if (!paymentData.paidDate) {
+        throw new AppError(400, 'Payment date is required');
+      }
+
+      if (!paymentData.paymentMode) {
+        throw new AppError(400, 'Payment mode is required');
+      }
+
+      const updatedInstallment = await installmentService.recordPayment(
+        id,
+        paymentData,
+        req.user.userId
+      );
+
+      res.json({
+        success: true,
+        data: updatedInstallment,
+        message: 'Payment recorded successfully',
+      });
+    } catch (error) {
+      handleError(error, next);
+    }
+  },
+
+  /**
+   * Get installments by file
+   */
+  getInstallmentsByFile: async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const fileId = req.params.fileId as string;
+
+      const installments = await installmentService.getInstallmentsByFile(fileId);
+
+      res.json({
+        success: true,
+        data: installments,
+        total: installments.length,
+      });
+    } catch (error) {
+      handleError(error, next);
+    }
+  },
+
+  /**
+   * Get installments by member
+   */
+  getInstallmentsByMember: async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const memId = req.params.memId as string;
+
+      const installments = await installmentService.getInstallmentsByMember(memId);
+
+      res.json({
+        success: true,
+        data: installments,
+        total: installments.length,
+      });
+    } catch (error) {
+      handleError(error, next);
+    }
+  },
+
+  /**
+   * Get installments by plot
+   */
+  getInstallmentsByPlot: async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const plotId = req.params.plotId as string;
+
+      const installments = await installmentService.getInstallmentsByPlot(plotId);
+
+      res.json({
+        success: true,
+        data: installments,
+        total: installments.length,
+      });
+    } catch (error) {
+      handleError(error, next);
+    }
+  },
+
+  /**
+   * Get overdue installments
+   */
+  getOverdueInstallments: async (_req: Request, res: Response, next: NextFunction) => {
+    try {
+      const installments = await installmentService.getOverdueInstallments();
+
+      res.json({
+        success: true,
+        data: installments,
+        total: installments.length,
+      });
+    } catch (error) {
+      handleError(error, next);
+    }
+  },
+
+  /**
+   * Get installments due today
+   */
+  getDueTodayInstallments: async (_req: Request, res: Response, next: NextFunction) => {
+    try {
+      const installments = await installmentService.getDueTodayInstallments();
+
+      res.json({
+        success: true,
+        data: installments,
+        total: installments.length,
+      });
+    } catch (error) {
+      handleError(error, next);
+    }
+  },
+
+  /**
+   * Get installment summary for member
+   */
+  getInstallmentSummary: async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const memId = req.params.memId as string;
+
+      const summary = await installmentService.getInstallmentSummary(memId);
+
+      res.json({
+        success: true,
+        data: summary,
+      });
+    } catch (error) {
+      handleError(error, next);
+    }
+  },
+
+  /**
+   * Get dashboard summary
+   */
+  getDashboardSummary: async (_req: Request, res: Response, next: NextFunction) => {
+    try {
+      const summary = await installmentService.getDashboardSummary();
+
+      res.json({
+        success: true,
+        data: summary,
+      });
+    } catch (error) {
+      handleError(error, next);
+    }
+  },
+
+  /**
+   * Generate installment report
+   */
+  generateReport: async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const params: InstallmentReportParams = {
+        startDate: new Date(req.query.startDate as string),
+        endDate: new Date(req.query.endDate as string),
+        fileId: req.query.fileId as string,
+        memId: req.query.memId as string,
+        plotId: req.query.plotId as string,
+        installmentCategoryId: req.query.installmentCategoryId as string,
+        status: req.query.status as any,
+        installmentType: req.query.installmentType as any,
+      };
+
+      if (!params.startDate || !params.endDate) {
+        throw new AppError(400, 'Start date and end date are required');
+      }
+
+      if (params.startDate > params.endDate) {
+        throw new AppError(400, 'Start date cannot be after end date');
+      }
+
+      const report = await installmentService.generateReport(params);
+
+      res.json({
+        success: true,
+        data: report,
+      });
+    } catch (error) {
+      handleError(error, next);
+    }
+  },
+
+  /**
+   * Get next due installment for member
+   */
+  getNextDueInstallment: async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const memId = req.params.memId as string;
+
+      const installment = await installmentService.getNextDueInstallment(memId);
+
+      res.json({
+        success: true,
+        data: installment,
+      });
+    } catch (error) {
+      handleError(error, next);
+    }
+  },
+
+  /**
+   * Search installments
+   */
+  searchInstallments: async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const searchTerm = req.query.q as string;
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 10;
+
+      if (!searchTerm || searchTerm.trim().length < 2) {
+        throw new AppError(400, 'Search term must be at least 2 characters');
+      }
+
+      const installments = await installmentService.searchInstallments(searchTerm, limit);
+
+      res.json({
+        success: true,
+        data: installments,
+        total: installments.length,
+      });
+    } catch (error) {
+      handleError(error, next);
+    }
+  },
+
+  /**
+   * Bulk update installment status
+   */
+  bulkUpdateStatus: async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+      if (!req.user) {
+        throw new AppError(401, 'Authentication required');
+      }
+
+      const { installmentIds, status } = req.body;
+
+      if (!installmentIds || !Array.isArray(installmentIds) || installmentIds.length === 0) {
+        throw new AppError(400, 'Installment IDs are required and must be a non-empty array');
+      }
+
+      if (!status) {
+        throw new AppError(400, 'Status is required');
+      }
+
+      const result = await installmentService.bulkUpdateStatus(
+        installmentIds,
+        status,
+        req.user.userId
+      );
+
+      res.json({
+        success: true,
+        data: result,
+        message: `Successfully updated ${result.modified} of ${result.matched} installments`,
+      });
+    } catch (error) {
+      handleError(error, next);
+    }
+  },
+
+  /**
+   * Validate installment payment
+   */
+  validatePayment: async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const id = req.params.id as string;
+      const { amount } = req.query;
+
+      if (!amount || isNaN(Number(amount))) {
+        throw new AppError(400, 'Valid payment amount is required');
+      }
+
+      const validation = await installmentService.validatePayment(id, Number(amount));
+
+      res.json({
+        success: true,
+        data: validation,
       });
     } catch (error) {
       handleError(error, next);

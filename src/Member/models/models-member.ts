@@ -1,7 +1,8 @@
+import bcrypt from 'bcryptjs';
 import { Document, Model, Schema, Types, UpdateQuery, model } from 'mongoose';
-
 export interface IMember extends Document {
   memName: string;
+  fullName?: string;
   statusId?: Types.ObjectId;
   memNic: string;
   memImg?: string;
@@ -362,7 +363,6 @@ memberSchema.pre('save', async function (next) {
 
   try {
     if (this.password) {
-      const bcrypt = await import('bcryptjs');
       const salt = await bcrypt.genSalt(10);
       this.password = await bcrypt.hash(this.password, salt);
     }
@@ -377,7 +377,6 @@ memberSchema.methods.comparePassword = async function (
   candidatePassword: string
 ): Promise<boolean> {
   try {
-    const bcrypt = await import('bcryptjs');
     return await bcrypt.compare(candidatePassword, this.password);
   } catch (error) {
     return false;

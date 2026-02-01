@@ -85,9 +85,12 @@ export function swaggerRequestValidator() {
       next();
       return;
     }
-
+    // EXCLUDE UPLOAD ROUTES FROM CONTENT-TYPE VALIDATION
+    const uploadPaths = ['/api/uploads/upload', '/api/uploads/files'];
+    const isUploadRoute = uploadPaths.some(path => req.path.startsWith(path));
     // Check content type for POST/PUT/PATCH
-    if (['POST', 'PUT', 'PATCH'].includes(req.method)) {
+    // Check content type for POST/PUT/PATCH (but exclude upload routes)
+    if (['POST', 'PUT', 'PATCH'].includes(req.method) && !isUploadRoute) {
       const contentType = req.headers['content-type'];
 
       if (!contentType || !contentType.includes('application/json')) {

@@ -27,7 +27,7 @@ type PopulatedPlot = {
   plotDimensions: string;
   plotArea: number;
   plotAreaUnit: string;
-  plotType: string;
+  plotTypeId: string;
   plotBasePrice: number;
   surchargeAmount: number;
   discountAmount: number;
@@ -1153,7 +1153,7 @@ export const plotService = {
     let soldPlots = 0;
 
     plots.forEach(plot => {
-      const plotObj = plot.toObject() as PopulatedPlot;
+      const plotObj = plot.toObject() as unknown as PopulatedPlot;
       const blockName = (plotObj.plotBlockId as any)?.plotBlockName || 'Unknown';
 
       if (!blocks.has(blockName)) {
@@ -1176,7 +1176,7 @@ export const plotService = {
         area: plotObj.plotArea,
         areaUnit: plotObj.plotAreaUnit,
         category: (plotObj.plotCategoryId as any)?.categoryName,
-        type: plotObj.plotType,
+        type: plotObj.plotTypeId,
         status: (plotObj.salesStatusId as any)?.statusName,
         developmentStatus: (plotObj.srDevStatId as any)?.srDevStatName,
         basePrice: plotObj.plotBasePrice,

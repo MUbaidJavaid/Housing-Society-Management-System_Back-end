@@ -2,8 +2,8 @@ import { AuthRequest } from '../../auth/types';
 
 import console from 'console';
 import { NextFunction, Request, Response } from 'express';
-import { EntityType } from '../../imageUpload/types/upload.types';
 import { uploadService } from '../../imageUpload/services/upload.service';
+import { EntityType } from '../../imageUpload/types/upload.types';
 import { AppError } from '../../middleware/error.middleware';
 import { CreateMemberDto, MemberQueryParams, memberService } from '../index-member';
 
@@ -248,6 +248,34 @@ export const memberController = {
       res.json({
         success: true,
         message: 'Member deleted successfully',
+      });
+    } catch (error) {
+      handleError(error, next);
+    }
+  },
+
+  unlockMember: async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+      if (!req.user) {
+        throw new AppError(401, 'Authentication required');
+      }
+
+      const id = req.params.id as string;
+
+      const existingMember = await memberService.getMemberById(id);
+      if (!existingMember || (existingMember as any).isDeleted) {
+        throw new AppError(404, 'Member not found');
+      }
+
+      const unlocked = await memberService.unlockMember(id, req.user.userId);
+
+      if (!unlocked) {
+        throw new AppError(500, 'Failed to unlock member account');
+      }
+
+      res.json({
+        success: true,
+        message: 'Member account unlocked successfully',
       });
     } catch (error) {
       handleError(error, next);

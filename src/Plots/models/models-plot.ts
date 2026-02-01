@@ -17,7 +17,7 @@ export interface IPlot {
   plotNo: string; // Unique within project
   plotBlockId: Types.ObjectId;
   plotSizeId: Types.ObjectId;
-  plotType: PlotType;
+  plotTypeId: Types.ObjectId;
   plotCategoryId: Types.ObjectId;
   plotStreet?: string;
   plotLength: number; // in feet/meters
@@ -98,8 +98,8 @@ const plotSchema = new Schema<IPlot, PlotModel, IPlotMethods>(
       index: true,
     },
 
-    plotType: {
-      type: String,
+    plotTypeId: {
+      type: Schema.Types.ObjectId,
       required: [true, 'Plot Type is required'],
       enum: {
         values: Object.values(PlotType),

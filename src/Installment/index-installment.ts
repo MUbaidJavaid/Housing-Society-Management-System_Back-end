@@ -12,9 +12,10 @@ export { default as installmentRoutes } from './routes/routes-installment';
 
 // Export validators
 export {
+  validateBulkUpdateStatus,
   validateCreateInstallment,
-  validateGenerateInstallments,
   validateGetInstallments,
-  validateMakePayment,
+  validatePaymentValidation,
+  validateReportParams,
   validateUpdateInstallment,
 } from './validator/validator-installment';

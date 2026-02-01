@@ -28,14 +28,28 @@ export interface IUser {
   address?: string;
 }
 
-export interface IRole {
-  roleId: number;
-  role: string;
+export interface IRole extends Document {
+  // For compatibility with existing userPermissionService
+  roleName: string;
+  roleCode: string;
+  roleDescription?: string;
+  isActive: boolean;
+  isSystem?: boolean;
+  priority?: number;
+  createdBy: Types.ObjectId;
+  updatedBy?: Types.ObjectId;
+  isDeleted: boolean;
+  deletedAt?: Date;
+  createdAt: Date;
+  updatedAt: Date;
+
+  // Your existing properties (keep for backward compatibility)
+  roleId?: number;
+  role?: string;
   description?: string;
-  isSystemRole: boolean;
-  createdBy?: Types.ObjectId | string;
-  createdOn: Date;
-  modifiedBy?: Types.ObjectId | string;
+  isSystemRole?: boolean;
+  createdOn?: Date;
+  modifiedBy?: Types.ObjectId;
   modifiedOn?: Date;
 }
 

@@ -11,10 +11,11 @@ import {
   VerifyEmailRequest,
 } from '../types/types-auth-member';
 export interface LoginCredentials {
-  email: string;
+  memContEmail: string;
   password: string;
 }
 
+// Line 30 in auth-member.controller.ts
 const handleError = (error: any, next: NextFunction) => {
   if (error.message.includes('already exists') || error.message.includes('already has')) {
     next(new AppError(409, error.message));
@@ -27,7 +28,7 @@ const handleError = (error: any, next: NextFunction) => {
   } else if (error.message.includes('expired')) {
     next(new AppError(410, error.message));
   } else {
-    next(new AppError(500, error.message));
+    next(new AppError(500, error.message)); // <-- THIS IS LINE 30!
   }
 };
 
@@ -66,7 +67,7 @@ export const authMemberController = {
     try {
       const credentials: LoginCredentials = req.body;
 
-      if (!credentials.email || !credentials.password) {
+      if (!credentials.memContEmail || !credentials.password) {
         throw new AppError(400, 'Email and password are required');
       }
 

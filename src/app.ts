@@ -63,15 +63,32 @@ import { stateRoutes } from './CityState/index-state';
 import { statusRoutes } from './CityState/index-status';
 
 import rateLimit from 'express-rate-limit';
+import { announcementRoutes } from './Announcement/index-announcement';
+import { announcementCategoryRoutes } from './Announcement/index-announcementcategory';
+import { billInfoRoutes } from './BillI/index-bill-info';
+import { billTypeRoutes } from './BillI/index-bill-type';
+import { complaintRoutes } from './Complaint/index-complaint';
+import { srComplaintCategoryRoutes } from './Complaint/index-srcomplaintcategory';
+import { defaulterRoutes } from './Defaulter/index-defaulter';
 import { srDevStatusRoutes } from './Development/index-srdevstatus';
-import uploadRoutes from './imageUpload/routes/upload.routes';
+import { fileRoutes } from './File/index-file';
+import { uploadRoutes } from './imageUpload';
 import { ApiError } from './imageUpload/utils/error-handler';
+import { installmentCategoryRoutes } from './Installment/index-installment-category';
 import { authMemberRoutes } from './Member/indexa-member';
+import { srModuleRoutes } from './Module/index-srmodule';
+import { nomineeRoutes } from './Nominee/index-nominee';
 import { paymentModeRoutes } from './Payment/index-paymentmodule';
 import { plotCategoryRoutes } from './Plots/index-plotcategory';
 import { possessionRoutes } from './Possession/index-possession';
 import { projectRoutes } from './Project/index-project';
+import { registryRoutes } from './Registry/index-registry';
 import { salesStatusRoutes } from './Sales/index-salesstatus';
+import { srTransferRoutes } from './Transfer/index-transfer';
+import { srTransferTypeRoutes } from './Transfer/index-transfer-type';
+import { userPermissionRoutes } from './UserPermissions/index-userpermission';
+import { userRoleRoutes } from './UserPermissions/index-userrole';
+import { userStaffRoutes } from './UserPermissions/index-userstaff';
 // Track graceful shutdown
 let isShuttingDown = false;
 dotenv.config();
@@ -197,12 +214,9 @@ function setupMiddleware(app: Application): void {
   });
   app.use('/api/uploads', limiter);
 
-  // Body parsing
-  app.use(express.json({ limit: '10mb' }));
-  app.use(express.urlencoded({ extended: true, limit: '10mb' }));
   // 9. Body parsers and cookie parser
-  // app.use(express.json());
-  // app.use(express.urlencoded({ extended: true }));
+  app.use(express.json());
+  app.use(express.urlencoded({ extended: true }));
   app.use(cookieParser());
   // Compression
   app.use(compression());
@@ -326,11 +340,13 @@ function setupRoutes(app: Application): void {
       timestamp: new Date().toISOString(),
     });
   });
-
   // API Routes
   app.use('/api/uploads', uploadRoutes);
+  // Create API router with JSON middleware
+  const apiRouter = express.Router();
+  apiRouter.use(express.json({ limit: '10mb' }));
+  apiRouter.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-  // Global error handler
   app.use(
     (error: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
       console.error('Error:', error);
@@ -391,6 +407,19 @@ function setupRoutes(app: Application): void {
   // Member authentication routes - ALSO at /api/auth, routes will handle path
   // But given the structure, member routes at /api/auth/member is cleaner
   app.use('/api/auth/member', authMemberRoutes);
+  console.log('✅ [setupRoutes] authMemberRoutes mounted at /api/auth/member');
+
+  // Debug: List all registered routes for auth/member
+  console.log('🔍 [setupRoutes] Registered auth member routes:');
+  authMemberRoutes.stack.forEach((layer: any) => {
+    if (layer.route && layer.route.path) {
+      const methods = Object.keys(layer.route.methods)
+        .filter(method => layer.route.methods[method])
+        .map(method => method.toUpperCase())
+        .join(', ');
+      console.log(`  ${methods} /api/auth/member${layer.route.path}`);
+    }
+  });
 
   // PlotBlock routes
   app.use('/api/plotblocks', plotBlockRoutes);
@@ -415,12 +444,49 @@ function setupRoutes(app: Application): void {
   app.use('/api/statuses', statusRoutes);
 
   app.use('/api/projects', projectRoutes);
+
   app.use('/api/possession', possessionRoutes);
+
   app.use('/api/paymentmodes', paymentModeRoutes);
+
   app.use('/api/plotcategories', plotCategoryRoutes);
+
   app.use('/api/sr-dev-status', srDevStatusRoutes);
+
   app.use('/api/sales-status', salesStatusRoutes);
-  // Debug route
+
+  app.use('/api/complaincatg', srComplaintCategoryRoutes);
+
+  app.use('/api/complaint', complaintRoutes);
+
+  app.use('/api/module', srModuleRoutes); // Debug route
+
+  app.use('/api/permission', userPermissionRoutes);
+
+  app.use('/api/userrole', userRoleRoutes);
+
+  app.use('/api/userstaff', userStaffRoutes);
+
+  app.use('/api/announcementcategory', announcementCategoryRoutes);
+
+  app.use('/api/announcement', announcementRoutes);
+
+  app.use('/api/registry', registryRoutes);
+
+  app.use('/api/transfertype', srTransferTypeRoutes);
+
+  app.use('/api/transfer', srTransferRoutes);
+
+  app.use('/api/nominee', nomineeRoutes);
+
+  app.use('/api/file', fileRoutes);
+
+  app.use('/api/defaulter', defaulterRoutes);
+
+  app.use('/api/billinfo', billInfoRoutes);
+
+  app.use('/api/billtype', billTypeRoutes);
+  app.use('/api/installmentcategory', installmentCategoryRoutes);
   app.get('/api/test', (_req: Request, res: Response) => {
     res.json({ success: true, message: 'API is working' });
   });

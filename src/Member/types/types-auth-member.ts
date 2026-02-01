@@ -1,7 +1,7 @@
 import { Types } from 'mongoose';
 
 export interface LoginCredentials {
-  email: string; // Email identifier (case-insensitive)
+  memContEmail: string; // Email identifier (case-insensitive)
   password: string;
 }
 

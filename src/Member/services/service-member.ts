@@ -239,6 +239,23 @@ export const memberService = {
     return !!result;
   },
 
+  async unlockMember(id: string, userId: Types.ObjectId): Promise<boolean> {
+    const result = await Member.findByIdAndUpdate(
+      id,
+      {
+        $set: {
+          loginAttempts: 0,
+          lockUntil: undefined,
+          updatedBy: userId,
+          updatedAt: new Date(),
+        },
+      },
+      { new: true }
+    );
+
+    return !!result;
+  },
+
   async checkNicExists(nic: string, excludeId?: string): Promise<boolean> {
     const query: any = {
       memNIC: nic.toUpperCase(),
