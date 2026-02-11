@@ -443,7 +443,7 @@ installmentSchema.statics.findByFile = function (fileId: string) {
     isDeleted: false,
   })
     .populate('installmentCategory', 'instCatName instCatDescription')
-    .populate('member', 'fullName cnic')
+    .populate('member', 'memName memNic')
     .populate('plot', 'plotNo plotSize')
     .sort({ installmentNo: 1 });
 };
@@ -467,7 +467,7 @@ installmentSchema.statics.findByPlot = function (plotId: string) {
     isDeleted: false,
   })
     .populate('installmentCategory', 'instCatName instCatDescription')
-    .populate('member', 'fullName cnic')
+    .populate('member', 'memName memNic')
     .populate('file', 'fileRegNo')
     .sort({ dueDate: 1 });
 };
@@ -482,7 +482,7 @@ installmentSchema.statics.findOverdue = function () {
     status: { $in: [InstallmentStatus.UNPAID, InstallmentStatus.PARTIALLY_PAID] },
     isDeleted: false,
   })
-    .populate('member', 'fullName cnic mobileNo')
+    .populate('member', 'memName memNic mobileNo')
     .populate('installmentCategory', 'instCatName')
     .populate('file', 'fileRegNo')
     .populate('plot', 'plotNo')
@@ -501,7 +501,7 @@ installmentSchema.statics.findDueToday = function () {
     status: { $in: [InstallmentStatus.UNPAID, InstallmentStatus.PARTIALLY_PAID] },
     isDeleted: false,
   })
-    .populate('member', 'fullName cnic mobileNo')
+    .populate('member', 'memName memNic mobileNo')
     .populate('installmentCategory', 'instCatName')
     .populate('file', 'fileRegNo')
     .populate('plot', 'plotNo')

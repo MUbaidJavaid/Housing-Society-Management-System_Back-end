@@ -447,7 +447,7 @@ billInfoSchema.statics.findOverdueBills = function (page: number = 1, limit: num
 
   return Promise.all([
     this.find(query)
-      .populate('member', 'fullName cnic mobileNo')
+      .populate('member', 'fullName memNic mobileNo')
       .populate('file', 'fileNo')
       .sort({ dueDate: 1 })
       .skip(skip)

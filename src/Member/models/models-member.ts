@@ -1,4 +1,4 @@
-import bcrypt from 'bcryptjs';
+import bcrypt from 'bcrypt';
 import { Document, Model, Schema, Types, UpdateQuery, model } from 'mongoose';
 export interface IMember extends Document {
   memName: string;

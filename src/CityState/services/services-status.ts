@@ -1,7 +1,7 @@
 // services-status.ts
-import { CreateStatusDto, StatusQueryParams, UpdateStatusDto } from '../types/types-status'; // Fixed import path
 import { Types } from 'mongoose';
 import Status from '../models/models-status';
+import { CreateStatusDto, StatusQueryParams, UpdateStatusDto } from '../types/types-status'; // Fixed import path
 
 export const statusService = {
   async createStatus(data: CreateStatusDto, userId: Types.ObjectId): Promise<any> {
@@ -48,7 +48,7 @@ export const statusService = {
         .then(docs => docs.map(doc => doc.toObject())),
       Status.countDocuments(query),
     ]);
-
+    console.log('Status', status);
     return {
       status,
       pagination: {

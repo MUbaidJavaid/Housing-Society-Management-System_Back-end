@@ -40,7 +40,7 @@ export const authMemberController = {
 
       // Additional validation
       if (!credentials.memNic || !credentials.memContEmail || !credentials.password) {
-        throw new AppError(400, 'CNIC, Email, and Password are required');
+        throw new AppError(400, 'memNic, Email, and Password are required');
       }
 
       const result = await authMemberService.signup(credentials);
@@ -231,7 +231,7 @@ export const authMemberController = {
       const { identifier }: ResendVerificationRequest = req.body;
 
       if (!identifier) {
-        throw new AppError(400, 'CNIC or Email is required');
+        throw new AppError(400, 'memNic or Email is required');
       }
 
       await authMemberService.resendVerification(identifier);

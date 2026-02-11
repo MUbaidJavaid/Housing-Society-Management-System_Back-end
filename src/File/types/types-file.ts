@@ -1,3 +1,4 @@
+// src/database/File/types/types-file.ts
 import { Types } from 'mongoose';
 import { FileStatus, PaymentMode } from '../models/models-file';
 
@@ -5,14 +6,11 @@ export interface FileType {
   _id: Types.ObjectId;
   fileRegNo: string;
   fileBarCode: string;
-  projId: Types.ObjectId;
   memId: Types.ObjectId;
   nomineeId?: Types.ObjectId;
   applicationId?: Types.ObjectId;
-  plotId?: Types.ObjectId;
-  plotTypeId?: Types.ObjectId;
-  plotSizeId?: Types.ObjectId;
-  plotBlockId?: Types.ObjectId;
+  plotId: Types.ObjectId; // REQUIRED
+
   totalAmount: number;
   downPayment: number;
   paymentMode: PaymentMode;
@@ -34,14 +32,10 @@ export interface FileType {
   updatedAt: Date;
 
   // Virtual fields
-  project?: any;
   member?: any;
   nominee?: any;
   application?: any;
   plot?: any;
-  plotType?: any;
-  plotSize?: any;
-  plotBlock?: any;
   createdByUser?: any;
   modifiedByUser?: any;
   balanceAmount?: number;
@@ -52,14 +46,10 @@ export interface FileType {
 
 export interface CreateFileDto {
   fileRegNo?: string;
-  projId: string;
   memId: string;
   nomineeId?: string;
   applicationId?: string;
-  plotId?: string;
-  plotTypeId?: string;
-  plotSizeId?: string;
-  plotBlockId?: string;
+  plotId: string; // REQUIRED
   totalAmount: number;
   downPayment: number;
   paymentMode: PaymentMode;
@@ -73,9 +63,6 @@ export interface CreateFileDto {
 export interface UpdateFileDto {
   nomineeId?: string;
   plotId?: string;
-  plotTypeId?: string;
-  plotSizeId?: string;
-  plotBlockId?: string;
   totalAmount?: number;
   downPayment?: number;
   paymentMode?: PaymentMode;
@@ -92,13 +79,16 @@ export interface UpdateFileDto {
 export interface FileQueryParams {
   page?: number;
   limit?: number;
-  projId?: string;
+  search?: string;
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
+  fileRegNo?: string;
+  fileBarCode?: string;
+  projId?: string; // Filter by project
+  projectId?: string; // Back-compat alias
   memId?: string;
   nomineeId?: string;
   plotId?: string;
-  plotTypeId?: string;
-  plotSizeId?: string;
-  plotBlockId?: string;
   status?: FileStatus;
   isAdjusted?: boolean;
   isActive?: boolean;
@@ -106,9 +96,6 @@ export interface FileQueryParams {
   maxAmount?: number;
   fromDate?: Date;
   toDate?: Date;
-  search?: string;
-  sortBy?: string;
-  sortOrder?: 'asc' | 'desc';
 }
 
 export interface FileStatistics {
@@ -155,4 +142,53 @@ export interface AdjustFileDto {
   adjustmentReason: string;
   referenceFileId?: string;
   remarks?: string;
+}
+
+// Enhanced type with plot details
+export interface FileWithPlotDetails extends FileType {
+  plotDetails?: {
+    plotBlock?: {
+      _id: string;
+      plotBlockName: string;
+      plotBlockDesc?: string;
+    };
+    plotSize?: {
+      _id: string;
+      plotSizeName: string;
+      totalArea: number;
+      areaUnit: string;
+      ratePerUnit: number;
+    };
+    plotType?: {
+      _id: string;
+      plotTypeName: string;
+      plotTypeCode?: string;
+    };
+    plotCategory?: {
+      _id: string;
+      categoryName: string;
+      surchargePercentage?: number;
+      surchargeFixedAmount?: number;
+    };
+    salesStatus?: {
+      _id: string;
+      statusName: string;
+      statusCode: string;
+      colorCode?: string;
+    };
+    developmentStatus?: {
+      _id: string;
+      srDevStatName: string;
+      devCategory: string;
+      devPhase: string;
+      percentageComplete: number;
+    };
+    project?: {
+      _id: string;
+      projName: string;
+      projCode: string;
+      projPrefix?: string;
+      projLocation?: string;
+    };
+  };
 }

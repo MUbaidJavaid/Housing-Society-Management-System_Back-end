@@ -2,8 +2,14 @@ import { Types } from 'mongoose';
 
 export interface Application {
   _id: Types.ObjectId;
-  applicationDesc: string;
+  applicationNo: string;
   applicationTypeID: Types.ObjectId; // Reference to existing ApplicationType
+  memId: Types.ObjectId;
+  plotId?: Types.ObjectId;
+  applicationDate: Date;
+  statusId: Types.ObjectId;
+  remarks?: string;
+  attachmentPath?: string;
   createdBy: Types.ObjectId;
   createdAt: Date;
   updatedBy?: Types.ObjectId;
@@ -13,13 +19,23 @@ export interface Application {
 }
 
 export interface CreateApplicationDto {
-  applicationDesc: string;
   applicationTypeID: string;
+  memId: string;
+  plotId?: string;
+  applicationDate: string | Date;
+  statusId: string;
+  remarks?: string;
+  attachmentPath?: string;
 }
 
 export interface UpdateApplicationDto {
-  applicationDesc?: string;
   applicationTypeID?: string;
+  memId?: string;
+  plotId?: string;
+  applicationDate?: string | Date;
+  statusId?: string;
+  remarks?: string;
+  attachmentPath?: string;
 }
 
 export interface ApplicationQueryParams {
@@ -28,7 +44,11 @@ export interface ApplicationQueryParams {
   search?: string;
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
+  applicationNo?: string;
   applicationTypeID?: string;
+  memId?: string;
+  plotId?: string;
+  statusId?: string;
   startDate?: string;
   endDate?: string;
 }

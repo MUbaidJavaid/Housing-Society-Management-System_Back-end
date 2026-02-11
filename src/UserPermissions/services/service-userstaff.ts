@@ -1,7 +1,7 @@
 import { Types } from 'mongoose';
 
 import City from '../../CityState/models/models-city';
-import { Role } from '../../users/models/Role.model';
+import UserRole from '../models/models-userrole';
 import UserStaff from '../models/models-userstaff';
 import {
   CreateUserStaffDto,
@@ -33,20 +33,43 @@ export const userStaffService = {
    */
   async createUserStaff(data: CreateUserStaffDto, userId: Types.ObjectId): Promise<UserStaffType> {
     // Check if username already exists
+    const normalizedUsername = data.userName.toLowerCase();
+    console.log('🔍 Checking username:', normalizedUsername);
+
     const existingUsername = await UserStaff.findOne({
-      userName: data.userName.toLowerCase(),
+      userName: normalizedUsername,
       isDeleted: false,
     });
+
+    console.log('🔍 Found existing username:', existingUsername ? 'YES' : 'NO');
+    if (existingUsername) {
+      console.log('🔍 Existing user:', {
+        id: existingUsername._id,
+        userName: existingUsername.userName,
+        isDeleted: existingUsername.isDeleted,
+      });
+    }
 
     if (existingUsername) {
       throw new Error('Username already exists');
     }
 
     // Check if CNIC already exists
+    console.log('🔍 Checking CNIC:', data.cnic);
     const existingCNIC = await UserStaff.findOne({
       cnic: data.cnic,
       isDeleted: false,
     });
+
+    console.log('🔍 Found existing CNIC:', existingCNIC ? 'YES' : 'NO');
+    if (existingCNIC) {
+      console.log('🔍 Existing CNIC user:', {
+        id: existingCNIC._id,
+        userName: existingCNIC.userName,
+        cnic: existingCNIC.cnic,
+        isDeleted: existingCNIC.isDeleted,
+      });
+    }
 
     if (existingCNIC) {
       throw new Error('CNIC already registered');
@@ -65,7 +88,7 @@ export const userStaffService = {
     }
 
     // Check if role exists
-    const role = await Role.findById(data.roleId);
+    const role = await UserRole.findById(data.roleId);
     if (!role) {
       throw new Error('Role not found');
     }
@@ -352,7 +375,7 @@ export const userStaffService = {
 
     // Check if role exists (if being updated)
     if (data.roleId) {
-      const role = await Role.findById(data.roleId);
+      const role = await UserRole.findById(data.roleId);
       if (!role) {
         throw new Error('Role not found');
       }
@@ -649,7 +672,7 @@ export const userStaffService = {
       },
       {
         $lookup: {
-          from: 'roles',
+          from: 'userroles',
           localField: 'roleId',
           foreignField: '_id',
           as: 'role',
@@ -676,7 +699,7 @@ export const userStaffService = {
       },
       {
         $lookup: {
-          from: 'srcities',
+          from: 'cities',
           localField: 'cityId',
           foreignField: '_id',
           as: 'city',

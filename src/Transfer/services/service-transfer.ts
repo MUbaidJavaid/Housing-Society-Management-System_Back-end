@@ -4,8 +4,8 @@ import File from '../../File/models/models-file';
 import Member from '../../Member/models/models-member';
 
 import Nominee from '../../Nominee/models/models-nominee';
-
-import { uploadToCloudinary } from '../../imageUpload/config/cloudinary.config';
+import { uploadService } from '../../imageUpload/services/upload.service';
+import { EntityType } from '../../imageUpload/types/upload.types';
 import { SrTransferType } from '../index-transfer-type';
 import SrTransfer, { TransferStatus } from '../models/models-transfer';
 import {
@@ -500,9 +500,7 @@ export const srTransferService = {
    */
   async uploadNDCDocument(
     transferId: string,
-    fileBuffer: Buffer,
-    fileName: string,
-    mimeType: string,
+    file: Express.Multer.File,
     userId: Types.ObjectId
   ): Promise<TransferType | null> {
     const transfer = await SrTransfer.findById(transferId);
@@ -510,30 +508,31 @@ export const srTransferService = {
       throw new Error('Transfer not found');
     }
 
-    // Determine resource type
-    let resourceType: 'image' | 'raw' | 'auto' = 'auto';
-    if (mimeType.startsWith('image/')) {
-      resourceType = 'image';
-    } else if (mimeType === 'application/pdf') {
-      resourceType = 'raw';
+    const existingFiles = await uploadService.getFilesByEntity(EntityType.TRANSFER, transferId);
+    if (existingFiles.length > 0) {
+      await uploadService.deleteFromCloudinary(existingFiles[0].publicId);
     }
 
-    // Upload to Cloudinary
-    const uploadResult = await uploadToCloudinary(fileBuffer, {
-      folder: `transfers/ndc/${transferId}`,
-      publicId: `ndc_${transferId}_${Date.now()}`,
-      resourceType,
+    const uploadedFile = await uploadService.uploadFile({
+      file,
+      entityType: EntityType.TRANSFER,
+      entityId: transferId,
+      uploadedBy: userId.toString(),
+      metadata: {
+        field: 'ndcDocPath',
+        originalName: file.originalname,
+      },
     });
 
     // Add remarks about NDC upload
     const updateObj: any = {
-      ndcDocPath: uploadResult.secure_url,
+      ndcDocPath: uploadedFile.secureUrl,
       modifiedBy: userId,
       updatedAt: new Date(),
     };
 
     // Add remarks about NDC upload
-    const ndcRemark = `NDC document uploaded: ${fileName} on ${new Date().toLocaleDateString()}`;
+    const ndcRemark = `NDC document uploaded: ${file.originalname} on ${new Date().toLocaleDateString()}`;
     updateObj.remarks = transfer.remarks ? `${transfer.remarks}\n${ndcRemark}` : ndcRemark;
 
     const updatedTransfer = await SrTransfer.findByIdAndUpdate(

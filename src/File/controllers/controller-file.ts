@@ -26,11 +26,6 @@ export const fileController = {
 
       const createData: CreateFileDto = req.body;
 
-      // Validate required fields
-      if (!createData.projId?.trim()) {
-        throw new AppError(400, 'Project ID is required');
-      }
-
       if (!createData.memId?.trim()) {
         throw new AppError(400, 'Member ID is required');
       }
@@ -137,9 +132,7 @@ export const fileController = {
         memId: req.query.memId as string,
         nomineeId: req.query.nomineeId as string,
         plotId: req.query.plotId as string,
-        plotTypeId: req.query.plotTypeId as string,
-        plotSizeId: req.query.plotSizeId as string,
-        plotBlockId: req.query.plotBlockId as string,
+
         status: req.query.status as any,
         isAdjusted: req.query.isAdjusted ? req.query.isAdjusted === 'true' : undefined,
         isActive: req.query.isActive !== undefined ? req.query.isActive === 'true' : true,

@@ -80,7 +80,7 @@ export const defaulterService = {
     const defaulter = await Defaulter.create(defaulterData);
 
     const createdDefaulter = await Defaulter.findById(defaulter._id)
-      .populate('member', 'fullName cnic mobileNo email')
+      .populate('member', 'fullName memNic mobileNo email')
       .populate('plot', 'plotNo sector block')
       .populate('file', 'fileNo fileType')
       .populate('createdBy', 'userName fullName designation');
@@ -98,7 +98,7 @@ export const defaulterService = {
   async getDefaulterById(id: string): Promise<DefaulterType> {
     try {
       const defaulter = await Defaulter.findById(id)
-        .populate('member', 'fullName cnic fatherName mobileNo email address')
+        .populate('member', 'fullName memNic fatherName mobileNo email address')
         .populate('plot', 'plotNo sector block area plotType')
         .populate('file', 'fileNo fileType bookingDate totalAmount')
         .populate('createdBy', 'userName fullName designation')
@@ -178,7 +178,7 @@ export const defaulterService = {
 
     const [defaulters, total] = await Promise.all([
       Defaulter.find(query)
-        .populate('member', 'fullName cnic mobileNo')
+        .populate('member', 'fullName memNic mobileNo')
         .populate('plot', 'plotNo sector block')
         .populate('file', 'fileNo')
         .skip(skip)
@@ -230,7 +230,7 @@ export const defaulterService = {
       { $set: updateObj },
       { new: true, runValidators: true }
     )
-      .populate('member', 'fullName cnic mobileNo')
+      .populate('member', 'fullName memNic mobileNo')
       .populate('plot', 'plotNo sector block')
       .populate('file', 'fileNo')
       .populate('modifiedBy', 'userName fullName');
@@ -285,7 +285,7 @@ export const defaulterService = {
       plotId: new Types.ObjectId(plotId),
       ...(activeOnly && { isActive: true }),
     })
-      .populate('member', 'fullName cnic mobileNo')
+      .populate('member', 'fullName memNic mobileNo')
       .populate('file', 'fileNo')
       .sort({ totalOverdueAmount: -1 })
       .then(docs => docs.map(doc => toPlainObject(doc)));
@@ -320,7 +320,7 @@ export const defaulterService = {
     }
 
     const updatedDefaulter = await Defaulter.findByIdAndUpdate(id, updateObj, { new: true })
-      .populate('member', 'fullName cnic mobileNo email')
+      .populate('member', 'fullName memNic mobileNo email')
       .populate('plot', 'plotNo sector block');
 
     return updatedDefaulter ? toPlainObject(updatedDefaulter) : null;
@@ -357,7 +357,7 @@ export const defaulterService = {
       { $set: updateObj },
       { new: true }
     )
-      .populate('member', 'fullName cnic mobileNo')
+      .populate('member', 'fullName memNic mobileNo')
       .populate('plot', 'plotNo sector block')
       .populate('file', 'fileNo');
 
@@ -473,7 +473,7 @@ export const defaulterService = {
       averageDaysOverdue: totalData.averageDaysOverdue,
       topDefaulters: topDefaulters.map(item => ({
         memId: item._id,
-        fullName: item.fullName,
+        memName: item.memName,
         totalAmount: item.totalAmount,
         daysOverdue: item.maxDaysOverdue,
         defaulterCount: item.defaulterCount,

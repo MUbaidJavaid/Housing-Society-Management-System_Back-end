@@ -233,7 +233,7 @@ defaulterSchema.statics.findByPlotId = function (plotId: string, activeOnly: boo
     query.isActive = true;
   }
 
-  return this.find(query).populate('member', 'fullName cnic mobileNo').populate('file', 'fileNo');
+  return this.find(query).populate('member', 'memName memNic mobileNo').populate('file', 'fileNo');
 };
 
 // Static method to get defaulters summary

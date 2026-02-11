@@ -1,19 +1,42 @@
 import { body, param, query, ValidationChain } from 'express-validator';
 
 export const validateCreateApplication = (): ValidationChain[] => [
-  body('applicationDesc')
-    .trim()
-    .notEmpty()
-    .withMessage('Application Description is required')
-    .isLength({ min: 5, max: 1000 })
-    .withMessage('Application Description must be between 5 and 1000 characters'),
-
   body('applicationTypeID')
     .trim()
     .notEmpty()
     .withMessage('Application Type is required')
     .isMongoId()
     .withMessage('Invalid Application Type ID'),
+
+  body('memId')
+    .trim()
+    .notEmpty()
+    .withMessage('Member is required')
+    .isMongoId()
+    .withMessage('Invalid Member ID'),
+
+  body('plotId').optional().isMongoId().withMessage('Invalid Plot ID'),
+
+  body('applicationDate')
+    .notEmpty()
+    .withMessage('Application Date is required')
+    .isISO8601()
+    .withMessage('Invalid Application Date format'),
+
+  body('statusId')
+    .trim()
+    .notEmpty()
+    .withMessage('Status is required')
+    .isMongoId()
+    .withMessage('Invalid Status ID'),
+
+  body('remarks')
+    .optional()
+    .trim()
+    .isLength({ max: 1000 })
+    .withMessage('Remarks cannot exceed 1000 characters'),
+
+  body('attachmentPath').optional().isString().withMessage('Invalid attachment path'),
 ];
 
 export const validateUpdateApplication = (): ValidationChain[] => [
@@ -31,7 +54,19 @@ export const validateGetApplications = (): ValidationChain[] => [
 
   query('search').optional().trim().isLength({ max: 100 }).withMessage('Search query too long'),
 
+  query('applicationNo')
+    .optional()
+    .trim()
+    .isLength({ max: 30 })
+    .withMessage('Application number is too long'),
+
   query('applicationTypeID').optional().isMongoId().withMessage('Invalid Application Type ID'),
+
+  query('memId').optional().isMongoId().withMessage('Invalid Member ID'),
+
+  query('plotId').optional().isMongoId().withMessage('Invalid Plot ID'),
+
+  query('statusId').optional().isMongoId().withMessage('Invalid Status ID'),
 
   query('startDate').optional().isISO8601().withMessage('Invalid start date format'),
 
@@ -39,7 +74,7 @@ export const validateGetApplications = (): ValidationChain[] => [
 
   query('sortBy')
     .optional()
-    .isIn(['applicationDesc', 'createdAt', 'updatedAt'])
+    .isIn(['applicationNo', 'applicationDate', 'createdAt', 'updatedAt'])
     .withMessage('Invalid sort field'),
 
   query('sortOrder').optional().isIn(['asc', 'desc']).withMessage('Sort order must be asc or desc'),

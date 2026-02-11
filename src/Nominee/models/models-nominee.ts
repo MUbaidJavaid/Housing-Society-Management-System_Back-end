@@ -283,7 +283,7 @@ nomineeSchema.statics.findByMember = function (memId: string) {
     isDeleted: false,
     isActive: true,
   })
-    .populate('member', 'fullName cnic')
+    .populate('member', 'memName memNic')
     .sort({ nomineeSharePercentage: -1 });
 };
 

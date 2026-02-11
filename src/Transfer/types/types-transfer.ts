@@ -8,7 +8,7 @@ export interface SrTransferType {
   sellerMemId: Types.ObjectId;
   buyerMemId: Types.ObjectId;
   applicationId?: Types.ObjectId;
-  ndcId?: Types.ObjectId;
+
   ndcDocPath?: string; // NEW
   transferFeePaid: boolean;
   transferFeeAmount?: number;
@@ -57,7 +57,7 @@ export interface CreateSrTransferDto {
   sellerMemId: string;
   buyerMemId: string;
   applicationId?: string;
-  ndcId?: string;
+
   ndcDocPath?: string; // NEW
   transferFeeAmount?: number;
   transferInitDate: Date;
@@ -73,7 +73,7 @@ export interface CreateSrTransferDto {
 
 export interface UpdateSrTransferDto {
   transferTypeId?: string;
-  ndcId?: string;
+
   ndcDocPath?: string; // NEW
   transferFeePaid?: boolean;
   transferFeeAmount?: number;

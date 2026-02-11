@@ -1,5 +1,7 @@
 import { NextFunction, Request, Response } from 'express';
 import { AuthRequest } from '../../auth/types';
+import { uploadService } from '../../imageUpload/services/upload.service';
+import { EntityType } from '../../imageUpload/types/upload.types';
 import { AppError } from '../../middleware/error.middleware';
 import { srTransferService } from '../services/service-transfer';
 import {
@@ -45,6 +47,10 @@ export const srTransferController = {
 
       if (!createData.transferInitDate) {
         throw new AppError(400, 'Transfer initiation date is required');
+      }
+
+      if (createData.ndcDocPath && !createData.ndcDocPath.includes('cloudinary.com')) {
+        delete createData.ndcDocPath;
       }
 
       const transfer = await srTransferService.createTransfer(createData, req.user.userId);
@@ -128,6 +134,32 @@ export const srTransferController = {
       const id = req.params.id as string;
       const updateData: UpdateSrTransferDto = req.body;
 
+      const existingTransfer = await srTransferService.getTransferById(id);
+      if (!existingTransfer || (existingTransfer as any).isDeleted) {
+        throw new AppError(404, 'Transfer not found');
+      }
+
+      if (updateData.ndcDocPath !== undefined) {
+        if (updateData.ndcDocPath === '') {
+          if (existingTransfer.ndcDocPath) {
+            const files = await uploadService.getFilesByEntity(EntityType.TRANSFER, id);
+            if (files.length > 0) {
+              await uploadService.deleteFromCloudinary(files[0].publicId);
+            }
+          }
+        } else if (!updateData.ndcDocPath.includes('cloudinary.com')) {
+          delete updateData.ndcDocPath;
+        } else if (
+          existingTransfer.ndcDocPath &&
+          updateData.ndcDocPath !== existingTransfer.ndcDocPath
+        ) {
+          const files = await uploadService.getFilesByEntity(EntityType.TRANSFER, id);
+          if (files.length > 0) {
+            await uploadService.deleteFromCloudinary(files[0].publicId);
+          }
+        }
+      }
+
       const updatedTransfer = await srTransferService.updateTransfer(
         id,
         updateData,
@@ -158,6 +190,18 @@ export const srTransferController = {
       }
 
       const id = req.params.id as string;
+
+      const existingTransfer = await srTransferService.getTransferById(id);
+      if (!existingTransfer || (existingTransfer as any).isDeleted) {
+        throw new AppError(404, 'Transfer not found');
+      }
+
+      if (existingTransfer.ndcDocPath) {
+        const files = await uploadService.getFilesByEntity(EntityType.TRANSFER, id);
+        if (files.length > 0) {
+          await uploadService.deleteFromCloudinary(files[0].publicId);
+        }
+      }
 
       const deleted = await srTransferService.deleteTransfer(id, req.user.userId);
 
@@ -260,9 +304,7 @@ export const srTransferController = {
 
       const updatedTransfer = await srTransferService.uploadNDCDocument(
         id,
-        req.file.buffer,
-        req.file.originalname,
-        req.file.mimetype,
+        req.file,
         req.user.userId
       );
 

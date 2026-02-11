@@ -8,6 +8,7 @@ export interface ISrApplicationType extends Document {
   createdAt: Date;
   updatedBy?: Types.ObjectId;
   updatedAt: Date;
+  isActive: boolean;
   isDeleted: boolean;
   deletedAt?: Date;
 }
@@ -45,6 +46,12 @@ const srApplicationTypeSchema = new Schema<ISrApplicationType>(
     updatedBy: {
       type: Schema.Types.ObjectId,
       ref: 'User',
+      index: true,
+    },
+
+    isActive: {
+      type: Boolean,
+      default: true,
       index: true,
     },
 

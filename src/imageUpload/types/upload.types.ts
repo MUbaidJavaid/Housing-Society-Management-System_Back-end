@@ -13,7 +13,9 @@ export enum EntityType {
   PLOT = 'plot',
   PROJECT = 'project',
   MEMBER = 'member',
+  APPLICATION = 'application',
   DOCUMENT = 'document',
+  TRANSFER = 'transfer',
   // Add more entity types as needed
 }
 

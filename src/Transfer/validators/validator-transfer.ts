@@ -29,8 +29,6 @@ export const validateCreateTransfer = (): ValidationChain[] => [
 
   body('applicationId').optional().isMongoId().withMessage('Invalid Application ID'),
 
-  body('ndcId').optional().isMongoId().withMessage('Invalid NDC ID'),
-
   body('ndcDocPath').optional().isString().withMessage('Invalid NDC document path'),
 
   body('transferFeeAmount')
@@ -84,8 +82,6 @@ export const validateCreateTransfer = (): ValidationChain[] => [
 
 export const validateUpdateTransfer = (): ValidationChain[] => [
   body('transferTypeId').optional().isMongoId().withMessage('Invalid Transfer Type ID'),
-
-  body('ndcId').optional().isMongoId().withMessage('Invalid NDC ID'),
 
   body('ndcDocPath').optional().isString().withMessage('Invalid NDC document path'),
 

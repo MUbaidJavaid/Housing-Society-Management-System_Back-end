@@ -9,7 +9,7 @@ export interface IUserStaff extends Document {
   mobileNo?: string;
   email?: string;
   roleId: Types.ObjectId;
-  srCityId: Types.ObjectId;
+  cityId: Types.ObjectId;
   designation?: string;
   isActive: boolean;
   lastLogin?: Date;
@@ -87,14 +87,14 @@ const userStaffSchema = new Schema<IUserStaff>(
 
     roleId: {
       type: Schema.Types.ObjectId,
-      ref: 'Role',
+      ref: 'UserRole',
       required: true,
       index: true,
     },
 
-    srCityId: {
+    cityId: {
       type: Schema.Types.ObjectId,
-      ref: 'SrCity',
+      ref: 'City',
       required: true,
       index: true,
     },
@@ -174,7 +174,7 @@ userStaffSchema.index({ userName: 1, isDeleted: 1 }, { unique: true });
 userStaffSchema.index({ cnic: 1, isDeleted: 1 }, { unique: true });
 userStaffSchema.index({ email: 1, isDeleted: 1 }, { unique: true, sparse: true });
 userStaffSchema.index({ roleId: 1, isActive: 1 });
-userStaffSchema.index({ srCityId: 1, isActive: 1 });
+userStaffSchema.index({ cityId: 1, isActive: 1 });
 userStaffSchema.index({ isActive: 1, isDeleted: 1 });
 
 // Text index for search
@@ -188,7 +188,7 @@ userStaffSchema.index(
 
 // Virtual for role
 userStaffSchema.virtual('role', {
-  ref: 'Role',
+  ref: 'UserRole',
   localField: 'roleId',
   foreignField: '_id',
   justOne: true,
@@ -196,8 +196,8 @@ userStaffSchema.virtual('role', {
 
 // Virtual for city
 userStaffSchema.virtual('city', {
-  ref: 'SrCity',
-  localField: 'srCityId',
+  ref: 'City',
+  localField: 'cityId',
   foreignField: '_id',
   justOne: true,
 });
@@ -333,19 +333,19 @@ userStaffSchema.statics.getActiveUsersByRole = function (roleId: Types.ObjectId)
   })
     .select('userName fullName email designation lastLogin')
     .populate('roleId', 'roleName roleCode')
-    .populate('srCityId', 'cityName')
+    .populate('cityId', 'cityName')
     .sort({ fullName: 1 });
 };
 
 userStaffSchema.statics.getUsersByCity = function (cityId: Types.ObjectId) {
   return this.find({
-    srCityId: cityId,
+    cityId: cityId,
     isActive: true,
     isDeleted: false,
   })
     .select('userName fullName email designation roleId')
     .populate('roleId', 'roleName roleCode')
-    .populate('srCityId', 'cityName')
+    .populate('cityId', 'cityName')
     .sort({ fullName: 1 });
 };
 

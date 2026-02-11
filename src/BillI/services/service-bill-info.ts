@@ -92,7 +92,7 @@ export const billInfoService = {
     const bill = await BillInfo.create(billData);
 
     const createdBill = await BillInfo.findById(bill._id)
-      .populate('member', 'fullName cnic mobileNo email')
+      .populate('member', 'fullName memNic mobileNo email')
       .populate('file', 'fileNo fileType')
       .populate('createdBy', 'userName fullName designation');
 
@@ -109,7 +109,7 @@ export const billInfoService = {
   async getBillById(id: string): Promise<BillInfoType> {
     try {
       const bill = await BillInfo.findById(id)
-        .populate('member', 'fullName cnic fatherName mobileNo email address')
+        .populate('member', 'fullName memNic fatherName mobileNo email address')
         .populate('file', 'fileNo fileType bookingDate totalAmount')
         .populate('createdBy', 'userName fullName designation')
         .populate('modifiedBy', 'userName fullName designation');
@@ -135,7 +135,7 @@ export const billInfoService = {
       billNo: billNo.toUpperCase(),
       isDeleted: false,
     })
-      .populate('member', 'fullName cnic mobileNo')
+      .populate('member', 'fullName memNic mobileNo')
       .populate('file', 'fileNo')
       .populate('createdBy', 'userName fullName');
 
@@ -219,7 +219,7 @@ export const billInfoService = {
 
     const [bills, total] = await Promise.all([
       BillInfo.find(query)
-        .populate('member', 'fullName cnic mobileNo')
+        .populate('member', 'fullName memNic mobileNo')
         .populate('file', 'fileNo')
         .skip(skip)
         .limit(limit)
@@ -300,7 +300,7 @@ export const billInfoService = {
       { $set: updateObj },
       { new: true, runValidators: true }
     )
-      .populate('member', 'fullName cnic mobileNo')
+      .populate('member', 'fullName memNic mobileNo')
       .populate('file', 'fileNo')
       .populate('modifiedBy', 'userName fullName');
 
@@ -396,7 +396,7 @@ export const billInfoService = {
     }
 
     const updatedBill = await BillInfo.findByIdAndUpdate(id, { $set: updateObj }, { new: true })
-      .populate('member', 'fullName cnic mobileNo')
+      .populate('member', 'fullName memNic mobileNo')
       .populate('file', 'fileNo');
 
     return updatedBill ? toPlainObject(updatedBill) : null;
@@ -437,7 +437,7 @@ export const billInfoService = {
     }
 
     const bills = await BillInfo.find(query)
-      .populate('member', 'fullName cnic')
+      .populate('member', 'fullName memNic')
       .sort({ dueDate: -1 })
       .then(docs => docs.map(doc => toPlainObject(doc)));
 
@@ -461,7 +461,7 @@ export const billInfoService = {
 
     const [bills, total] = await Promise.all([
       BillInfo.find(query)
-        .populate('member', 'fullName cnic mobileNo')
+        .populate('member', 'fullName memNic mobileNo')
         .populate('file', 'fileNo')
         .sort({ dueDate: 1 })
         .skip(skip)
@@ -709,8 +709,7 @@ export const billInfoService = {
           isDeleted: false,
         });
 
-  const arrears = previousBills.reduce((sum, bill) => sum + (bill.remainingBalance ?? 0), 0);
-
+        const arrears = previousBills.reduce((sum, bill) => sum + (bill.remainingBalance ?? 0), 0);
 
         // Generate bill number
         const prefix = billType.substring(0, 3).toUpperCase();
@@ -745,7 +744,7 @@ export const billInfoService = {
         const bill = await BillInfo.create(billData);
 
         const populatedBill = await BillInfo.findById(bill._id)
-          .populate('member', 'fullName cnic mobileNo')
+          .populate('member', 'fullName memNic mobileNo')
           .populate('file', 'fileNo');
 
         if (populatedBill) {

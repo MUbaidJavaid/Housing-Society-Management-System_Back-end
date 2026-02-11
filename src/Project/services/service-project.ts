@@ -64,7 +64,7 @@ export const projectService = {
       createdBy: userId,
       updatedBy: userId,
     };
-
+console.log(projectData)
     const project = await Project.create(projectData);
     return project;
   },

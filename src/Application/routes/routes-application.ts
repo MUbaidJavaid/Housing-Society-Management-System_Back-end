@@ -1,12 +1,12 @@
 import { Router } from 'express';
 import { authenticate, requireRole } from '../../auth/middleware/auth';
 import { UserRole } from '../../database/models/User';
+import { applicationController } from '../controllers/controller-application';
 import {
-  applicationController,
   validateCreateApplication,
   validateGetApplications,
   validateUpdateApplication,
-} from '../index-application';
+} from '../validators/validator-application';
 
 const router: Router = Router();
 

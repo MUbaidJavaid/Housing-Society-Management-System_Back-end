@@ -1,4 +1,7 @@
 import { Types } from 'mongoose';
+import Member from '../../Member/models/models-member';
+import Plot from '../../Plots/models/models-plot';
+import Status from '../../Status/models/models-status';
 import Application from '../models/models-application';
 import SrApplicationType from '../models/models-applicationtype';
 import {
@@ -8,21 +11,51 @@ import {
   UpdateApplicationDto,
 } from '../types-application';
 
+const basePopulate = (query: any) =>
+  query
+    .populate('applicationTypeID', 'applicationName applicationFee isActive')
+    .populate('memId', 'memName memNic memRegNo memContMob memImg')
+    .populate('plotId', 'plotNo plotRegistrationNo plotBlockId plotSizeId')
+    .populate('statusId', 'statusName')
+    .populate('createdBy', 'firstName lastName email')
+    .populate('updatedBy', 'firstName lastName email');
+
 export const applicationService = {
   async createApplication(data: CreateApplicationDto, userId: Types.ObjectId): Promise<any> {
-    // Validate that application type exists and is active
     const applicationType = await SrApplicationType.findById(data.applicationTypeID);
     if (
       !applicationType ||
       (applicationType as any).isDeleted ||
-      !(applicationType as any).isActive
+      (applicationType as any).isActive === false
     ) {
       throw new Error('Invalid or inactive application type');
     }
 
+    const member = await Member.findById(data.memId);
+    if (!member || (member as any).isDeleted) {
+      throw new Error('Member not found');
+    }
+
+    const status = await Status.findById(data.statusId);
+    if (!status || (status as any).isDeleted) {
+      throw new Error('Status not found');
+    }
+
+    if (data.plotId) {
+      const plot = await Plot.findById(data.plotId);
+      if (!plot || (plot as any).isDeleted) {
+        throw new Error('Plot not found');
+      }
+    }
+
     const application = await Application.create({
-      applicationDesc: data.applicationDesc,
       applicationTypeID: new Types.ObjectId(data.applicationTypeID),
+      memId: new Types.ObjectId(data.memId),
+      plotId: data.plotId ? new Types.ObjectId(data.plotId) : undefined,
+      applicationDate: new Date(data.applicationDate),
+      statusId: new Types.ObjectId(data.statusId),
+      remarks: data.remarks?.trim(),
+      attachmentPath: data.attachmentPath,
       createdBy: userId,
       updatedBy: userId,
     });
@@ -31,10 +64,7 @@ export const applicationService = {
   },
 
   async getApplicationById(id: string): Promise<any | null> {
-    const application = await Application.findById(id)
-      .populate('applicationTypeID', 'typeName typeCode description isActive')
-      .populate('createdBy', 'firstName lastName email')
-      .populate('updatedBy', 'firstName lastName email');
+    const application = await basePopulate(Application.findById(id));
 
     return application?.toObject() || null;
   },
@@ -44,10 +74,14 @@ export const applicationService = {
       page = 1,
       limit = 10,
       search = '',
+      applicationNo,
       applicationTypeID,
+      memId,
+      plotId,
+      statusId,
       startDate,
       endDate,
-      sortBy = 'createdAt',
+      sortBy = 'applicationDate',
       sortOrder = 'desc',
     } = params;
 
@@ -59,31 +93,45 @@ export const applicationService = {
     const query: any = { isDeleted: false };
 
     if (search) {
-      query.$or = [{ applicationDesc: { $regex: search, $options: 'i' } }];
+      query.$or = [
+        { applicationNo: { $regex: search, $options: 'i' } },
+        { remarks: { $regex: search, $options: 'i' } },
+      ];
+    }
+
+    if (applicationNo) {
+      query.applicationNo = { $regex: applicationNo, $options: 'i' };
     }
 
     if (applicationTypeID) {
       query.applicationTypeID = new Types.ObjectId(applicationTypeID);
     }
 
-    // Date range filters
+    if (memId) {
+      query.memId = new Types.ObjectId(memId);
+    }
+
+    if (plotId) {
+      query.plotId = new Types.ObjectId(plotId);
+    }
+
+    if (statusId) {
+      query.statusId = new Types.ObjectId(statusId);
+    }
+
     if (startDate || endDate) {
-      query.createdAt = {};
-      if (startDate) query.createdAt.$gte = new Date(startDate);
-      if (endDate) query.createdAt.$lte = new Date(endDate);
+      query.applicationDate = {};
+      if (startDate) query.applicationDate.$gte = new Date(startDate);
+      if (endDate) query.applicationDate.$lte = new Date(endDate);
     }
 
     const [applications, total] = await Promise.all([
-      Application.find(query)
-        .populate('applicationTypeID', 'typeName typeCode')
-        .populate('createdBy', 'firstName lastName')
-        .skip(skip)
-        .limit(limit)
-        .sort(sort)
-        .then(docs => docs.map(doc => doc.toObject())),
+      basePopulate(Application.find(query).skip(skip).limit(limit).sort(sort)).then((docs: any[]) =>
+        docs.map((doc: any) => doc.toObject())
+      ),
       Application.countDocuments(query),
     ]);
-
+    // console.log('applications', applications);
     return {
       applications,
       pagination: {
@@ -103,16 +151,47 @@ export const applicationService = {
     const updateData: any = { ...data };
 
     if (data.applicationTypeID) {
-      // Validate new application type
       const applicationType = await SrApplicationType.findById(data.applicationTypeID);
       if (
         !applicationType ||
         (applicationType as any).isDeleted ||
-        !(applicationType as any).isActive
+        (applicationType as any).isActive === false
       ) {
         throw new Error('Invalid or inactive application type');
       }
       updateData.applicationTypeID = new Types.ObjectId(data.applicationTypeID);
+    }
+
+    if (data.memId) {
+      const member = await Member.findById(data.memId);
+      if (!member || (member as any).isDeleted) {
+        throw new Error('Member not found');
+      }
+      updateData.memId = new Types.ObjectId(data.memId);
+    }
+
+    if (data.plotId) {
+      const plot = await Plot.findById(data.plotId);
+      if (!plot || (plot as any).isDeleted) {
+        throw new Error('Plot not found');
+      }
+      updateData.plotId = new Types.ObjectId(data.plotId);
+    }
+
+    if (data.statusId) {
+      const status = await Status.findById(data.statusId);
+      if (!status || (status as any).isDeleted) {
+        throw new Error('Status not found');
+      }
+      updateData.statusId = new Types.ObjectId(data.statusId);
+    }
+
+    if (data.applicationDate) {
+      updateData.applicationDate = new Date(data.applicationDate);
+    }
+
+    if (data.remarks) {
+      updateData.remarks = data.remarks.trim();
     }
 
     updateData.updatedBy = userId;
@@ -153,7 +232,7 @@ export const applicationService = {
       Application.countDocuments({ isDeleted: false }),
       Application.countDocuments({
         isDeleted: false,
-        createdAt: { $gte: thirtyDaysAgo },
+        applicationDate: { $gte: thirtyDaysAgo },
       }),
       Application.aggregate([
         {
@@ -173,7 +252,7 @@ export const applicationService = {
         {
           $group: {
             _id: '$applicationTypeID',
-            typeName: { $first: '$applicationType.typeName' },
+            typeName: { $first: '$applicationType.applicationName' },
             count: { $sum: 1 },
           },
         },
@@ -199,40 +278,21 @@ export const applicationService = {
   },
 
   async getApplicationsByType(typeId: string): Promise<any[]> {
-    const applications = await Application.find({
-      applicationTypeID: new Types.ObjectId(typeId),
-      isDeleted: false,
-    })
-      .populate('applicationTypeID', 'typeName typeCode')
-      .populate('createdBy', 'firstName lastName')
-      .sort('-createdAt')
-      .then(docs => docs.map(doc => doc.toObject()));
+    const applications = await basePopulate(
+      Application.find({
+        applicationTypeID: new Types.ObjectId(typeId),
+        isDeleted: false,
+      }).sort('-applicationDate')
+    ).then((docs: any[]) => docs.map((doc: any) => doc.toObject()));
 
     return applications;
   },
 
   async getRecentApplications(limit: number = 10): Promise<any[]> {
-    const applications = await Application.find({ isDeleted: false })
-      .populate('applicationTypeID', 'typeName typeCode')
-      .populate('createdBy', 'firstName lastName')
-      .sort('-createdAt')
-      .limit(limit)
-      .then(docs => docs.map(doc => doc.toObject()));
+    const applications = await basePopulate(
+      Application.find({ isDeleted: false }).sort('-applicationDate').limit(limit)
+    ).then((docs: any[]) => docs.map((doc: any) => doc.toObject()));
 
     return applications;
-  },
-
-  async checkApplicationExists(applicationDesc: string, excludeId?: string): Promise<boolean> {
-    const query: any = {
-      applicationDesc: { $regex: new RegExp(`^${applicationDesc}$`, 'i') },
-      isDeleted: false,
-    };
-
-    if (excludeId) {
-      query._id = { $ne: excludeId };
-    }
-
-    const count = await Application.countDocuments(query);
-    return count > 0;
   },
 };

@@ -1,3 +1,4 @@
+// src/database/File/services/service-file.ts
 import { Types } from 'mongoose';
 import Application from '../../Application/models/models-application';
 import Member from '../../Member/models/models-member';
@@ -41,16 +42,20 @@ export const fileService = {
         fileRegNo: data.fileRegNo.toUpperCase(),
         isDeleted: false,
       });
-
       if (existingFile) {
         throw new Error('File registration number already exists');
       }
     }
 
-    // Check if project exists
-    const project = await Project.findById(data.projId);
-    if (!project || (project as any).isDeleted) {
-      throw new Error('Project not found');
+    // Plot is REQUIRED
+    if (!data.plotId) {
+      throw new Error('Plot ID is required - file must be associated with a plot');
+    }
+
+    // Check if plot exists
+    const plot = await Plot.findById(data.plotId);
+    if (!plot || (plot as any).isDeleted) {
+      throw new Error('Plot not found');
     }
 
     // Check if member exists
@@ -75,23 +80,15 @@ export const fileService = {
       }
     }
 
-    // Check if plot exists (if provided)
-    if (data.plotId) {
-      const plot = await Plot.findById(data.plotId);
-      if (!plot || (plot as any).isDeleted) {
-        throw new Error('Plot not found');
-      }
+    // Check if plot is already allocated
+    const existingFileWithPlot = await File.findOne({
+      plotId: data.plotId,
+      isDeleted: false,
+      status: { $in: [FileStatus.ACTIVE, FileStatus.PENDING] },
+    });
 
-      // Check if plot is already allocated
-      const existingFileWithPlot = await File.findOne({
-        plotId: data.plotId,
-        isDeleted: false,
-        status: { $in: [FileStatus.ACTIVE, FileStatus.PENDING] },
-      });
-
-      if (existingFileWithPlot) {
-        throw new Error('Plot is already allocated to another file');
-      }
+    if (existingFileWithPlot) {
+      throw new Error('Plot is already allocated to another file');
     }
 
     // Validate down payment
@@ -102,7 +99,9 @@ export const fileService = {
     // Generate file registration number if not provided
     let fileRegNo = data.fileRegNo;
     if (!fileRegNo) {
-      const projectCode = project.projCode || 'PROJ';
+      // Get project from plot
+      const project = await Project.findById(plot.projectId);
+      const projectCode = project?.projCode || 'PROJ';
       const timestamp = Date.now().toString().slice(-6);
       const random = Math.floor(Math.random() * 1000)
         .toString()
@@ -123,13 +122,43 @@ export const fileService = {
 
     const file = await File.create(fileData);
 
+    // Populate with detailed plot information
     const createdFile = await File.findById(file._id)
-      .populate('project', 'projectName projectCode')
-      .populate('member', 'fullName cnic mobileNo')
-      .populate('nominee', 'fullName relationship')
+      .populate('member', 'memName memNic mobileNo')
+      .populate('nominee', 'nomineeName relationWithMember nomineeCNIC nomineeContact')
       .populate('application', 'applicationNo')
-      .populate('plot', 'plotNo sector block')
-      .populate('createdBy', 'userName fullName designation');
+      .populate({
+        path: 'plot',
+        select:
+          'plotNo plotRegistrationNo plotDimensions plotArea plotAreaUnit plotBasePrice plotTotalAmount surchargeAmount discountAmount plotFacing isPossessionReady plotStreet plotRemarks',
+        populate: [
+          {
+            path: 'projectId',
+            select: 'projName projCode projPrefix projLocation',
+          },
+          {
+            path: 'plotBlockId',
+            select: 'plotBlockName plotBlockDesc',
+          },
+          {
+            path: 'plotSizeId',
+            select: 'plotSizeName totalArea areaUnit ratePerUnit',
+          },
+          {
+            path: 'plotTypeId',
+            select: 'plotTypeName plotTypeCode',
+          },
+          {
+            path: 'plotCategoryId',
+            select: 'categoryName surchargePercentage surchargeFixedAmount',
+          },
+          {
+            path: 'salesStatusId',
+            select: 'statusName statusCode colorCode',
+          },
+        ],
+      })
+      .populate('createdBy', 'firstName lastName email designation');
 
     if (!createdFile) {
       throw new Error('Failed to create file');
@@ -144,16 +173,46 @@ export const fileService = {
   async getFileById(id: string): Promise<FileType> {
     try {
       const file = await File.findById(id)
-        .populate('project', 'projectName projectCode description location')
-        .populate('member', 'fullName cnic fatherName mobileNo email address')
-        .populate('nominee', 'fullName relationship cnic mobileNo')
-        .populate('application', 'applicationNo applicationDate status')
-        .populate('plot', 'plotNo sector block area plotType status')
-        .populate('plotType', 'typeName description')
-        .populate('plotSize', 'sizeName area')
-        .populate('plotBlock', 'blockName blockCode')
-        .populate('createdBy', 'userName fullName designation')
-        .populate('modifiedBy', 'userName fullName designation');
+        .populate('member', 'memName memNic fatherName mobileNo email address')
+        .populate('nominee', 'nomineeName relationWithMember nomineeCNIC nomineeContact')
+        .populate('application', 'applicationNo applicationDate statusId')
+        .populate({
+          path: 'plot',
+          select:
+            'plotNo plotRegistrationNo plotDimensions plotArea plotAreaUnit plotBasePrice plotTotalAmount surchargeAmount discountAmount plotFacing isPossessionReady plotStreet plotRemarks',
+          populate: [
+            {
+              path: 'projectId',
+              select: 'projName projCode projPrefix projLocation projDescription',
+            },
+            {
+              path: 'plotBlockId',
+              select: 'plotBlockName plotBlockDesc',
+            },
+            {
+              path: 'plotSizeId',
+              select: 'plotSizeName totalArea areaUnit ratePerUnit',
+            },
+            {
+              path: 'plotTypeId',
+              select: 'plotTypeName plotTypeCode',
+            },
+            {
+              path: 'plotCategoryId',
+              select: 'categoryName surchargePercentage surchargeFixedAmount',
+            },
+            {
+              path: 'salesStatusId',
+              select: 'statusName statusCode colorCode',
+            },
+            {
+              path: 'srDevStatId',
+              select: 'srDevStatName devCategory devPhase percentageComplete',
+            },
+          ],
+        })
+        .populate('createdBy', 'firstName lastName email designation')
+        .populate('modifiedBy', 'firstName lastName email designation');
 
       if (!file || file.isDeleted) {
         throw new Error('File not found');
@@ -176,10 +235,22 @@ export const fileService = {
       fileRegNo: fileRegNo.toUpperCase(),
       isDeleted: false,
     })
-      .populate('project', 'projectName projectCode')
-      .populate('member', 'fullName cnic mobileNo')
-      .populate('plot', 'plotNo sector block')
-      .populate('createdBy', 'userName fullName');
+      .populate('member', 'memName memNic mobileNo')
+      .populate({
+        path: 'plot',
+        select: 'plotNo plotRegistrationNo plotArea plotTotalAmount',
+        populate: [
+          {
+            path: 'projectId',
+            select: 'projName projCode',
+          },
+          {
+            path: 'plotBlockId',
+            select: 'plotBlockName',
+          },
+        ],
+      })
+      .populate('createdBy', 'firstName lastName email');
 
     if (!file) return null;
     return toPlainObject(file);
@@ -193,9 +264,15 @@ export const fileService = {
       fileBarCode,
       isDeleted: false,
     })
-      .populate('project', 'projectName projectCode')
-      .populate('member', 'fullName cnic mobileNo')
-      .populate('plot', 'plotNo sector block');
+      .populate('member', 'memName memNic mobileNo')
+      .populate({
+        path: 'plot',
+        select: 'plotNo plotRegistrationNo',
+        populate: {
+          path: 'projectId',
+          select: 'projName projCode',
+        },
+      });
 
     if (!file) return null;
     return toPlainObject(file);
@@ -212,12 +289,10 @@ export const fileService = {
       page = 1,
       limit = 20,
       projId,
+      projectId,
       memId,
       nomineeId,
       plotId,
-      plotTypeId,
-      plotSizeId,
-      plotBlockId,
       status,
       isAdjusted,
       isActive = true,
@@ -242,8 +317,17 @@ export const fileService = {
       query.isActive = isActive;
     }
 
-    if (projId) {
-      query.projId = new Types.ObjectId(projId);
+    // Filter by project through plot (support both projId and projectId)
+    const projectIdToUse = projId || projectId;
+    if (projectIdToUse) {
+      // Find all plots in this project
+      const plotsInProject = await Plot.find({
+        projectId: new Types.ObjectId(projectIdToUse),
+        isDeleted: false,
+      }).select('_id');
+
+      const plotIds = plotsInProject.map(plot => plot._id);
+      query.plotId = { $in: plotIds };
     }
 
     if (memId) {
@@ -256,18 +340,6 @@ export const fileService = {
 
     if (plotId) {
       query.plotId = new Types.ObjectId(plotId);
-    }
-
-    if (plotTypeId) {
-      query.plotTypeId = new Types.ObjectId(plotTypeId);
-    }
-
-    if (plotSizeId) {
-      query.plotSizeId = new Types.ObjectId(plotSizeId);
-    }
-
-    if (plotBlockId) {
-      query.plotBlockId = new Types.ObjectId(plotBlockId);
     }
 
     if (status) {
@@ -297,9 +369,41 @@ export const fileService = {
 
     const [files, total] = await Promise.all([
       File.find(query)
-        .populate('project', 'projectName projectCode')
-        .populate('member', 'fullName cnic')
-        .populate('plot', 'plotNo sector')
+        .populate('member', 'memName memNic mobileNo')
+        .populate('nominee', 'nomineeName relationWithMember nomineeCNIC')
+        .populate('application', 'applicationNo applicationDate')
+        .populate({
+          path: 'plot',
+          select:
+            'plotNo plotRegistrationNo plotDimensions plotArea plotAreaUnit plotTotalAmount plotFacing',
+          populate: [
+            {
+              path: 'projectId',
+              select: 'projName projCode projPrefix',
+            },
+            {
+              path: 'plotBlockId',
+              select: 'plotBlockName plotBlockDesc',
+            },
+            {
+              path: 'plotSizeId',
+              select: 'plotSizeName totalArea areaUnit ratePerUnit',
+            },
+            {
+              path: 'plotTypeId',
+              select: 'plotTypeName plotTypeCode',
+            },
+            {
+              path: 'plotCategoryId',
+              select: 'categoryName surchargePercentage surchargeFixedAmount',
+            },
+            {
+              path: 'salesStatusId',
+              select: 'statusName statusCode colorCode',
+            },
+          ],
+        })
+        .populate('createdBy', 'firstName lastName email')
         .skip(skip)
         .limit(limit)
         .sort(sort)
@@ -387,10 +491,16 @@ export const fileService = {
       { $set: updateObj },
       { new: true, runValidators: true }
     )
-      .populate('project', 'projectName projectCode')
-      .populate('member', 'fullName cnic mobileNo')
-      .populate('plot', 'plotNo sector block')
-      .populate('modifiedBy', 'userName fullName');
+      .populate('member', 'memName memNic mobileNo')
+      .populate({
+        path: 'plot',
+        select: 'plotNo plotRegistrationNo',
+        populate: {
+          path: 'projectId',
+          select: 'projName projCode',
+        },
+      })
+      .populate('modifiedBy', 'firstName lastName email');
 
     return file ? toPlainObject(file) : null;
   },
@@ -441,8 +551,24 @@ export const fileService = {
     }
 
     const files = await File.find(query)
-      .populate('project', 'projectName projectCode')
-      .populate('plot', 'plotNo sector block')
+      .populate({
+        path: 'plot',
+        select: 'plotNo plotRegistrationNo plotArea plotTotalAmount',
+        populate: [
+          {
+            path: 'projectId',
+            select: 'projName projCode',
+          },
+          {
+            path: 'plotBlockId',
+            select: 'plotBlockName',
+          },
+          {
+            path: 'plotSizeId',
+            select: 'plotSizeName totalArea',
+          },
+        ],
+      })
       .sort({ bookingDate: -1 })
       .then(docs => docs.map(doc => toPlainObject(doc)));
 
@@ -459,16 +585,41 @@ export const fileService = {
   ): Promise<{ files: FileType[]; total: number; pages: number }> {
     const skip = (page - 1) * limit;
 
+    // Find all plots in this project
+    const plotsInProject = await Plot.find({
+      projectId: new Types.ObjectId(projId),
+      isDeleted: false,
+    }).select('_id');
+
+    const plotIds = plotsInProject.map(plot => plot._id);
+
     const query = {
-      projId: new Types.ObjectId(projId),
+      plotId: { $in: plotIds },
       isDeleted: false,
       isActive: true,
     };
 
     const [files, total] = await Promise.all([
       File.find(query)
-        .populate('member', 'fullName cnic mobileNo')
-        .populate('plot', 'plotNo sector')
+        .populate('member', 'memName memNic mobileNo')
+        .populate({
+          path: 'plot',
+          select: 'plotNo plotRegistrationNo plotArea',
+          populate: [
+            {
+              path: 'projectId',
+              select: 'projName projCode',
+            },
+            {
+              path: 'plotBlockId',
+              select: 'plotBlockName',
+            },
+            {
+              path: 'plotSizeId',
+              select: 'plotSizeName totalArea',
+            },
+          ],
+        })
         .sort({ bookingDate: -1 })
         .skip(skip)
         .limit(limit)
@@ -506,28 +657,25 @@ export const fileService = {
       throw new Error('New member not found');
     }
 
-    // Create history record (you might want to log this in a separate collection)
-    // const transferHistory = {
-    //   fromMemberId: file.memId,
-    //   toMemberId: data.newMemberId,
-    //   transferDate: data.transferDate,
-    //   transferReason: data.transferReason,
-    //   transferFee: data.transferFee,
-    //   performedBy: userId,
-    // };
-
     const updateObj: any = {
       memId: data.newMemberId,
       status: FileStatus.TRANSFERRED,
       modifiedBy: userId,
       fileRemarks: file.fileRemarks
-        ? `${file.fileRemarks}\nTransferred to ${newMember.fullName} on ${data.transferDate}. Reason: ${data.transferReason}`
-        : `Transferred to ${newMember.fullName} on ${data.transferDate}. Reason: ${data.transferReason}`,
+        ? `${file.fileRemarks}\nTransferred to ${newMember.memName} on ${data.transferDate}. Reason: ${data.transferReason}`
+        : `Transferred to ${newMember.memName} on ${data.transferDate}. Reason: ${data.transferReason}`,
     };
 
     const updatedFile = await File.findByIdAndUpdate(id, { $set: updateObj }, { new: true })
-      .populate('member', 'fullName cnic mobileNo')
-      .populate('project', 'projectName projectCode');
+      .populate('member', 'memName memNic mobileNo')
+      .populate({
+        path: 'plot',
+        select: 'plotNo',
+        populate: {
+          path: 'projectId',
+          select: 'projName projCode',
+        },
+      });
 
     return updatedFile ? toPlainObject(updatedFile) : null;
   },
@@ -580,8 +728,15 @@ export const fileService = {
     }
 
     const adjustedFile = await File.findByIdAndUpdate(id, { $set: updateObj }, { new: true })
-      .populate('member', 'fullName cnic')
-      .populate('project', 'projectName');
+      .populate('member', 'memName memNic')
+      .populate({
+        path: 'plot',
+        select: 'plotNo',
+        populate: {
+          path: 'projectId',
+          select: 'projName',
+        },
+      });
 
     return adjustedFile ? toPlainObject(adjustedFile) : null;
   },
@@ -601,7 +756,7 @@ export const fileService = {
       };
     }
 
-    const [stats, statusStats, projectStats, monthlyStats] = await Promise.all([
+    const [stats, statusStats, monthlyStats] = await Promise.all([
       File.aggregate([
         {
           $match: matchStage,
@@ -646,35 +801,6 @@ export const fileService = {
           $match: matchStage,
         },
         {
-          $lookup: {
-            from: 'projects',
-            localField: 'projId',
-            foreignField: '_id',
-            as: 'project',
-          },
-        },
-        {
-          $unwind: '$project',
-        },
-        {
-          $group: {
-            _id: '$project.projectName',
-            count: { $sum: 1 },
-            totalAmount: { $sum: '$totalAmount' },
-          },
-        },
-        {
-          $sort: { count: -1 },
-        },
-        {
-          $limit: 10,
-        },
-      ]),
-      File.aggregate([
-        {
-          $match: matchStage,
-        },
-        {
           $group: {
             _id: {
               year: { $year: '$bookingDate' },
@@ -691,6 +817,48 @@ export const fileService = {
           $limit: 12,
         },
       ]),
+    ]);
+
+    // Get project stats through plots
+    const projectStats = await File.aggregate([
+      {
+        $match: matchStage,
+      },
+      {
+        $lookup: {
+          from: 'plots',
+          localField: 'plotId',
+          foreignField: '_id',
+          as: 'plot',
+        },
+      },
+      {
+        $unwind: '$plot',
+      },
+      {
+        $lookup: {
+          from: 'projects',
+          localField: 'plot.projectId',
+          foreignField: '_id',
+          as: 'project',
+        },
+      },
+      {
+        $unwind: '$project',
+      },
+      {
+        $group: {
+          _id: '$project.projName',
+          count: { $sum: 1 },
+          totalAmount: { $sum: '$totalAmount' },
+        },
+      },
+      {
+        $sort: { count: -1 },
+      },
+      {
+        $limit: 10,
+      },
     ]);
 
     const baseStats = stats[0] || {
@@ -747,78 +915,96 @@ export const fileService = {
    * Get dashboard summary
    */
   async getDashboardSummary(): Promise<FileDashboardSummary> {
-    const [totalFiles, activeFiles, pendingFiles, totalRevenue, recentFiles, topProjects] =
-      await Promise.all([
-        File.countDocuments({ isDeleted: false, isActive: true }),
-        File.countDocuments({
-          isDeleted: false,
-          isActive: true,
-          status: FileStatus.ACTIVE,
-        }),
-        File.countDocuments({
-          isDeleted: false,
-          isActive: true,
-          status: FileStatus.PENDING,
-        }),
-        File.aggregate([
-          {
-            $match: {
-              isDeleted: false,
-              isActive: true,
-              status: { $in: [FileStatus.ACTIVE, FileStatus.PENDING] },
-            },
+    const [totalFiles, activeFiles, pendingFiles, totalRevenue, recentFiles] = await Promise.all([
+      File.countDocuments({ isDeleted: false, isActive: true }),
+      File.countDocuments({
+        isDeleted: false,
+        isActive: true,
+        status: FileStatus.ACTIVE,
+      }),
+      File.countDocuments({
+        isDeleted: false,
+        isActive: true,
+        status: FileStatus.PENDING,
+      }),
+      File.aggregate([
+        {
+          $match: {
+            isDeleted: false,
+            isActive: true,
+            status: { $in: [FileStatus.ACTIVE, FileStatus.PENDING] },
           },
-          {
-            $group: {
-              _id: null,
-              total: { $sum: '$totalAmount' },
-            },
+        },
+        {
+          $group: {
+            _id: null,
+            total: { $sum: '$totalAmount' },
           },
-        ]),
-        File.find({
-          isDeleted: false,
-          isActive: true,
+        },
+      ]),
+      File.find({
+        isDeleted: false,
+        isActive: true,
+      })
+        .populate({
+          path: 'plot',
+          select: 'plotNo',
+          populate: {
+            path: 'projectId',
+            select: 'projName',
+          },
         })
-          .populate('project', 'projectName')
-          .populate('member', 'fullName')
-          .populate('plot', 'plotNo')
-          .sort({ createdAt: -1 })
-          .limit(10)
-          .then(docs => docs.map(doc => toPlainObject(doc))),
-        File.aggregate([
-          {
-            $match: {
-              isDeleted: false,
-              isActive: true,
-            },
-          },
-          {
-            $lookup: {
-              from: 'projects',
-              localField: 'projId',
-              foreignField: '_id',
-              as: 'project',
-            },
-          },
-          {
-            $unwind: '$project',
-          },
-          {
-            $group: {
-              _id: '$projId',
-              projectName: { $first: '$project.projectName' },
-              fileCount: { $sum: 1 },
-              totalAmount: { $sum: '$totalAmount' },
-            },
-          },
-          {
-            $sort: { fileCount: -1 },
-          },
-          {
-            $limit: 5,
-          },
-        ]),
-      ]);
+        .populate('member', 'memName')
+        .sort({ createdAt: -1 })
+        .limit(10)
+        .then(docs => docs.map(doc => toPlainObject(doc))),
+    ]);
+
+    // Get top projects through plots
+    const topProjects = await File.aggregate([
+      {
+        $match: {
+          isDeleted: false,
+          isActive: true,
+        },
+      },
+      {
+        $lookup: {
+          from: 'plots',
+          localField: 'plotId',
+          foreignField: '_id',
+          as: 'plot',
+        },
+      },
+      {
+        $unwind: '$plot',
+      },
+      {
+        $lookup: {
+          from: 'projects',
+          localField: 'plot.projectId',
+          foreignField: '_id',
+          as: 'project',
+        },
+      },
+      {
+        $unwind: '$project',
+      },
+      {
+        $group: {
+          _id: '$plot.projectId',
+          projectName: { $first: '$project.projName' },
+          fileCount: { $sum: 1 },
+          totalAmount: { $sum: '$totalAmount' },
+        },
+      },
+      {
+        $sort: { fileCount: -1 },
+      },
+      {
+        $limit: 5,
+      },
+    ]);
 
     return {
       totalFiles,
@@ -844,9 +1030,15 @@ export const fileService = {
       isDeleted: false,
       isActive: true,
     })
-      .populate('project', 'projectName')
-      .populate('member', 'fullName cnic')
-      .populate('plot', 'plotNo sector')
+      .populate({
+        path: 'plot',
+        select: 'plotNo plotRegistrationNo',
+        populate: {
+          path: 'projectId',
+          select: 'projName',
+        },
+      })
+      .populate('member', 'memName memNic')
       .limit(limit)
       .sort({ score: { $meta: 'textScore' } })
       .then(docs => docs.map(doc => toPlainObject(doc)));
@@ -855,16 +1047,17 @@ export const fileService = {
   },
 
   /**
-   * Get files without plots (unballoted)
+   * Get files without plots (unballoted) - This should now return empty as plot is required
    */
   async getUnballotedFiles(
     page: number = 1,
     limit: number = 20
   ): Promise<{ files: FileType[]; total: number; pages: number }> {
+    // Since plot is now required, this should return files with invalid plots
     const skip = (page - 1) * limit;
 
     const query = {
-      plotId: { $exists: false },
+      plotId: { $exists: false }, // Files without plot (shouldn't exist now)
       isDeleted: false,
       isActive: true,
       status: { $in: [FileStatus.ACTIVE, FileStatus.PENDING] },
@@ -872,10 +1065,7 @@ export const fileService = {
 
     const [files, total] = await Promise.all([
       File.find(query)
-        .populate('project', 'projectName projectCode')
-        .populate('member', 'fullName cnic mobileNo')
-        .populate('plotType', 'typeName')
-        .populate('plotSize', 'sizeName')
+        .populate('member', 'memName memNic mobileNo')
         .sort({ bookingDate: -1 })
         .skip(skip)
         .limit(limit)
@@ -891,7 +1081,7 @@ export const fileService = {
   },
 
   /**
-   * Assign plot to file
+   * Assign plot to file - Now plot is required on creation, this might be for updating
    */
   async assignPlot(
     fileId: string,
@@ -926,9 +1116,6 @@ export const fileService = {
 
     const updateObj: any = {
       plotId,
-      plotTypeId: plot.plotTypeId,
-      plotSizeId: plot.plotSizeId,
-      plotBlockId: plot.plotBlockId,
       modifiedBy: userId,
       fileRemarks: file.fileRemarks
         ? `${file.fileRemarks}\nPlot assigned: ${plot.plotNo} on ${new Date().toLocaleDateString()}`
@@ -938,17 +1125,27 @@ export const fileService = {
     // Update plot status
     await Plot.findByIdAndUpdate(plotId, {
       $set: {
-        status: 'ALLOCATED',
-        allocatedTo: file.memId,
-        allocationDate: new Date(),
+        fileId: fileId,
         updatedBy: userId,
       },
     });
 
     const updatedFile = await File.findByIdAndUpdate(fileId, { $set: updateObj }, { new: true })
-      .populate('plot', 'plotNo sector block area')
-      .populate('member', 'fullName cnic')
-      .populate('project', 'projectName');
+      .populate({
+        path: 'plot',
+        select: 'plotNo',
+        populate: [
+          {
+            path: 'projectId',
+            select: 'projName',
+          },
+          {
+            path: 'plotBlockId',
+            select: 'plotBlockName',
+          },
+        ],
+      })
+      .populate('member', 'memName memNic');
 
     return updatedFile ? toPlainObject(updatedFile) : null;
   },

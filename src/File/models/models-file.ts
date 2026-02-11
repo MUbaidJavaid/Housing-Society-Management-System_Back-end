@@ -1,3 +1,4 @@
+// src/database/File/models/models-file.ts
 import { Document, Model, Schema, Types, model, models } from 'mongoose';
 
 // ------------------- ENUMS -------------------
@@ -27,14 +28,11 @@ export enum PaymentMode {
 export interface IFile extends Document {
   fileRegNo: string;
   fileBarCode: string;
-  projId: Types.ObjectId;
   memId: Types.ObjectId;
   nomineeId?: Types.ObjectId;
   applicationId?: Types.ObjectId;
-  plotId?: Types.ObjectId;
-  plotTypeId?: Types.ObjectId;
-  plotSizeId?: Types.ObjectId;
-  plotBlockId?: Types.ObjectId;
+  plotId: Types.ObjectId; // REQUIRED now
+
   totalAmount: number;
   downPayment: number;
   paymentMode: PaymentMode;
@@ -56,14 +54,10 @@ export interface IFile extends Document {
   updatedAt: Date;
 
   // Virtual fields
-  project?: any;
   member?: any;
   nominee?: any;
   application?: any;
   plot?: any;
-  plotType?: any;
-  plotSize?: any;
-  plotBlock?: any;
   createdByUser?: any;
   modifiedByUser?: any;
   balanceAmount?: number;
@@ -85,19 +79,33 @@ const fileSchema = new Schema<IFile>(
     },
     fileBarCode: {
       type: String,
-      required: true,
       trim: true,
       maxlength: 100,
     },
-    projId: { type: Schema.Types.ObjectId, ref: 'Project', required: true },
-    memId: { type: Schema.Types.ObjectId, ref: 'Member', required: true },
-    nomineeId: { type: Schema.Types.ObjectId, ref: 'Nominee' },
-    applicationId: { type: Schema.Types.ObjectId, ref: 'Application' },
-    plotId: { type: Schema.Types.ObjectId, ref: 'Plot' },
-    plotTypeId: { type: Schema.Types.ObjectId, ref: 'PlotType' },
-    plotSizeId: { type: Schema.Types.ObjectId, ref: 'PlotSize' },
-    plotBlockId: { type: Schema.Types.ObjectId, ref: 'PlotBlock' },
-    totalAmount: { type: Number, required: true, min: 0 },
+    memId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Member',
+      required: true,
+    },
+    nomineeId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Nominee',
+    },
+    applicationId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Application',
+    },
+    plotId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Plot',
+      required: true, // REQUIRED
+    },
+
+    totalAmount: {
+      type: Number,
+      required: true,
+      min: 0,
+    },
     downPayment: {
       type: Number,
       required: true,
@@ -109,25 +117,68 @@ const fileSchema = new Schema<IFile>(
         message: 'Down payment cannot exceed total amount',
       },
     },
-    paymentMode: { type: String, enum: Object.values(PaymentMode), required: true },
-    isAdjusted: { type: Boolean, default: false },
-    adjustmentRef: { type: String, trim: true, maxlength: 100 },
+    paymentMode: {
+      type: String,
+      enum: Object.values(PaymentMode),
+      required: true,
+    },
+    isAdjusted: {
+      type: Boolean,
+      default: false,
+    },
+    adjustmentRef: {
+      type: String,
+      trim: true,
+      maxlength: 100,
+    },
     status: {
       type: String,
       enum: Object.values(FileStatus),
       default: FileStatus.PENDING,
     },
-    fileRemarks: { type: String, trim: true, maxlength: 1000 },
-    bookingDate: { type: Date, required: true },
-    expectedCompletionDate: { type: Date },
-    actualCompletionDate: { type: Date },
-    cancellationDate: { type: Date },
-    cancellationReason: { type: String, trim: true, maxlength: 500 },
-    createdBy: { type: Schema.Types.ObjectId, ref: 'UserStaff', required: true },
-    modifiedBy: { type: Schema.Types.ObjectId, ref: 'UserStaff' },
-    isActive: { type: Boolean, default: true },
-    isDeleted: { type: Boolean, default: false },
-    deletedAt: { type: Date },
+    fileRemarks: {
+      type: String,
+      trim: true,
+      maxlength: 1000,
+    },
+    bookingDate: {
+      type: Date,
+      required: true,
+    },
+    expectedCompletionDate: {
+      type: Date,
+    },
+    actualCompletionDate: {
+      type: Date,
+    },
+    cancellationDate: {
+      type: Date,
+    },
+    cancellationReason: {
+      type: String,
+      trim: true,
+      maxlength: 500,
+    },
+    createdBy: {
+      type: Schema.Types.ObjectId,
+      ref: 'UserStaff',
+      required: true,
+    },
+    modifiedBy: {
+      type: Schema.Types.ObjectId,
+      ref: 'UserStaff',
+    },
+    isActive: {
+      type: Boolean,
+      default: true,
+    },
+    isDeleted: {
+      type: Boolean,
+      default: false,
+    },
+    deletedAt: {
+      type: Date,
+    },
   },
   {
     timestamps: true,
@@ -137,16 +188,15 @@ const fileSchema = new Schema<IFile>(
 );
 
 // ------------------- INDEXES -------------------
-// Only define indexes here, NOT in the schema fields
 fileSchema.index({ fileRegNo: 1, isDeleted: 1 }, { unique: true });
 fileSchema.index({ fileBarCode: 1, isDeleted: 1 }, { unique: true });
-fileSchema.index({ projId: 1, memId: 1 });
+fileSchema.index({ plotId: 1, memId: 1 });
 fileSchema.index({ status: 1, isActive: 1 });
 fileSchema.index({ memId: 1, isDeleted: 1 });
 fileSchema.index({ bookingDate: -1, status: 1 });
 fileSchema.index({ fileRegNo: 1 });
 fileSchema.index({ fileBarCode: 1 });
-fileSchema.index({ projId: 1 });
+fileSchema.index({ plotId: 1 });
 fileSchema.index({ memId: 1 });
 fileSchema.index({ status: 1 });
 fileSchema.index({ bookingDate: 1 });
@@ -206,13 +256,6 @@ fileSchema.virtual('statusBadgeColor').get(function () {
 });
 
 // Virtual relationships
-fileSchema.virtual('project', {
-  ref: 'Project',
-  localField: 'projId',
-  foreignField: '_id',
-  justOne: true,
-});
-
 fileSchema.virtual('member', {
   ref: 'Member',
   localField: 'memId',
@@ -237,27 +280,6 @@ fileSchema.virtual('application', {
 fileSchema.virtual('plot', {
   ref: 'Plot',
   localField: 'plotId',
-  foreignField: '_id',
-  justOne: true,
-});
-
-fileSchema.virtual('plotType', {
-  ref: 'PlotType',
-  localField: 'plotTypeId',
-  foreignField: '_id',
-  justOne: true,
-});
-
-fileSchema.virtual('plotSize', {
-  ref: 'PlotSize',
-  localField: 'plotSizeId',
-  foreignField: '_id',
-  justOne: true,
-});
-
-fileSchema.virtual('plotBlock', {
-  ref: 'PlotBlock',
-  localField: 'plotBlockId',
   foreignField: '_id',
   justOne: true,
 });
@@ -330,14 +352,21 @@ interface IFileModel extends Model<IFile> {
   findByBarcode(fileBarCode: string): Promise<IFile | null>;
   findActiveFilesByMember(memId: string): Promise<IFile[]>;
   getFileStatistics(): Promise<any>;
+  getFilesByProject(projId: string): Promise<IFile[]>;
 }
 
 fileSchema.statics.findByRegNo = function (fileRegNo: string) {
-  return this.findOne({ fileRegNo: fileRegNo.toUpperCase(), isDeleted: false });
+  return this.findOne({
+    fileRegNo: fileRegNo.toUpperCase(),
+    isDeleted: false,
+  });
 };
 
 fileSchema.statics.findByBarcode = function (fileBarCode: string) {
-  return this.findOne({ fileBarCode, isDeleted: false });
+  return this.findOne({
+    fileBarCode,
+    isDeleted: false,
+  });
 };
 
 fileSchema.statics.findActiveFilesByMember = function (memId: string) {
@@ -346,7 +375,6 @@ fileSchema.statics.findActiveFilesByMember = function (memId: string) {
     isDeleted: false,
     isActive: true,
   })
-    .populate('project', 'projName')
     .populate('plot', 'plotNo plotSize')
     .sort({ bookingDate: -1 });
 };
@@ -365,6 +393,29 @@ fileSchema.statics.getFileStatistics = function () {
         cancelledFiles: { $sum: { $cond: [{ $eq: ['$status', FileStatus.CANCELLED] }, 1, 0] } },
         totalAmount: { $sum: '$totalAmount' },
         totalDownPayment: { $sum: '$downPayment' },
+      },
+    },
+  ]);
+};
+
+fileSchema.statics.getFilesByProject = function (projId: string) {
+  return this.aggregate([
+    {
+      $lookup: {
+        from: 'plots',
+        localField: 'plotId',
+        foreignField: '_id',
+        as: 'plot',
+      },
+    },
+    {
+      $unwind: '$plot',
+    },
+    {
+      $match: {
+        'plot.projectId': new Types.ObjectId(projId),
+        'plot.isDeleted': false,
+        isDeleted: false,
       },
     },
   ]);

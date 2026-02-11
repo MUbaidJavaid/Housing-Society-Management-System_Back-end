@@ -61,10 +61,12 @@ import { srApplicationTypeRoutes } from './Application/index-applicationtype';
 import { cityRoutes } from './CityState/index-city';
 import { stateRoutes } from './CityState/index-state';
 import { statusRoutes } from './CityState/index-status';
+import { statusRoutes as coreStatusRoutes } from './Status/index-status';
 
 import rateLimit from 'express-rate-limit';
 import { announcementRoutes } from './Announcement/index-announcement';
 import { announcementCategoryRoutes } from './Announcement/index-announcementcategory';
+import { applicationRoutes } from './Application/index-application';
 import { billInfoRoutes } from './BillI/index-bill-info';
 import { billTypeRoutes } from './BillI/index-bill-type';
 import { complaintRoutes } from './Complaint/index-complaint';
@@ -74,6 +76,7 @@ import { srDevStatusRoutes } from './Development/index-srdevstatus';
 import { fileRoutes } from './File/index-file';
 import { uploadRoutes } from './imageUpload';
 import { ApiError } from './imageUpload/utils/error-handler';
+import { installmentRoutes } from './Installment/index-installment';
 import { installmentCategoryRoutes } from './Installment/index-installment-category';
 import { authMemberRoutes } from './Member/indexa-member';
 import { srModuleRoutes } from './Module/index-srmodule';
@@ -435,12 +438,13 @@ function setupRoutes(app: Application): void {
 
   app.use('/api/members', memberRoutes);
 
-  app.use('/api/application', srApplicationTypeRoutes);
-
+  app.use('/api/applicationtype', srApplicationTypeRoutes);
+  app.use('/api/application', applicationRoutes);
   app.use('/api/cities', cityRoutes);
 
   app.use('/api/states', stateRoutes);
 
+  app.use('/api/status', coreStatusRoutes);
   app.use('/api/statuses', statusRoutes);
 
   app.use('/api/projects', projectRoutes);
@@ -466,7 +470,7 @@ function setupRoutes(app: Application): void {
   app.use('/api/userrole', userRoleRoutes);
 
   app.use('/api/userstaff', userStaffRoutes);
-
+  // ok
   app.use('/api/announcementcategory', announcementCategoryRoutes);
 
   app.use('/api/announcement', announcementRoutes);
@@ -487,6 +491,7 @@ function setupRoutes(app: Application): void {
 
   app.use('/api/billtype', billTypeRoutes);
   app.use('/api/installmentcategory', installmentCategoryRoutes);
+  app.use('/api/installment', installmentRoutes);
   app.get('/api/test', (_req: Request, res: Response) => {
     res.json({ success: true, message: 'API is working' });
   });

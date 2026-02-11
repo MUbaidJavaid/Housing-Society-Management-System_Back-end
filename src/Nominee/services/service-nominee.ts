@@ -75,7 +75,7 @@ export const nomineeService = {
     const nominee = await Nominee.create(nomineeData);
 
     const createdNominee = await Nominee.findById(nominee._id)
-      .populate('member', 'fullName cnic mobileNo')
+      .populate('member', 'memName memNic mobileNo')
       .populate('createdBy', 'userName fullName designation');
 
     if (!createdNominee) {
@@ -91,7 +91,7 @@ export const nomineeService = {
   async getNomineeById(id: string): Promise<NomineeType> {
     try {
       const nominee = await Nominee.findById(id)
-        .populate('member', 'fullName cnic fatherName mobileNo email address')
+        .populate('member', 'memName memNic fatherName mobileNo email address')
         .populate('createdBy', 'userName fullName designation')
         .populate('modifiedBy', 'userName fullName designation');
 
@@ -116,7 +116,7 @@ export const nomineeService = {
       nomineeCNIC: cnic,
       isDeleted: false,
     })
-      .populate('member', 'fullName cnic mobileNo')
+      .populate('member', 'memName memNic mobileNo')
       .populate('createdBy', 'userName fullName');
 
     if (!nominee) return null;
@@ -172,7 +172,7 @@ export const nomineeService = {
 
     const [nominees, total] = await Promise.all([
       Nominee.find(query)
-        .populate('member', 'fullName cnic')
+        .populate('member', 'memName memNic')
         .skip(skip)
         .limit(limit)
         .sort(sort)
@@ -247,7 +247,7 @@ export const nomineeService = {
       { $set: updateObj },
       { new: true, runValidators: true }
     )
-      .populate('member', 'fullName cnic mobileNo')
+      .populate('member', 'memName memNic mobileNo')
       .populate('modifiedBy', 'userName fullName');
 
     return nominee ? toPlainObject(nominee) : null;
@@ -305,7 +305,7 @@ export const nomineeService = {
     }
 
     const nominees = await Nominee.find(query)
-      .populate('member', 'fullName cnic')
+      .populate('member', 'memName memNic')
       .sort({ nomineeSharePercentage: -1 })
       .then(docs => docs.map(doc => toPlainObject(doc)));
 
@@ -325,7 +325,7 @@ export const nomineeService = {
       isDeleted: false,
       isActive: true,
     })
-      .populate('member', 'fullName cnic')
+      .populate('member', 'memName memNic')
       .limit(limit)
       .sort({ createdAt: -1 })
       .then(docs => docs.map(doc => toPlainObject(doc)));
@@ -438,7 +438,7 @@ export const nomineeService = {
         isDeleted: false,
         isActive: true,
       })
-        .populate('member', 'fullName')
+        .populate('member', 'memName')
         .sort({ createdAt: -1 })
         .limit(5)
         .then(docs => docs.map(doc => toPlainObject(doc))),
@@ -501,7 +501,7 @@ export const nomineeService = {
       {
         $group: {
           _id: '$memId',
-          memberName: { $first: '$member.fullName' },
+          memberName: { $first: '$member.memName' },
           totalNominees: { $sum: 1 },
           totalSharePercentage: { $sum: '$nomineeSharePercentage' },
           nominees: {
@@ -581,7 +581,7 @@ export const nomineeService = {
       isDeleted: false,
       isActive: true,
     })
-      .populate('member', 'fullName cnic')
+      .populate('member', 'memName cnic')
       .sort({ nomineeSharePercentage: -1 });
 
     const totalShare = nominees.reduce((sum, nominee) => sum + nominee.nomineeSharePercentage, 0);
@@ -677,7 +677,7 @@ export const nomineeService = {
       {
         $group: {
           _id: '$memId',
-          memberName: { $first: '$member.fullName' },
+          memberName: { $first: '$member.' },
           totalShare: { $sum: '$nomineeSharePercentage' },
           nomineesCount: { $sum: 1 },
         },

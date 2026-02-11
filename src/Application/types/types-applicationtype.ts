@@ -9,6 +9,7 @@ export interface SrApplicationType {
   createdAt: Date;
   updatedBy?: Types.ObjectId;
   updatedAt: Date;
+  isActive: boolean;
 }
 
 export interface CreateSrApplicationTypeDto {

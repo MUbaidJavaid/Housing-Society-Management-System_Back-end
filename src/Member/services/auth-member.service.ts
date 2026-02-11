@@ -1,4 +1,4 @@
-import bcrypt, { genSalt, hash } from 'bcrypt';
+import bcrypt from 'bcrypt';
 import { Types } from 'mongoose';
 import { jwtService } from '../../auth/jwt';
 import { TokenPair, UserRole } from '../../auth/types';
@@ -64,8 +64,8 @@ export const authMemberService = {
     }
 
     // Hash the new password using bcryptjs functions
-    const salt = await genSalt(10);
-    const hashedPassword = await hash(password, salt);
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
 
     // Update member: set password and mark as activated
     member.password = hashedPassword;

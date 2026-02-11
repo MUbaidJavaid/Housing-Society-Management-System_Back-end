@@ -18,7 +18,7 @@ export interface ISrTransfer extends Document {
   sellerMemId: Types.ObjectId;
   buyerMemId: Types.ObjectId;
   applicationId?: Types.ObjectId;
-  ndcId?: Types.ObjectId;
+
   ndcDocPath?: string; // NEW: NDC document path
   transferFeePaid: boolean;
   transferFeeAmount?: number;
@@ -92,15 +92,10 @@ const srTransferSchema = new Schema<ISrTransfer>(
       ref: 'Application',
       index: true,
     },
-    ndcId: {
-      type: Schema.Types.ObjectId,
-      ref: 'NDC',
-      index: true,
-    },
+
     ndcDocPath: {
       type: String,
       trim: true,
-      maxlength: [500, 'NDC document path cannot exceed 500 characters'],
     },
     transferFeePaid: {
       type: Boolean,
@@ -312,14 +307,6 @@ srTransferSchema.virtual('buyer', {
 srTransferSchema.virtual('application', {
   ref: 'Application',
   localField: 'applicationId',
-  foreignField: '_id',
-  justOne: true,
-});
-
-// Virtual for NDC
-srTransferSchema.virtual('ndc', {
-  ref: 'NDC',
-  localField: 'ndcId',
   foreignField: '_id',
   justOne: true,
 });

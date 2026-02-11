@@ -52,7 +52,7 @@ export const validateCreateUserStaff = (): ValidationChain[] => [
     .isMongoId()
     .withMessage('Invalid Role ID'),
 
-  body('srCityId')
+  body('cityId')
     .trim()
     .notEmpty()
     .withMessage('City is required')
@@ -117,7 +117,7 @@ export const validateUpdateUserStaff = (): ValidationChain[] => [
 
   body('roleId').optional().trim().isMongoId().withMessage('Invalid Role ID'),
 
-  body('srCityId').optional().trim().isMongoId().withMessage('Invalid City ID'),
+  body('cityId').optional().trim().isMongoId().withMessage('Invalid City ID'),
 
   body('designation')
     .optional()
@@ -147,7 +147,7 @@ export const validateGetUserStaffs = (): ValidationChain[] => [
 
   query('roleId').optional().isMongoId().withMessage('Invalid Role ID'),
 
-  query('srCityId').optional().isMongoId().withMessage('Invalid City ID'),
+  query('cityId').optional().isMongoId().withMessage('Invalid City ID'),
 
   query('designation').optional().trim().isLength({ max: 100 }).withMessage('Designation too long'),
 
@@ -171,7 +171,7 @@ export const validateRoleIdParam = (): ValidationChain[] => [
 ];
 
 export const validateCityIdParam = (): ValidationChain[] => [
-  param('srCityId').isMongoId().withMessage('Invalid City ID'),
+  param('cityId').isMongoId().withMessage('Invalid City ID'),
 ];
 
 export const validateChangePassword = (): ValidationChain[] => [

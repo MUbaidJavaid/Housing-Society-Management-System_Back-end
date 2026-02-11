@@ -72,7 +72,7 @@ export interface DefaulterStatistics {
   averageDaysOverdue: number;
   topDefaulters: Array<{
     memId: Types.ObjectId;
-    fullName: string;
+    memName: string;
     totalAmount: number;
     daysOverdue: number;
   }>;

@@ -491,7 +491,7 @@ registrySchema.statics.getPendingVerifications = function (page: number = 1, lim
   return Promise.all([
     this.find(query)
       .populate('plot', 'plotNo sector block')
-      .populate('member', 'fullName cnic')
+      .populate('member', 'memName memNic')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit),

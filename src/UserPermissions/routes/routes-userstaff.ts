@@ -52,7 +52,7 @@ router.get(
 );
 
 router.get(
-  '/city/:srCityId',
+  '/city/:cityId',
   authenticate,
   requireRole(UserRole.ADMIN, UserRole.SUPER_ADMIN),
   validateCityIdParam(),

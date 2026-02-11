@@ -1,3 +1,4 @@
+// src/database/File/validators/validator-file.ts
 import { body, param, query, ValidationChain } from 'express-validator';
 import { FileStatus, PaymentMode } from '../models/models-file';
 
@@ -7,13 +8,6 @@ export const validateCreateFile = (): ValidationChain[] => [
     .trim()
     .isLength({ min: 5, max: 50 })
     .withMessage('File registration number must be between 5 and 50 characters'),
-
-  body('projId')
-    .trim()
-    .notEmpty()
-    .withMessage('Project ID is required')
-    .isMongoId()
-    .withMessage('Invalid Project ID'),
 
   body('memId')
     .trim()
@@ -26,13 +20,12 @@ export const validateCreateFile = (): ValidationChain[] => [
 
   body('applicationId').optional().isMongoId().withMessage('Invalid Application ID'),
 
-  body('plotId').optional().isMongoId().withMessage('Invalid Plot ID'),
-
-  body('plotTypeId').optional().isMongoId().withMessage('Invalid Plot Type ID'),
-
-  body('plotSizeId').optional().isMongoId().withMessage('Invalid Plot Size ID'),
-
-  body('plotBlockId').optional().isMongoId().withMessage('Invalid Plot Block ID'),
+  body('plotId') // REQUIRED now
+    .trim()
+    .notEmpty()
+    .withMessage('Plot ID is required - file must be associated with a plot')
+    .isMongoId()
+    .withMessage('Invalid Plot ID'),
 
   body('totalAmount')
     .notEmpty()
@@ -73,7 +66,7 @@ export const validateCreateFile = (): ValidationChain[] => [
     .withMessage('Please provide a valid booking date'),
 
   body('expectedCompletionDate')
-    .optional()
+    .optional({ values: 'falsy' })
     .isISO8601()
     .withMessage('Please provide a valid expected completion date'),
 
@@ -90,12 +83,6 @@ export const validateUpdateFile = (): ValidationChain[] => [
   body('nomineeId').optional().isMongoId().withMessage('Invalid Nominee ID'),
 
   body('plotId').optional().isMongoId().withMessage('Invalid Plot ID'),
-
-  body('plotTypeId').optional().isMongoId().withMessage('Invalid Plot Type ID'),
-
-  body('plotSizeId').optional().isMongoId().withMessage('Invalid Plot Size ID'),
-
-  body('plotBlockId').optional().isMongoId().withMessage('Invalid Plot Block ID'),
 
   body('totalAmount')
     .optional()
@@ -129,12 +116,12 @@ export const validateUpdateFile = (): ValidationChain[] => [
     .withMessage('File remarks cannot exceed 1000 characters'),
 
   body('expectedCompletionDate')
-    .optional()
+    .optional({ values: 'falsy' })
     .isISO8601()
     .withMessage('Please provide a valid expected completion date'),
 
   body('actualCompletionDate')
-    .optional()
+    .optional({ values: 'falsy' })
     .isISO8601()
     .withMessage('Please provide a valid actual completion date'),
 
@@ -157,17 +144,13 @@ export const validateGetFiles = (): ValidationChain[] => [
 
   query('projId').optional().isMongoId().withMessage('Invalid Project ID'),
 
+  query('projectId').optional().isMongoId().withMessage('Invalid Project ID'),
+
   query('memId').optional().isMongoId().withMessage('Invalid Member ID'),
 
   query('nomineeId').optional().isMongoId().withMessage('Invalid Nominee ID'),
 
   query('plotId').optional().isMongoId().withMessage('Invalid Plot ID'),
-
-  query('plotTypeId').optional().isMongoId().withMessage('Invalid Plot Type ID'),
-
-  query('plotSizeId').optional().isMongoId().withMessage('Invalid Plot Size ID'),
-
-  query('plotBlockId').optional().isMongoId().withMessage('Invalid Plot Block ID'),
 
   query('status').optional().isIn(Object.values(FileStatus)).withMessage('Invalid file status'),
 

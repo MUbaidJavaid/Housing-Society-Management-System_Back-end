@@ -132,7 +132,7 @@ export const installmentService = {
 
     const createdInstallment = await Installment.findById(installment._id)
       .populate('file', 'fileRegNo')
-      .populate('member', 'fullName cnic')
+      .populate('member', 'memName memNic')
       .populate('plot', 'plotNo plotSize')
       .populate('installmentCategory', 'instCatName instCatDescription')
       .populate('createdBy', 'userName fullName designation');
@@ -220,7 +220,7 @@ export const installmentService = {
     const installmentIds = createdInstallments.map(inst => inst._id);
     const populatedInstallments = await Installment.find({ _id: { $in: installmentIds } })
       .populate('file', 'fileRegNo')
-      .populate('member', 'fullName cnic')
+      .populate('member', 'memName memNic')
       .populate('plot', 'plotNo plotSize')
       .populate('installmentCategory', 'instCatName instCatDescription')
       .populate('createdBy', 'userName fullName designation');
@@ -235,7 +235,7 @@ export const installmentService = {
     try {
       const installment = await Installment.findById(id)
         .populate('file', 'fileRegNo fileBarCode projId plotId totalAmount')
-        .populate('member', 'fullName cnic fatherName mobileNo email address')
+        .populate('member', 'memName memNic fatherName mobileNo email address')
         .populate('plot', 'plotNo plotSize blockNo sectorNo')
         .populate('installmentCategory', 'instCatName instCatDescription isRefundable')
         .populate('createdBy', 'userName fullName designation')
@@ -339,7 +339,7 @@ export const installmentService = {
     const [installments, total] = await Promise.all([
       Installment.find(query)
         .populate('file', 'fileRegNo')
-        .populate('member', 'fullName cnic')
+        .populate('member', 'memName memNic')
         .populate('plot', 'plotNo')
         .populate('installmentCategory', 'instCatName')
         .skip(skip)
@@ -450,7 +450,7 @@ export const installmentService = {
       { new: true, runValidators: true }
     )
       .populate('installmentCategory', 'instCatName')
-      .populate('member', 'fullName')
+      .populate('member', 'memName')
       .populate('file', 'fileRegNo')
       .populate('modifiedBy', 'userName fullName');
 
@@ -546,7 +546,7 @@ export const installmentService = {
       { new: true }
     )
       .populate('installmentCategory', 'instCatName')
-      .populate('member', 'fullName')
+      .populate('member', 'memName')
       .populate('file', 'fileRegNo')
       .populate('plot', 'plotNo');
 
@@ -858,7 +858,7 @@ export const installmentService = {
         isDeleted: false,
         status: InstallmentStatus.PAID,
       })
-        .populate('member', 'fullName')
+        .populate('member', 'memName')
         .populate('installmentCategory', 'instCatName')
         .populate('file', 'fileRegNo')
         .sort({ paidDate: -1 })
@@ -869,7 +869,7 @@ export const installmentService = {
         dueDate: { $gte: today },
         status: { $in: [InstallmentStatus.UNPAID, InstallmentStatus.PARTIALLY_PAID] },
       })
-        .populate('member', 'fullName')
+        .populate('member', 'memName')
         .populate('installmentCategory', 'instCatName')
         .populate('file', 'fileRegNo')
         .sort({ dueDate: 1 })
@@ -899,7 +899,7 @@ export const installmentService = {
       {
         $group: {
           _id: '$memId',
-          memberName: { $first: '$member.fullName' },
+          memberName: { $first: '$member.memName' },
           totalPaid: { $sum: '$amountPaid' },
           totalDue: { $sum: '$amountDue' },
         },
@@ -973,7 +973,7 @@ export const installmentService = {
       ]),
       Installment.find(matchQuery)
         .populate('file', 'fileRegNo')
-        .populate('member', 'fullName cnic')
+        .populate('member', 'memName memNic')
         .populate('plot', 'plotNo')
         .populate('installmentCategory', 'instCatName')
         .sort({ dueDate: 1 })
@@ -1071,7 +1071,7 @@ export const installmentService = {
       isDeleted: false,
     })
       .populate('file', 'fileRegNo')
-      .populate('member', 'fullName cnic')
+      .populate('member', 'memName memNic')
       .populate('installmentCategory', 'instCatName')
       .limit(limit)
       .sort({ score: { $meta: 'textScore' } })

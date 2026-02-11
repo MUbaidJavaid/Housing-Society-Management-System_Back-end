@@ -1,5 +1,5 @@
 // models-status.ts
-import { Document, Model, Schema, Types, model } from 'mongoose';
+import mongoose, { Document, Model, Schema, Types } from 'mongoose';
 
 export interface IStatus extends Document {
   statusName: string;
@@ -75,6 +75,8 @@ statusSchema.index(
   }
 );
 
-const Status: Model<IStatus> = model<IStatus>('Status', statusSchema); // Changed from 'State' to 'Status'
+const CityStatus: Model<IStatus> =
+  (mongoose.models.CityStatus as Model<IStatus>) ||
+  mongoose.model<IStatus>('CityStatus', statusSchema);
 
-export default Status;
+export default CityStatus;

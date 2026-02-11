@@ -79,7 +79,7 @@ export const registryService = {
     // Populate and return the created registry
     const createdRegistry = await Registry.findById(registry._id)
       .populate('plot', 'plotNo sector block area')
-      .populate('member', 'fullName cnic mobileNo')
+      .populate('member', 'memName cnic mobileNo')
       .populate('registeredBy', 'userName fullName designation')
       .populate('updatedBy', 'userName fullName designation');
 
@@ -97,7 +97,7 @@ export const registryService = {
     try {
       const registry = await Registry.findById(id)
         .populate('plot', 'plotNo sector block area plotType status')
-        .populate('member', 'fullName cnic fatherName mobileNo email address')
+        .populate('member', 'memName cnic fatherName mobileNo email address')
         .populate('registeredBy', 'userName fullName designation')
         .populate('updatedBy', 'userName fullName designation')
         .populate('verifiedBy', 'userName fullName designation');
@@ -164,7 +164,7 @@ export const registryService = {
       isDeleted: false,
     })
       .populate('plot', 'plotNo sector block area')
-      .populate('member', 'fullName cnic mobileNo')
+      .populate('member', 'memName memNic mobileNo')
       .populate('registeredBy', 'userName fullName');
 
     if (!registry) return null;
@@ -180,7 +180,7 @@ export const registryService = {
       isDeleted: false,
     })
       .populate('plot', 'plotNo sector block area')
-      .populate('member', 'fullName cnic mobileNo')
+      .populate('member', 'memName memNic mobileNo')
       .populate('registeredBy', 'userName fullName');
 
     if (!registry) return null;
@@ -272,7 +272,7 @@ export const registryService = {
     const [registries, total] = await Promise.all([
       Registry.find(query)
         .populate('plot', 'plotNo sector')
-        .populate('member', 'fullName cnic')
+        .populate('member', 'memName memNic')
         .skip(skip)
         .limit(limit)
         .sort(sort)
@@ -387,7 +387,7 @@ export const registryService = {
       { new: true, runValidators: true }
     )
       .populate('plot', 'plotNo sector block area')
-      .populate('member', 'fullName cnic mobileNo')
+      .populate('member', 'memName memNic mobileNo')
       .populate('registeredBy', 'userName fullName designation')
       .populate('updatedBy', 'userName fullName designation');
 
@@ -438,7 +438,7 @@ export const registryService = {
     const [registries, total] = await Promise.all([
       Registry.find(query)
         .populate('plot', 'plotNo sector block area')
-        .populate('member', 'fullName cnic mobileNo')
+        .populate('member', 'memName memNic mobileNo')
         .populate('registeredBy', 'userName fullName')
         .sort({ createdAt: -1 })
         .skip(skip)
@@ -473,7 +473,7 @@ export const registryService = {
     const [registries, total] = await Promise.all([
       Registry.find(query)
         .populate('plot', 'plotNo sector block area')
-        .populate('member', 'fullName cnic mobileNo')
+        .populate('member', 'memName memNic mobileNo')
         .populate('registeredBy', 'userName fullName')
         .sort({ createdAt: -1 })
         .skip(skip)
@@ -549,7 +549,7 @@ export const registryService = {
 
     const registries = await Registry.find(query)
       .populate('plot', 'plotNo sector block')
-      .populate('member', 'fullName cnic')
+      .populate('member', 'memName memNic')
       .limit(limit)
       .sort({ createdAt: -1 })
       .then(docs => docs.map(doc => toPlainObject(doc)));
@@ -571,7 +571,7 @@ export const registryService = {
 
     const registries = await Registry.find(query)
       .populate('plot', 'plotNo sector')
-      .populate('member', 'fullName cnic')
+      .populate('member', 'memName memNic')
       .sort({ createdAt: -1 })
       .then(docs => docs.map(doc => toPlainObject(doc)));
 
@@ -597,7 +597,7 @@ export const registryService = {
     const [registries, total] = await Promise.all([
       Registry.find(query)
         .populate('plot', 'plotNo sector block')
-        .populate('member', 'fullName cnic')
+        .populate('member', 'memName memNic')
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
@@ -699,7 +699,7 @@ export const registryService = {
       { new: true }
     )
       .populate('plot', 'plotNo sector block area')
-      .populate('member', 'fullName cnic mobileNo')
+      .populate('member', 'memName memNic mobileNo')
       .populate('verifiedBy', 'userName fullName designation');
 
     return updatedRegistry ? toPlainObject(updatedRegistry) : null;
@@ -723,7 +723,7 @@ export const registryService = {
     const [registries, total] = await Promise.all([
       Registry.find(query)
         .populate('plot', 'plotNo sector block area')
-        .populate('member', 'fullName cnic mobileNo')
+        .populate('member', 'memName memNic mobileNo')
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
