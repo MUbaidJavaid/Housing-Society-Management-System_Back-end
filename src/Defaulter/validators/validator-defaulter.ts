@@ -74,6 +74,7 @@ export const validateUpdateDefaulter = (): ValidationChain[] => [
 ];
 
 export const validateGetDefaulters = (): ValidationChain[] => [
+  query('search').optional().trim().isLength({ max: 200 }).withMessage('Search must be at most 200 characters'),
   query('page').optional().isInt({ min: 1 }).withMessage('Page must be a positive integer'),
 
   query('limit')

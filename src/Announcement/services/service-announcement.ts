@@ -1,5 +1,11 @@
 import { Types } from 'mongoose';
+import Member from '../../Member/models/models-member';
+import Plot from '../../Plots/models/models-plot';
+import Registry from '../../Registry/models/models-registry';
 import UserStaff from '../../UserPermissions/models/models-userstaff';
+import { pushNotificationService } from '../../core/notifications/push-notification.service';
+import { getSocketServer } from '../../core/socket';
+import { logger } from '../../logger';
 import {
   ActiveAnnouncementsResult,
   AnnouncementFilterParams,
@@ -29,6 +35,80 @@ const toPlainObject = (doc: any): AnnouncementType => {
   return plainObj as AnnouncementType;
 };
 
+const getTargetUsers = async (
+  targetType: 'All' | 'Block' | 'Project' | 'Individual',
+  targetGroupId?: Types.ObjectId
+): Promise<string[]> => {
+  const userIds = new Set<string>();
+
+  if (targetType === 'All') {
+    const [members, staff] = await Promise.all([
+      Member.find({ isActive: true, isDeleted: false }, { _id: 1 }).lean(),
+      UserStaff.find({ isActive: true, isDeleted: false }, { _id: 1 }).lean(),
+    ]);
+
+    members.forEach(member => userIds.add(member._id.toString()));
+    staff.forEach(user => userIds.add(user._id.toString()));
+
+    return Array.from(userIds);
+  }
+
+  if (targetType === 'Individual') {
+    if (!targetGroupId) {
+      throw new Error('Target user is required for Individual announcements');
+    }
+    return [targetGroupId.toString()];
+  }
+
+  if (!targetGroupId) {
+    throw new Error('Target group is required for Block/Project announcements');
+  }
+
+  const plotQuery =
+    targetType === 'Block'
+      ? { plotBlockId: targetGroupId, isDeleted: false }
+      : { projectId: targetGroupId, isDeleted: false };
+
+  const plots = await Plot.find(plotQuery, { _id: 1 }).lean();
+  if (!plots.length) {
+    return [];
+  }
+
+  const plotIds = plots.map(plot => plot._id);
+  const registries = await Registry.find(
+    {
+      plotId: { $in: plotIds },
+      isActive: true,
+      isDeleted: false,
+    },
+    { memId: 1 }
+  ).lean();
+
+  const memberIds = new Set<string>();
+  registries.forEach(registry => {
+    if (registry.memId) {
+      memberIds.add(registry.memId.toString());
+    }
+  });
+
+  if (!memberIds.size) {
+    return [];
+  }
+
+  const members = await Member.find(
+    {
+      _id: { $in: Array.from(memberIds) },
+      isActive: true,
+      isDeleted: false,
+    },
+    { _id: 1 }
+  ).lean();
+
+  members.forEach(member => userIds.add(member._id.toString()));
+
+  return Array.from(userIds);
+};
+
 export const announcementService = {
   /**
    * Create new announcement
@@ -43,10 +123,43 @@ export const announcementService = {
       throw new Error('Category not found or inactive');
     }
 
-    // Check if author exists
-    const author = await UserStaff.findById(data.authorId);
+    // Check if author exists - allow fallback to createdBy user or system admin
+    let authorId = data.authorId;
+    let author = await UserStaff.findById(data.authorId);
+
     if (!author || author.isDeleted || !author.isActive) {
-      throw new Error('Author not found or inactive');
+      logger.warn('Invalid authorId provided, attempting fallback', {
+        providedAuthorId: data.authorId,
+        authenticatedUserId: userId.toString(),
+      });
+
+      // Try fallback to the authenticated user
+      const fallbackAuthor = await UserStaff.findById(userId);
+      if (fallbackAuthor && !fallbackAuthor.isDeleted && fallbackAuthor.isActive) {
+        authorId = userId.toString();
+        author = fallbackAuthor;
+        logger.info('Using authenticated user as author', { authorId });
+      } else {
+        // Last resort: find any active admin/staff user
+        const systemAuthor = await UserStaff.findOne({
+          isActive: true,
+          isDeleted: false,
+        }).sort({ createdAt: 1 });
+
+        if (!systemAuthor) {
+          throw new Error(
+            'No valid author found. Please ensure at least one active UserStaff exists in the system.'
+          );
+        }
+
+        authorId = systemAuthor._id.toString();
+        author = systemAuthor;
+        logger.warn('Using system fallback author', {
+          systemAuthorId: authorId,
+          systemAuthorName: systemAuthor.fullName,
+          reason: 'Authenticated user is not a UserStaff member',
+        });
+      }
     }
 
     // Validate target group if specified
@@ -78,6 +191,7 @@ export const announcementService = {
 
     const announcementData = {
       ...data,
+      authorId, // Use the validated/fallback authorId
       createdBy: userId,
       updatedBy: userId,
     };
@@ -458,7 +572,47 @@ export const announcementService = {
       .populate('author', 'userName fullName designation')
       .populate('category', 'categoryName icon color');
 
-    return updatedAnnouncement ? toPlainObject(updatedAnnouncement) : null;
+    if (!updatedAnnouncement) {
+      return null;
+    }
+
+    const plainAnnouncement = toPlainObject(updatedAnnouncement);
+    const targetUserIds = await getTargetUsers(
+      plainAnnouncement.targetType,
+      plainAnnouncement.targetGroupId
+    );
+
+    const io = getSocketServer();
+    if (io) {
+      targetUserIds.forEach(userId => {
+        io.to(userId).emit('announcement:new', plainAnnouncement);
+      });
+    } else {
+      logger.warn('Socket server is not initialized. Skipping realtime emit.', {
+        announcementId: plainAnnouncement._id.toString(),
+      });
+    }
+
+    if (data.sendPushNotification) {
+      try {
+        await pushNotificationService.sendToUsers(targetUserIds, {
+          title: plainAnnouncement.title,
+          body:
+            plainAnnouncement.shortDescription ||
+            plainAnnouncement.announcementDesc.substring(0, 100),
+          data: {
+            announcementId: plainAnnouncement._id.toString(),
+          },
+        });
+      } catch (error) {
+        logger.error('Failed to send push notification', {
+          announcementId: plainAnnouncement._id.toString(),
+          error,
+        });
+      }
+    }
+
+    return plainAnnouncement;
   },
 
   /**

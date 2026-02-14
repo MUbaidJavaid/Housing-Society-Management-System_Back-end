@@ -256,6 +256,12 @@ export const validateGetRegistries = (): ValidationChain[] => [
     .isInt({ min: 1, max: 100 })
     .withMessage('Limit must be between 1 and 100'),
 
+  query('search')
+    .optional()
+    .trim()
+    .isLength({ max: 100 })
+    .withMessage('Search query cannot exceed 100 characters'),
+
   query('plotId').optional().isMongoId().withMessage('Invalid Plot ID'),
 
   query('memId').optional().isMongoId().withMessage('Invalid Member ID'),
@@ -276,6 +282,11 @@ export const validateGetRegistries = (): ValidationChain[] => [
     .optional()
     .isInt({ min: 1900, max: new Date().getFullYear() })
     .withMessage(`Year must be between 1900 and ${new Date().getFullYear()}`),
+
+  query('verificationStatus')
+    .optional()
+    .isIn(['Pending', 'Verified', 'Rejected'])
+    .withMessage('Verification status must be Pending, Verified, or Rejected'),
 
   query('sortBy')
     .optional()

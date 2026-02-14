@@ -490,8 +490,12 @@ registrySchema.statics.getPendingVerifications = function (page: number = 1, lim
 
   return Promise.all([
     this.find(query)
-      .populate('plot', 'plotNo sector block')
-      .populate('member', 'memName memNic')
+      .populate({
+      path: 'plotId',
+      select: 'plotNo plotArea plotDimensions',
+      populate: { path: 'plotBlockId', select: 'plotBlockName' },
+    })
+      .populate('memId', 'memName memNic')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit),

@@ -111,6 +111,7 @@ export interface UpdateRegistryDto {
 export interface RegistryQueryParams {
   page?: number;
   limit?: number;
+  search?: string;
   plotId?: string;
   memId?: string;
   registryNo?: string;
@@ -121,6 +122,7 @@ export interface RegistryQueryParams {
   khatoniNo?: string;
   subRegistrarName?: string;
   year?: number;
+  verificationStatus?: 'Pending' | 'Verified' | 'Rejected';
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
 }

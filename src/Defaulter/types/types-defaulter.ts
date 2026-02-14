@@ -50,6 +50,7 @@ export interface UpdateDefaulterDto {
 export interface DefaulterQueryParams {
   page?: number;
   limit?: number;
+  search?: string;
   memId?: string;
   plotId?: string;
   fileId?: string;

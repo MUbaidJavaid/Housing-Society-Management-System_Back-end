@@ -1,4 +1,8 @@
 import { Types } from 'mongoose';
+import Notification from '../../Notification/models/models-notification';
+import UserStaff from '../../UserPermissions/models/models-userstaff';
+import { getSocketServer } from '../../core/socket';
+import { logger } from '../../logger';
 import Complaint, { ComplaintPriority } from '../models/models-complaint';
 import {
   AssignComplaintDto,
@@ -71,12 +75,74 @@ export const complaintService = {
 
     // Populate and return
     const populatedComplaint = await Complaint.findById(complaint._id)
-      .populate('memId', 'firstName lastName email phone')
-      .populate('fileId', 'fileNo plotNo')
-      .populate('compCatId', 'categoryName categoryCode priorityLevel')
-      .populate('statusId', 'statusName')
-      .populate('assignedTo', 'firstName lastName email')
+      .populate('memId', 'memName memContEmail memContMob memAddr1')
+      .populate('fileId', 'fileRegNo fileBarCode plotNo sectorNo blockNo size')
+      .populate('compCatId', 'categoryName categoryCode description priorityLevel slaHours')
+      .populate('statusId', 'statusName statusCode')
+      .populate('assignedTo', 'firstName lastName email phone department')
       .populate('createdBy', 'firstName lastName email');
+
+    if (!populatedComplaint) {
+      throw new Error('Failed to create complaint');
+    }
+
+    // Create notification for admins and staff
+    try {
+      const member = populatedComplaint.memId as any;
+      const memberName = member?.memName || 'Unknown Member';
+
+      const notificationData = {
+        title: 'New Complaint Submitted',
+        message: `${memberName} has submitted a new complaint: "${populatedComplaint.compTitle}"`,
+        referenceId: populatedComplaint._id,
+        module: 'Complaint' as const,
+        createdBy: userId,
+        isRead: false,
+      };
+
+      const notification = await Notification.create(notificationData);
+
+      // Get admin and staff users to notify
+      const adminStaff = await UserStaff.find(
+        {
+          isActive: true,
+          isDeleted: false,
+        },
+        { _id: 1 }
+      ).limit(50);
+
+      const targetUserIds = adminStaff.map(user => user._id.toString());
+
+      // Emit socket event if available
+      const io = getSocketServer();
+      if (io && targetUserIds.length > 0) {
+        const notificationPayload = {
+          ...notificationData,
+          _id: notification._id,
+          createdAt: notification.createdAt,
+        };
+
+        targetUserIds.forEach(staffId => {
+          io.to(staffId).emit('new-notification', notificationPayload);
+        });
+
+        logger.info('Complaint notification emitted via socket', {
+          complaintId: complaint._id.toString(),
+          targetUsers: targetUserIds.length,
+        });
+      }
+
+      logger.info('Complaint notification created', {
+        complaintId: complaint._id.toString(),
+        notificationId: notification._id.toString(),
+      });
+    } catch (notificationError) {
+      // Log error but don't fail complaint creation
+      logger.error('Failed to create complaint notification', {
+        complaintId: complaint._id.toString(),
+        error: notificationError,
+      });
+    }
 
     return toPlainObject(populatedComplaint);
   },
@@ -87,8 +153,8 @@ export const complaintService = {
   async getComplaintById(id: string): Promise<ComplaintType | null> {
     try {
       const complaint = await Complaint.findById(id)
-        .populate('memId', 'firstName lastName email phone address')
-        .populate('fileId', 'fileNo plotNo sectorNo blockNo size')
+        .populate('memId', 'memName memContEmail memContMob memAddr1 ')
+        .populate('fileId', 'fileRegNo fileBarCode plotNo sectorNo blockNo size')
         .populate('compCatId', 'categoryName categoryCode description priorityLevel slaHours')
         .populate('statusId', 'statusName statusCode')
         .populate('assignedTo', 'firstName lastName email phone department')
@@ -192,11 +258,11 @@ export const complaintService = {
     // Execute queries
     const [complaints, total] = await Promise.all([
       Complaint.find(query)
-        .populate('memId', 'firstName lastName')
-        .populate('fileId', 'fileNo plotNo')
+        .populate('memId', 'memName memContEmail memContMob memAddr1')
+        .populate('fileId', 'fileRegNo fileBarCode plotNo')
         .populate('compCatId', 'categoryName categoryCode')
         .populate('statusId', 'statusName')
-        .populate('assignedTo', 'firstName lastName')
+        .populate('assignedTo', 'firstName lastName email phone department')
         .skip(skip)
         .limit(limit)
         .sort(sort)
@@ -275,11 +341,11 @@ export const complaintService = {
       },
       { new: true, runValidators: true }
     )
-      .populate('memId', 'firstName lastName email phone')
-      .populate('fileId', 'fileNo plotNo')
+      .populate('memId', 'memName memContEmail memContMob memAddr1')
+      .populate('fileId', 'fileRegNo fileBarCode plotNo')
       .populate('compCatId', 'categoryName categoryCode')
       .populate('statusId', 'statusName')
-      .populate('assignedTo', 'firstName lastName email')
+      .populate('assignedTo', 'firstName lastName email phone department')
       .populate('createdBy', 'firstName lastName email')
       .populate('updatedBy', 'firstName lastName email');
 
@@ -344,10 +410,10 @@ export const complaintService = {
       fileId: new Types.ObjectId(fileId),
       isDeleted: false,
     })
-      .populate('memId', 'firstName lastName')
+      .populate('memId', 'memName memContEmail memContMob memAddr1')
       .populate('compCatId', 'categoryName categoryCode')
       .populate('statusId', 'statusName')
-      .populate('assignedTo', 'firstName lastName')
+      .populate('assignedTo', 'firstName lastName email phone department')
       .sort({ compDate: -1 });
 
     return complaints.map(cat => toPlainObject(cat));
@@ -361,9 +427,9 @@ export const complaintService = {
       compCatId: new Types.ObjectId(categoryId),
       isDeleted: false,
     })
-      .populate('memId', 'firstName lastName')
+      .populate('memId', 'memName memContEmail memContMob memAddr1')
       .populate('statusId', 'statusName')
-      .populate('assignedTo', 'firstName lastName')
+      .populate('assignedTo', 'firstName lastName email phone department')
       .sort({ compDate: -1 })
       .limit(100);
 
@@ -410,10 +476,10 @@ export const complaintService = {
       },
       { new: true, runValidators: true }
     )
-      .populate('memId', 'firstName lastName email')
+      .populate('memId', 'memName memContEmail memContMob memAddr1')
       .populate('compCatId', 'categoryName categoryCode')
       .populate('statusId', 'statusName')
-      .populate('assignedTo', 'firstName lastName email')
+      .populate('assignedTo', 'firstName lastName email phone department')
       .populate('updatedBy', 'firstName lastName email');
 
     return complaint ? toPlainObject(complaint) : null;
@@ -467,10 +533,10 @@ export const complaintService = {
       },
       { new: true, runValidators: true }
     )
-      .populate('memId', 'firstName lastName email')
+      .populate('memId', 'memName memContEmail memContMob memAddr1')
       .populate('compCatId', 'categoryName categoryCode')
       .populate('statusId', 'statusName')
-      .populate('assignedTo', 'firstName lastName email')
+      .populate('assignedTo', 'firstName lastName email phone department')
       .populate('updatedBy', 'firstName lastName email');
 
     return complaint ? toPlainObject(complaint) : null;
@@ -513,10 +579,10 @@ export const complaintService = {
       },
       { new: true, runValidators: true }
     )
-      .populate('memId', 'firstName lastName email')
+      .populate('memId', 'memName memContEmail memContMob memAddr1')
       .populate('compCatId', 'categoryName categoryCode')
       .populate('statusId', 'statusName')
-      .populate('assignedTo', 'firstName lastName email')
+      .populate('assignedTo', 'firstName lastName email phone department')
       .populate('updatedBy', 'firstName lastName email');
 
     return complaint ? toPlainObject(complaint) : null;
@@ -819,7 +885,7 @@ export const complaintService = {
 
     // Get recent activity (last 10 complaints)
     const recentActivity = await Complaint.find({ isDeleted: false })
-      .populate('memId', 'firstName lastName')
+      .populate('memId', 'memName memContEmail memContMob memAddr1')
       .populate('compCatId', 'categoryName')
       .populate('statusId', 'statusName')
       .sort({ updatedAt: -1 })
@@ -881,9 +947,9 @@ export const complaintService = {
       },
       isDeleted: false,
     })
-      .populate('memId', 'firstName lastName')
+      .populate('memId', 'memName memContEmail memContMob memAddr1')
       .populate('compCatId', 'categoryName')
-      .populate('assignedTo', 'firstName lastName')
+      .populate('assignedTo', 'firstName lastName email phone department')
       .sort({ followUpDate: 1 })
       .limit(50);
 
@@ -906,10 +972,10 @@ export const complaintService = {
       },
       { new: true, runValidators: true }
     )
-      .populate('memId', 'firstName lastName')
+      .populate('memId', 'memName memContEmail memContMob memAddr1')
       .populate('compCatId', 'categoryName')
       .populate('statusId', 'statusName')
-      .populate('assignedTo', 'firstName lastName');
+      .populate('assignedTo', 'firstName lastName email phone department');
 
     return complaint ? toPlainObject(complaint) : null;
   },
@@ -930,10 +996,10 @@ export const complaintService = {
       },
       { new: true, runValidators: true }
     )
-      .populate('memId', 'firstName lastName')
+      .populate('memId', 'memName memContEmail memContMob memAddr1')
       .populate('compCatId', 'categoryName')
       .populate('statusId', 'statusName')
-      .populate('assignedTo', 'firstName lastName');
+      .populate('assignedTo', 'firstName lastName email phone department');
 
     return complaint ? toPlainObject(complaint) : null;
   },
@@ -946,7 +1012,7 @@ export const complaintService = {
       assignedTo: new Types.ObjectId(staffId),
       isDeleted: false,
     })
-      .populate('memId', 'firstName lastName')
+      .populate('memId', 'memName memContEmail memContMob memAddr1')
       .populate('compCatId', 'categoryName')
       .populate('statusId', 'statusName')
       .sort({ compDate: -1 })

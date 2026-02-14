@@ -27,6 +27,8 @@ router.get(
 
 router.get('/statistics', announcementController.getAnnouncementStatistics);
 
+router.get('/authors', announcementController.getAvailableAuthors);
+
 router.get(
   '/active',
   validateGetActiveAnnouncements(),

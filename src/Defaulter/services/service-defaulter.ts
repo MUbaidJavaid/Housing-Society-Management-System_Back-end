@@ -80,9 +80,13 @@ export const defaulterService = {
     const defaulter = await Defaulter.create(defaulterData);
 
     const createdDefaulter = await Defaulter.findById(defaulter._id)
-      .populate('member', 'fullName memNic mobileNo email')
-      .populate('plot', 'plotNo sector block')
-      .populate('file', 'fileNo fileType')
+      .populate('memId', 'memName fullName memNic mobileNo email')
+      .populate({
+        path: 'plotId',
+        select: 'plotNo plotArea plotDimensions',
+        populate: { path: 'plotBlockId', select: 'plotBlockName' },
+      })
+      .populate('fileId', 'fileRegNo fileBarCode')
       .populate('createdBy', 'userName fullName designation');
 
     if (!createdDefaulter) {
@@ -98,9 +102,16 @@ export const defaulterService = {
   async getDefaulterById(id: string): Promise<DefaulterType> {
     try {
       const defaulter = await Defaulter.findById(id)
-        .populate('member', 'fullName memNic fatherName mobileNo email address')
-        .populate('plot', 'plotNo sector block area plotType')
-        .populate('file', 'fileNo fileType bookingDate totalAmount')
+        .populate('memId', 'memName fullName memNic fatherName mobileNo email address')
+        .populate({
+        path: 'plotId',
+        select: 'plotNo plotArea plotDimensions',
+        populate: [
+          { path: 'plotBlockId', select: 'plotBlockName' },
+          { path: 'projectId', select: 'projName projCode' },
+        ],
+      })
+        .populate('fileId', 'fileRegNo fileBarCode bookingDate totalAmount')
         .populate('createdBy', 'userName fullName designation')
         .populate('modifiedBy', 'userName fullName designation');
 
@@ -127,6 +138,7 @@ export const defaulterService = {
     const {
       page = 1,
       limit = 20,
+      search,
       memId,
       plotId,
       fileId,
@@ -147,6 +159,75 @@ export const defaulterService = {
 
     // Build query
     const query: any = { isActive };
+
+    if (search && search.trim()) {
+      const term = search.trim();
+      const idsFromLookup = await Defaulter.aggregate([
+        { $match: { isActive } },
+        {
+          $lookup: {
+            from: 'members',
+            localField: 'memId',
+            foreignField: '_id',
+            as: 'mem',
+            pipeline: [
+              {
+                $match: {
+                  $or: [
+                    { memName: { $regex: term, $options: 'i' } },
+                    { fullName: { $regex: term, $options: 'i' } },
+                    { memNic: { $regex: term, $options: 'i' } },
+                  ],
+                },
+              },
+            ],
+          },
+        },
+        {
+          $lookup: {
+            from: 'plots',
+            localField: 'plotId',
+            foreignField: '_id',
+            as: 'plt',
+            pipeline: [{ $match: { plotNo: { $regex: term, $options: 'i' } } }],
+          },
+        },
+        {
+          $lookup: {
+            from: 'files',
+            localField: 'fileId',
+            foreignField: '_id',
+            as: 'fl',
+            pipeline: [
+              {
+                $match: {
+                  $or: [
+                    { fileRegNo: { $regex: term, $options: 'i' } },
+                    { fileBarCode: { $regex: term, $options: 'i' } },
+                  ],
+                },
+              },
+            ],
+          },
+        },
+        {
+          $match: {
+            $or: [
+              { 'mem.0': { $exists: true } },
+              { 'plt.0': { $exists: true } },
+              { 'fl.0': { $exists: true } },
+            ],
+          },
+        },
+        { $project: { _id: 1 } },
+      ]);
+      const ids = idsFromLookup.map((d: any) => d._id);
+      if (ids.length > 0) {
+        query.$or = [{ _id: { $in: ids } }, { remarks: { $regex: term, $options: 'i' } }];
+      } else {
+        query.remarks = { $regex: term, $options: 'i' };
+      }
+    }
 
     if (memId) {
       query.memId = new Types.ObjectId(memId);
@@ -178,9 +259,13 @@ export const defaulterService = {
 
     const [defaulters, total] = await Promise.all([
       Defaulter.find(query)
-        .populate('member', 'fullName memNic mobileNo')
-        .populate('plot', 'plotNo sector block')
-        .populate('file', 'fileNo')
+        .populate('memId', 'memName fullName memNic mobileNo')
+        .populate({
+        path: 'plotId',
+        select: 'plotNo plotArea plotDimensions',
+        populate: { path: 'plotBlockId', select: 'plotBlockName' },
+      })
+        .populate('fileId', 'fileRegNo fileBarCode')
         .skip(skip)
         .limit(limit)
         .sort(sort)
@@ -230,9 +315,13 @@ export const defaulterService = {
       { $set: updateObj },
       { new: true, runValidators: true }
     )
-      .populate('member', 'fullName memNic mobileNo')
-      .populate('plot', 'plotNo sector block')
-      .populate('file', 'fileNo')
+      .populate('memId', 'memName fullName memNic mobileNo')
+      .populate({
+        path: 'plotId',
+        select: 'plotNo plotArea plotDimensions',
+        populate: { path: 'plotBlockId', select: 'plotBlockName' },
+      })
+      .populate('fileId', 'fileRegNo fileBarCode')
       .populate('modifiedBy', 'userName fullName');
 
     return defaulter ? toPlainObject(defaulter) : null;
@@ -269,8 +358,12 @@ export const defaulterService = {
       memId: new Types.ObjectId(memId),
       ...(activeOnly && { isActive: true }),
     })
-      .populate('plot', 'plotNo sector block')
-      .populate('file', 'fileNo fileType')
+      .populate({
+        path: 'plotId',
+        select: 'plotNo plotArea plotDimensions',
+        populate: { path: 'plotBlockId', select: 'plotBlockName' },
+      })
+      .populate('fileId', 'fileRegNo fileBarCode')
       .sort({ daysOverdue: -1 })
       .then(docs => docs.map(doc => toPlainObject(doc)));
 
@@ -285,8 +378,8 @@ export const defaulterService = {
       plotId: new Types.ObjectId(plotId),
       ...(activeOnly && { isActive: true }),
     })
-      .populate('member', 'fullName memNic mobileNo')
-      .populate('file', 'fileNo')
+      .populate('memId', 'memName fullName memNic mobileNo')
+      .populate('fileId', 'fileRegNo fileBarCode')
       .sort({ totalOverdueAmount: -1 })
       .then(docs => docs.map(doc => toPlainObject(doc)));
 
@@ -320,8 +413,12 @@ export const defaulterService = {
     }
 
     const updatedDefaulter = await Defaulter.findByIdAndUpdate(id, updateObj, { new: true })
-      .populate('member', 'fullName memNic mobileNo email')
-      .populate('plot', 'plotNo sector block');
+      .populate('memId', 'memName fullName memNic mobileNo email')
+      .populate({
+        path: 'plotId',
+        select: 'plotNo plotArea plotDimensions',
+        populate: { path: 'plotBlockId', select: 'plotBlockName' },
+      });
 
     return updatedDefaulter ? toPlainObject(updatedDefaulter) : null;
   },
@@ -357,9 +454,13 @@ export const defaulterService = {
       { $set: updateObj },
       { new: true }
     )
-      .populate('member', 'fullName memNic mobileNo')
-      .populate('plot', 'plotNo sector block')
-      .populate('file', 'fileNo');
+      .populate('memId', 'memName fullName memNic mobileNo')
+      .populate({
+        path: 'plotId',
+        select: 'plotNo plotArea plotDimensions',
+        populate: { path: 'plotBlockId', select: 'plotBlockName' },
+      })
+      .populate('fileId', 'fileRegNo fileBarCode');
 
     return updatedDefaulter ? toPlainObject(updatedDefaulter) : null;
   },

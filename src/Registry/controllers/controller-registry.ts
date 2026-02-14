@@ -99,6 +99,7 @@ export const registryController = {
       const queryParams: RegistryQueryParams = {
         page: req.query.page ? parseInt(req.query.page as string) : 1,
         limit: req.query.limit ? parseInt(req.query.limit as string) : 20,
+        search: req.query.search as string,
         plotId: req.query.plotId as string,
         memId: req.query.memId as string,
         registryNo: req.query.registryNo as string,
@@ -109,6 +110,7 @@ export const registryController = {
         khatoniNo: req.query.khatoniNo as string,
         subRegistrarName: req.query.subRegistrarName as string,
         year: req.query.year ? parseInt(req.query.year as string) : undefined,
+        verificationStatus: req.query.verificationStatus as 'Pending' | 'Verified' | 'Rejected',
         sortBy: req.query.sortBy as string,
         sortOrder: req.query.sortOrder as 'asc' | 'desc',
       };

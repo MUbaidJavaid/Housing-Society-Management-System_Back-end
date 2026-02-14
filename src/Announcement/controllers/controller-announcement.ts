@@ -3,6 +3,7 @@ import { AuthRequest } from '../../auth/types';
 import { uploadService } from '../../imageUpload/services/upload.service';
 import { EntityType } from '../../imageUpload/types/upload.types';
 import { AppError } from '../../middleware/error.middleware';
+import UserStaff from '../../UserPermissions/models/models-userstaff';
 import { announcementService } from '../index-announcement';
 import {
   AnnouncementFilterParams,
@@ -26,7 +27,11 @@ export const announcementController = {
         throw new AppError(401, 'Authentication required');
       }
 
-      const createData: CreateAnnouncementDto = req.body;
+      const createData: CreateAnnouncementDto = {
+        ...req.body,
+        // Auto-set authorId from authenticated user if not provided
+        authorId: req.body.authorId || req.user.userId.toString(),
+      };
 
       // Validate required fields
       if (!createData.title?.trim()) {
@@ -47,11 +52,6 @@ export const announcementController = {
 
       if (!createData.priorityLevel) {
         throw new AppError(400, 'Priority level is required');
-      }
-
-      // Validate target group ID based on target type
-      if (createData.targetType === 'Block' && !createData.targetGroupId?.trim()) {
-        throw new AppError(400, 'Target group ID is required for Block target type');
       }
 
       // Validate dates
@@ -119,7 +119,7 @@ export const announcementController = {
         categoryId: req.query.categoryId as string,
         authorId: req.query.authorId as string,
         targetType: req.query.targetType as 'All' | 'Block' | 'Project' | 'Individual',
-        targetGroupId: req.query.targetGroupId as string,
+
         priorityLevel, // Use the validated value
         status: req.query.status as 'Draft' | 'Published' | 'Archived',
         isActive: req.query.isActive ? req.query.isActive === 'true' : undefined,
@@ -171,7 +171,7 @@ export const announcementController = {
         categoryId: req.query.categoryId as string,
         priorityLevel, // Use the validated value
         targetType: req.query.targetType as 'All' | 'Block' | 'Project' | 'Individual',
-        targetGroupId: req.query.targetGroupId as string,
+
         includeExpired: req.query.includeExpired ? req.query.includeExpired === 'true' : false,
       };
 
@@ -606,6 +606,37 @@ export const announcementController = {
       res.json({
         success: true,
         data: timeline,
+      });
+    } catch (error) {
+      handleError(error, next);
+    }
+  },
+
+  /**
+   * Get available authors (UserStaff)
+   */
+  getAvailableAuthors: async (_req: Request, res: Response, next: NextFunction) => {
+    try {
+      const authors = await UserStaff.find(
+        {
+          isActive: true,
+          isDeleted: false,
+        },
+        {
+          _id: 1,
+          userName: 1,
+          fullName: 1,
+          designation: 1,
+          email: 1,
+        }
+      )
+        .sort({ fullName: 1 })
+        .limit(100);
+
+      res.json({
+        success: true,
+        data: authors,
+        message: `Found ${authors.length} available authors`,
       });
     } catch (error) {
       handleError(error, next);

@@ -78,8 +78,15 @@ export const registryService = {
 
     // Populate and return the created registry
     const createdRegistry = await Registry.findById(registry._id)
-      .populate('plot', 'plotNo sector block area')
-      .populate('member', 'memName cnic mobileNo')
+      .populate({
+        path: 'plotId',
+        select: 'plotNo plotArea plotDimensions',
+        populate: [
+          { path: 'plotBlockId', select: 'plotBlockName' },
+          { path: 'projectId', select: 'projName projCode' },
+        ],
+      })
+      .populate('memId', 'memName memNic mobileNo')
       .populate('registeredBy', 'userName fullName designation')
       .populate('updatedBy', 'userName fullName designation');
 
@@ -96,8 +103,15 @@ export const registryService = {
   async getRegistryById(id: string): Promise<RegistryType> {
     try {
       const registry = await Registry.findById(id)
-        .populate('plot', 'plotNo sector block area plotType status')
-        .populate('member', 'memName cnic fatherName mobileNo email address')
+        .populate({
+        path: 'plotId',
+        select: 'plotNo plotArea plotDimensions',
+        populate: [
+          { path: 'plotBlockId', select: 'plotBlockName' },
+          { path: 'projectId', select: 'projName projCode' },
+        ],
+      })
+        .populate('memId', 'memName memNic fatherName mobileNo email address')
         .populate('registeredBy', 'userName fullName designation')
         .populate('updatedBy', 'userName fullName designation')
         .populate('verifiedBy', 'userName fullName designation');
@@ -163,8 +177,15 @@ export const registryService = {
       registryNo: registryNo.toUpperCase(),
       isDeleted: false,
     })
-      .populate('plot', 'plotNo sector block area')
-      .populate('member', 'memName memNic mobileNo')
+      .populate({
+        path: 'plotId',
+        select: 'plotNo plotArea plotDimensions',
+        populate: [
+          { path: 'plotBlockId', select: 'plotBlockName' },
+          { path: 'projectId', select: 'projName projCode' },
+        ],
+      })
+      .populate('memId', 'memName memNic mobileNo')
       .populate('registeredBy', 'userName fullName');
 
     if (!registry) return null;
@@ -179,8 +200,15 @@ export const registryService = {
       mutationNo: mutationNo.toUpperCase(),
       isDeleted: false,
     })
-      .populate('plot', 'plotNo sector block area')
-      .populate('member', 'memName memNic mobileNo')
+      .populate({
+        path: 'plotId',
+        select: 'plotNo plotArea plotDimensions',
+        populate: [
+          { path: 'plotBlockId', select: 'plotBlockName' },
+          { path: 'projectId', select: 'projName projCode' },
+        ],
+      })
+      .populate('memId', 'memName memNic mobileNo')
       .populate('registeredBy', 'userName fullName');
 
     if (!registry) return null;
@@ -194,6 +222,7 @@ export const registryService = {
     const {
       page = 1,
       limit = 20,
+      search,
       plotId,
       memId,
       registryNo,
@@ -204,6 +233,7 @@ export const registryService = {
       khatoniNo,
       subRegistrarName,
       year,
+      verificationStatus,
       sortBy = 'createdAt',
       sortOrder = 'desc',
     } = params;
@@ -215,6 +245,16 @@ export const registryService = {
 
     // Build query
     const query: any = { isDeleted: false };
+
+    // Search across registryNo, mutationNo, mozaVillage
+    if (search && search.trim()) {
+      const term = search.trim();
+      query.$or = [
+        { registryNo: { $regex: term, $options: 'i' } },
+        { mutationNo: { $regex: term, $options: 'i' } },
+        { mozaVillage: { $regex: term, $options: 'i' } },
+      ];
+    }
 
     // Filter by plot
     if (plotId) {
@@ -268,31 +308,67 @@ export const registryService = {
       };
     }
 
-    // Execute queries
-    const [registries, total] = await Promise.all([
+    // Filter by verification status
+    if (verificationStatus) {
+      query.verificationStatus = verificationStatus;
+    }
+
+    // Execute queries - include summary counts for full dataset (respecting filters)
+    const [registries, total, summaryCounts] = await Promise.all([
       Registry.find(query)
-        .populate('plot', 'plotNo sector')
-        .populate('member', 'memName memNic')
+        .populate({
+        path: 'plotId',
+        select: 'plotNo plotArea plotDimensions',
+        populate: [
+          { path: 'plotBlockId', select: 'plotBlockName' },
+          { path: 'projectId', select: 'projName projCode' },
+        ],
+      })
+        .populate('memId', 'memName memNic')
         .skip(skip)
         .limit(limit)
         .sort(sort)
         .then(docs => docs.map(doc => toPlainObject(doc))),
       Registry.countDocuments(query),
+      Registry.aggregate([
+        { $match: query },
+        {
+          $group: {
+            _id: null,
+            totalRegistries: { $sum: 1 },
+            verifiedRegistries: {
+              $sum: { $cond: [{ $eq: ['$verificationStatus', 'Verified'] }, 1, 0] },
+            },
+            pendingVerifications: {
+              $sum: { $cond: [{ $eq: ['$verificationStatus', 'Pending'] }, 1, 0] },
+            },
+            rejectedRegistries: {
+              $sum: { $cond: [{ $eq: ['$verificationStatus', 'Rejected'] }, 1, 0] },
+            },
+          },
+        },
+      ]),
     ]);
 
-    // Calculate summary statistics
+    const aggSummary = summaryCounts[0] || {
+      totalRegistries: 0,
+      verifiedRegistries: 0,
+      pendingVerifications: 0,
+      rejectedRegistries: 0,
+    };
+
     const summary = {
-      totalRegistries: registries.length,
-      verifiedRegistries: registries.filter(reg => reg.verificationStatus === 'Verified').length,
-      pendingVerifications: registries.filter(reg => reg.verificationStatus === 'Pending').length,
-      rejectedRegistries: registries.filter(reg => reg.verificationStatus === 'Rejected').length,
+      totalRegistries: aggSummary.totalRegistries,
+      verifiedRegistries: aggSummary.verifiedRegistries,
+      pendingVerifications: aggSummary.pendingVerifications,
+      rejectedRegistries: aggSummary.rejectedRegistries,
       totalAreaKanal: registries.reduce((sum, reg) => sum + (reg.areaKanal || 0), 0),
       totalAreaMarla: registries.reduce((sum, reg) => sum + (reg.areaMarla || 0), 0),
       totalAreaSqft: registries.reduce((sum, reg) => sum + (reg.areaSqft || 0), 0),
       byYear: {} as Record<string, number>,
     };
 
-    // Count registries by year
+    // Count registries by year (from current page for display)
     registries.forEach(registry => {
       const year = new Date(registry.createdAt).getFullYear();
       summary.byYear[year] = (summary.byYear[year] || 0) + 1;
@@ -386,8 +462,15 @@ export const registryService = {
       },
       { new: true, runValidators: true }
     )
-      .populate('plot', 'plotNo sector block area')
-      .populate('member', 'memName memNic mobileNo')
+      .populate({
+        path: 'plotId',
+        select: 'plotNo plotArea plotDimensions',
+        populate: [
+          { path: 'plotBlockId', select: 'plotBlockName' },
+          { path: 'projectId', select: 'projName projCode' },
+        ],
+      })
+      .populate('memId', 'memName memNic mobileNo')
       .populate('registeredBy', 'userName fullName designation')
       .populate('updatedBy', 'userName fullName designation');
 
@@ -437,8 +520,15 @@ export const registryService = {
 
     const [registries, total] = await Promise.all([
       Registry.find(query)
-        .populate('plot', 'plotNo sector block area')
-        .populate('member', 'memName memNic mobileNo')
+        .populate({
+        path: 'plotId',
+        select: 'plotNo plotArea plotDimensions',
+        populate: [
+          { path: 'plotBlockId', select: 'plotBlockName' },
+          { path: 'projectId', select: 'projName projCode' },
+        ],
+      })
+        .populate('memId', 'memName memNic mobileNo')
         .populate('registeredBy', 'userName fullName')
         .sort({ createdAt: -1 })
         .skip(skip)
@@ -472,8 +562,15 @@ export const registryService = {
 
     const [registries, total] = await Promise.all([
       Registry.find(query)
-        .populate('plot', 'plotNo sector block area')
-        .populate('member', 'memName memNic mobileNo')
+        .populate({
+        path: 'plotId',
+        select: 'plotNo plotArea plotDimensions',
+        populate: [
+          { path: 'plotBlockId', select: 'plotBlockName' },
+          { path: 'projectId', select: 'projName projCode' },
+        ],
+      })
+        .populate('memId', 'memName memNic mobileNo')
         .populate('registeredBy', 'userName fullName')
         .sort({ createdAt: -1 })
         .skip(skip)
@@ -548,8 +645,15 @@ export const registryService = {
     }
 
     const registries = await Registry.find(query)
-      .populate('plot', 'plotNo sector block')
-      .populate('member', 'memName memNic')
+      .populate({
+      path: 'plotId',
+      select: 'plotNo plotArea plotDimensions',
+      populate: [
+        { path: 'plotBlockId', select: 'plotBlockName' },
+        { path: 'projectId', select: 'projName projCode' },
+      ],
+    })
+      .populate('memId', 'memName memNic')
       .limit(limit)
       .sort({ createdAt: -1 })
       .then(docs => docs.map(doc => toPlainObject(doc)));
@@ -570,8 +674,15 @@ export const registryService = {
     };
 
     const registries = await Registry.find(query)
-      .populate('plot', 'plotNo sector')
-      .populate('member', 'memName memNic')
+      .populate({
+      path: 'plotId',
+      select: 'plotNo plotArea plotDimensions',
+      populate: [
+        { path: 'plotBlockId', select: 'plotBlockName' },
+        { path: 'projectId', select: 'projName projCode' },
+      ],
+    })
+      .populate('memId', 'memName memNic')
       .sort({ createdAt: -1 })
       .then(docs => docs.map(doc => toPlainObject(doc)));
 
@@ -596,8 +707,15 @@ export const registryService = {
 
     const [registries, total] = await Promise.all([
       Registry.find(query)
-        .populate('plot', 'plotNo sector block')
-        .populate('member', 'memName memNic')
+        .populate({
+        path: 'plotId',
+        select: 'plotNo plotArea plotDimensions',
+        populate: [
+          { path: 'plotBlockId', select: 'plotBlockName' },
+          { path: 'projectId', select: 'projName projCode' },
+        ],
+      })
+        .populate('memId', 'memName memNic')
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
@@ -698,8 +816,15 @@ export const registryService = {
       },
       { new: true }
     )
-      .populate('plot', 'plotNo sector block area')
-      .populate('member', 'memName memNic mobileNo')
+      .populate({
+        path: 'plotId',
+        select: 'plotNo plotArea plotDimensions',
+        populate: [
+          { path: 'plotBlockId', select: 'plotBlockName' },
+          { path: 'projectId', select: 'projName projCode' },
+        ],
+      })
+      .populate('memId', 'memName memNic mobileNo')
       .populate('verifiedBy', 'userName fullName designation');
 
     return updatedRegistry ? toPlainObject(updatedRegistry) : null;
@@ -722,8 +847,15 @@ export const registryService = {
 
     const [registries, total] = await Promise.all([
       Registry.find(query)
-        .populate('plot', 'plotNo sector block area')
-        .populate('member', 'memName memNic mobileNo')
+        .populate({
+        path: 'plotId',
+        select: 'plotNo plotArea plotDimensions',
+        populate: [
+          { path: 'plotBlockId', select: 'plotBlockName' },
+          { path: 'projectId', select: 'projName projCode' },
+        ],
+      })
+        .populate('memId', 'memName memNic mobileNo')
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)

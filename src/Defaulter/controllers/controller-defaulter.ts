@@ -81,6 +81,7 @@ export const defaulterController = {
       const queryParams: DefaulterQueryParams = {
         page: req.query.page ? parseInt(req.query.page as string) : 1,
         limit: req.query.limit ? parseInt(req.query.limit as string) : 20,
+        search: req.query.search as string,
         memId: req.query.memId as string,
         plotId: req.query.plotId as string,
         fileId: req.query.fileId as string,

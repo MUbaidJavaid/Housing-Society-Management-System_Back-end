@@ -5,6 +5,7 @@ import cors from 'cors';
 import express, { Application, NextFunction, Request, Response } from 'express';
 import 'express-async-errors';
 import helmet from 'helmet';
+import { createServer } from 'http';
 import morgan from 'morgan';
 
 // Import configurations and middleware
@@ -71,6 +72,7 @@ import { billInfoRoutes } from './BillI/index-bill-info';
 import { billTypeRoutes } from './BillI/index-bill-type';
 import { complaintRoutes } from './Complaint/index-complaint';
 import { srComplaintCategoryRoutes } from './Complaint/index-srcomplaintcategory';
+import { initializeSocket } from './core/socket';
 import { defaulterRoutes } from './Defaulter/index-defaulter';
 import { srDevStatusRoutes } from './Development/index-srdevstatus';
 import { fileRoutes } from './File/index-file';
@@ -81,6 +83,7 @@ import { installmentCategoryRoutes } from './Installment/index-installment-categ
 import { authMemberRoutes } from './Member/indexa-member';
 import { srModuleRoutes } from './Module/index-srmodule';
 import { nomineeRoutes } from './Nominee/index-nominee';
+import { notificationRoutes } from './Notification/index-notification';
 import { paymentModeRoutes } from './Payment/index-paymentmodule';
 import { plotCategoryRoutes } from './Plots/index-plotcategory';
 import { possessionRoutes } from './Possession/index-possession';
@@ -462,6 +465,8 @@ function setupRoutes(app: Application): void {
   app.use('/api/complaincatg', srComplaintCategoryRoutes);
 
   app.use('/api/complaint', complaintRoutes);
+
+  app.use('/api/notifications', notificationRoutes);
 
   app.use('/api/module', srModuleRoutes); // Debug route
 
@@ -1019,7 +1024,10 @@ export async function startServer(): Promise<Application> {
 
     // Return a promise that resolves when server starts
     return new Promise((resolve, reject) => {
-      const server = app.listen(PORT, HOST, () => {
+      const server = createServer(app);
+      initializeSocket(server);
+
+      server.listen(PORT, HOST, () => {
         console.log(`✅ Server successfully started on port ${PORT}`);
         console.log(`🚀 Application is running on http://${HOST}:${PORT}`);
         console.log(`📡 Health check: http://${HOST}:${PORT}/health`);
