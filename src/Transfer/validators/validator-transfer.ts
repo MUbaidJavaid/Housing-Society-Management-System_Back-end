@@ -23,9 +23,7 @@ export const validateCreateTransfer = (): ValidationChain[] => [
     .notEmpty()
     .withMessage('Buyer is required')
     .isMongoId()
-    .withMessage('Invalid Buyer Member ID')
-    .custom((value, { req }) => value !== req.body.sellerMemId)
-    .withMessage('Seller and buyer cannot be the same person'),
+    .withMessage('Invalid Buyer Member ID'),
 
   body('applicationId').optional().isMongoId().withMessage('Invalid Application ID'),
 

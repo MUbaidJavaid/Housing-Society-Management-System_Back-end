@@ -1,6 +1,6 @@
-import { Document, Model, Schema, Types, model } from 'mongoose';
+import { Model, Schema, Types, model } from 'mongoose';
 
-export interface ISrTransferType extends Document {
+export interface ISrTransferType {
   typeName: string;
   description?: string;
   transferFee: number;
@@ -18,7 +18,8 @@ export interface ISrTransferType extends Document {
   transferCount?: number;
 }
 
-const srTransferTypeSchema = new Schema<ISrTransferType>(
+// Use untyped Schema to avoid extremely deep Mongoose generic types
+const srTransferTypeSchema = new Schema(
   {
     typeName: {
       type: String,
@@ -129,7 +130,9 @@ srTransferTypeSchema.virtual('transferCount', {
 
 // Virtual for formatted fee
 srTransferTypeSchema.virtual('formattedFee').get(function () {
-  return `Rs. ${this.transferFee.toLocaleString()}`;
+  return this.transferFee != null
+    ? `Rs. ${Number(this.transferFee).toLocaleString('en-US')}`
+    : 'Rs. 0';
 });
 
 // Pre-save middleware
@@ -228,10 +231,7 @@ interface ISrTransferTypeModel extends Model<ISrTransferType> {
   getStatistics(): Promise<any[]>;
 }
 
-// Create and export model
-const SrTransferType = model<ISrTransferType, ISrTransferTypeModel>(
-  'SrTransferType',
-  srTransferTypeSchema
-);
+// Create and export model (cast to keep TS types simple)
+const SrTransferType = model('SrTransferType', srTransferTypeSchema) as ISrTransferTypeModel;
 
 export default SrTransferType;

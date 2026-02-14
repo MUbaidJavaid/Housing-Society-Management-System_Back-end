@@ -1,5 +1,7 @@
 import { NextFunction, Request, Response } from 'express';
 import { AuthRequest } from '../../auth/types';
+import { uploadService } from '../../imageUpload/services/upload.service';
+import { EntityType } from '../../imageUpload/types/upload.types';
 import { AppError } from '../../middleware/error.middleware';
 import { announcementService } from '../index-announcement';
 import {
@@ -55,6 +57,10 @@ export const announcementController = {
       // Validate dates
       if (createData.expiresAt && new Date(createData.expiresAt) <= new Date()) {
         throw new AppError(400, 'Expiry date must be in the future');
+      }
+
+      if (createData.attachmentURL && !createData.attachmentURL.includes('cloudinary.com')) {
+        delete createData.attachmentURL;
       }
 
       const announcement = await announcementService.createAnnouncement(
@@ -201,6 +207,32 @@ export const announcementController = {
         throw new AppError(400, 'Expiry date must be in the future');
       }
 
+      if (updateData.attachmentURL !== undefined) {
+        const existingAnnouncement = await announcementService.getAnnouncementById(id);
+        if (!existingAnnouncement) {
+          throw new AppError(404, 'Announcement not found');
+        }
+
+        if (updateData.attachmentURL === '') {
+          if (existingAnnouncement.attachmentURL) {
+            const files = await uploadService.getFilesByEntity(EntityType.ANNOUNCEMENT, id);
+            if (files.length > 0) {
+              await uploadService.deleteFromCloudinary(files[0].publicId);
+            }
+          }
+        } else if (!updateData.attachmentURL.includes('cloudinary.com')) {
+          delete updateData.attachmentURL;
+        } else if (
+          existingAnnouncement.attachmentURL &&
+          updateData.attachmentURL !== existingAnnouncement.attachmentURL
+        ) {
+          const files = await uploadService.getFilesByEntity(EntityType.ANNOUNCEMENT, id);
+          if (files.length > 0) {
+            await uploadService.deleteFromCloudinary(files[0].publicId);
+          }
+        }
+      }
+
       const updatedAnnouncement = await announcementService.updateAnnouncement(
         id,
         updateData,
@@ -231,6 +263,18 @@ export const announcementController = {
       }
 
       const id = req.params.id as string;
+
+      const existingAnnouncement = await announcementService.getAnnouncementById(id);
+      if (!existingAnnouncement) {
+        throw new AppError(404, 'Announcement not found');
+      }
+
+      if (existingAnnouncement.attachmentURL) {
+        const files = await uploadService.getFilesByEntity(EntityType.ANNOUNCEMENT, id);
+        if (files.length > 0) {
+          await uploadService.deleteFromCloudinary(files[0].publicId);
+        }
+      }
 
       const deleted = await announcementService.deleteAnnouncement(id, req.user.userId);
 

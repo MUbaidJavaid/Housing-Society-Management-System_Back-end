@@ -237,7 +237,8 @@ fileSchema.virtual('paymentPercentage').get(function () {
 });
 
 fileSchema.virtual('fileAge').get(function () {
-  const diff = Math.abs(new Date().getTime() - this.bookingDate.getTime());
+  if (!this.bookingDate) return 0;
+  const diff = Math.abs(Date.now() - this.bookingDate.getTime());
   return Math.ceil(diff / (1000 * 60 * 60 * 24));
 });
 

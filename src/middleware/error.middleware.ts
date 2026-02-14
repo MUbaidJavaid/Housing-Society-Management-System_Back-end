@@ -30,6 +30,18 @@ export const errorHandler = (
     });
   }
 
+  // Errors from validation middlewares (e.g. express-validator) that
+  // attach a statusCode and optional data payload
+  const anyError = error as any;
+  if (anyError.statusCode && typeof anyError.statusCode === 'number') {
+    return res.status(anyError.statusCode).json({
+      success: false,
+      error: error.message,
+      ...(anyError.data && { data: anyError.data }),
+      ...(process.env.NODE_ENV === 'development' && { stack: error.stack }),
+    });
+  }
+
   // Mongoose validation error
   if (error.name === 'ValidationError') {
     return res.status(StatusCodes.BAD_REQUEST).json({

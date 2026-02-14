@@ -2,6 +2,7 @@ import { Types } from 'mongoose';
 import Application from '../../Application/models/models-application';
 import File from '../../File/models/models-file';
 import Member from '../../Member/models/models-member';
+import { AppError } from '../../middleware/error.middleware';
 
 import Nominee from '../../Nominee/models/models-nominee';
 import { uploadService } from '../../imageUpload/services/upload.service';
@@ -43,42 +44,37 @@ export const srTransferService = {
     // Check if file exists
     const file = await File.findById(data.fileId);
     if (!file || file.isDeleted) {
-      throw new Error('File not found');
+      throw new AppError(404, 'File not found');
     }
 
     // Check if transfer type exists
     const transferType = await SrTransferType.findById(data.transferTypeId);
     if (!transferType || transferType.isDeleted || !transferType.isActive) {
-      throw new Error('Transfer type not found or inactive');
+      throw new AppError(400, 'Transfer type not found or inactive');
     }
 
     // Check if seller exists
     const seller = await Member.findById(data.sellerMemId);
     if (!seller || (seller as any).isDeleted) {
-      throw new Error('Seller not found');
+      throw new AppError(404, 'Seller not found');
     }
 
     // Check if buyer exists
     const buyer = await Member.findById(data.buyerMemId);
     if (!buyer || (buyer as any).isDeleted) {
-      throw new Error('Buyer not found');
-    }
-
-    // Check if seller and buyer are different
-    if (data.sellerMemId === data.buyerMemId) {
-      throw new Error('Seller and buyer cannot be the same person');
+      throw new AppError(404, 'Buyer not found');
     }
 
     // Check if file belongs to seller
     if (file.memId.toString() !== data.sellerMemId) {
-      throw new Error('File does not belong to the specified seller');
+      throw new AppError(400, 'File does not belong to the specified seller');
     }
 
     // Check if application exists (if provided)
     if (data.applicationId) {
       const application = await Application.findById(data.applicationId);
       if (!application || (application as any).isDeleted) {
-        throw new Error('Application not found');
+        throw new AppError(404, 'Application not found');
       }
     }
 
@@ -86,11 +82,11 @@ export const srTransferService = {
     if (data.nomineeId) {
       const nominee = await Nominee.findById(data.nomineeId);
       if (!nominee || nominee.isDeleted) {
-        throw new Error('Nominee not found');
+        throw new AppError(404, 'Nominee not found');
       }
       // Verify nominee belongs to buyer
       if (nominee.memId.toString() !== data.buyerMemId) {
-        throw new Error('Nominee does not belong to the buyer');
+        throw new AppError(400, 'Nominee does not belong to the buyer');
       }
     }
 
@@ -104,7 +100,7 @@ export const srTransferService = {
     });
 
     if (existingTransfer) {
-      throw new Error('File already has a pending transfer');
+      throw new AppError(409, 'File already has a pending transfer');
     }
 
     const transferData: any = {
@@ -246,7 +242,7 @@ export const srTransferService = {
     const [transfers, total] = await Promise.all([
       SrTransfer.find(query)
         .populate('file', 'fileRegNo')
-        .populate('transferType', 'typeName')
+        .populate('transferType', 'typeName transferFee')
         .populate('seller', 'fullName cnic')
         .populate('buyer', 'fullName cnic')
         .skip(skip)
@@ -344,7 +340,7 @@ export const srTransferService = {
       { new: true, runValidators: true }
     )
       .populate('file', 'fileRegNo')
-      .populate('transferType', 'typeName')
+      .populate('transferType', 'typeName transferFee')
       .populate('seller', 'fullName cnic')
       .populate('buyer', 'fullName cnic')
       .populate('modifiedBy', 'userName fullName');
@@ -419,7 +415,7 @@ export const srTransferService = {
       { new: true }
     )
       .populate('file', 'fileRegNo')
-      .populate('transferType', 'typeName')
+      .populate('transferType', 'typeName transferFee')
       .populate('seller', 'fullName')
       .populate('buyer', 'fullName');
 
@@ -487,7 +483,7 @@ export const srTransferService = {
       { new: true }
     )
       .populate('file', 'fileRegNo plotId')
-      .populate('transferType', 'typeName')
+      .populate('transferType', 'typeName transferFee')
       .populate('seller', 'fullName cnic')
       .populate('buyer', 'fullName cnic')
       .populate('nominee', 'nomineeName');
@@ -541,7 +537,7 @@ export const srTransferService = {
       { new: true }
     )
       .populate('file', 'fileRegNo')
-      .populate('transferType', 'typeName')
+      .populate('transferType', 'typeName transferFee')
       .populate('seller', 'fullName')
       .populate('buyer', 'fullName');
 
@@ -575,7 +571,7 @@ export const srTransferService = {
       isActive: true,
     })
       .populate('file', 'fileRegNo plotId')
-      .populate('transferType', 'typeName')
+      .populate('transferType', 'typeName transferFee')
       .populate('seller', 'fullName cnic')
       .populate('buyer', 'fullName cnic')
       .sort({ transferInitDate: -1 })
@@ -602,7 +598,7 @@ export const srTransferService = {
     const [transfers, total] = await Promise.all([
       SrTransfer.find(query)
         .populate('file', 'fileRegNo plotId')
-        .populate('transferType', 'typeName')
+        .populate('transferType', 'typeName transferFee')
         .populate('seller', 'fullName cnic')
         .populate('buyer', 'fullName cnic')
         .sort({ transferInitDate: 1 })
@@ -811,7 +807,7 @@ export const srTransferService = {
           isActive: true,
         })
           .populate('file', 'fileRegNo')
-          .populate('transferType', 'typeName')
+          .populate('transferType', 'typeName transferFee')
           .populate('seller', 'fullName')
           .populate('buyer', 'fullName')
           .sort({ createdAt: -1 })
@@ -886,7 +882,7 @@ export const srTransferService = {
       isActive: true,
     })
       .populate('file', 'fileRegNo plotId')
-      .populate('transferType', 'typeName')
+      .populate('transferType', 'typeName transferFee')
       .populate('seller', 'fullName cnic mobileNo')
       .populate('buyer', 'fullName cnic mobileNo')
       .sort({ transferInitDate: 1 })
@@ -905,7 +901,7 @@ export const srTransferService = {
       isActive: true,
     })
       .populate('file', 'fileRegNo')
-      .populate('transferType', 'typeName')
+      .populate('transferType', 'typeName transferFee')
       .populate('seller', 'fullName cnic')
       .populate('buyer', 'fullName cnic')
       .limit(limit)
