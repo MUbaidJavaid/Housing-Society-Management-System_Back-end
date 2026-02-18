@@ -17,7 +17,7 @@ export interface IPlot {
   plotNo: string; // Unique within project
   plotBlockId: Types.ObjectId;
   plotSizeId: Types.ObjectId;
-  plotTypeId: Types.ObjectId;
+  plotType: PlotType;
   plotCategoryId: Types.ObjectId;
   plotStreet?: string;
   plotLength: number; // in feet/meters
@@ -59,7 +59,8 @@ interface IPlotMethods {
 
 export type PlotModel = Model<IPlot, {}, IPlotMethods>;
 
-const plotSchema = new Schema<IPlot, PlotModel, IPlotMethods>(
+// Use `any` for Model type to avoid TS2590 (Mongoose Schema generics produce too-complex union)
+const plotSchema = new Schema<IPlot, any, IPlotMethods>(
   {
     projectId: {
       type: Schema.Types.ObjectId,
@@ -98,8 +99,8 @@ const plotSchema = new Schema<IPlot, PlotModel, IPlotMethods>(
       index: true,
     },
 
-    plotTypeId: {
-      type: Schema.Types.ObjectId,
+    plotType: {
+      type: String,
       required: [true, 'Plot Type is required'],
       enum: {
         values: Object.values(PlotType),

@@ -59,12 +59,6 @@ export const validateCreateProject = [
     .isIn(['acres', 'hectares', 'sqft', 'sqm', 'km²', 'marla', 'kanal'])
     .withMessage('Invalid area unit'),
 
-  body('totalPlots')
-    .notEmpty()
-    .withMessage('Total Plots is required')
-    .isInt({ min: 1 })
-    .withMessage('Total Plots must be at least 1'),
-
   body('launchDate')
     .notEmpty()
     .withMessage('Launch Date is required')
@@ -176,7 +170,7 @@ export const validateUpdateProject = [
       if (value && !Types.ObjectId.isValid(value)) {
         throw new Error('Invalid city ID format');
       }
-      return true
+      return true;
     }),
 
   body('launchDate')
@@ -193,42 +187,14 @@ export const validateUpdateProject = [
 
   body('completionDate').optional().isISO8601().withMessage('Invalid date format'),
 
-  body('totalPlots').optional().isInt({ min: 1 }).withMessage('Total Plots must be at least 1'),
-
-  body('plotsSold').optional().isInt({ min: 0 }).withMessage('Plots Sold cannot be negative'),
-
-  body('plotsReserved').optional().isInt({ min: 0 }).withMessage('Plots Reserved cannot be negative'),
-
-  // Custom validator for plot count consistency
-  body().custom(async (_value, { req }) => {
-    if (
-      req.body.totalPlots !== undefined ||
-      req.body.plotsSold !== undefined ||
-      req.body.plotsReserved !== undefined) {  // Get current project
-      const project = await projectService.getProjectById(req.params?.id);
-      if (project) {
-        const totalPlots =
-          req.body.totalPlots !== undefined ? req.body.totalPlots : project.totalPlots;
-        const plotsSold = req.body.plotsSold !== undefined ? req.body.plotsSold : project.plotsSold;
-        const plotsReserved =
-          req.body.plotsReserved !== undefined ? req.body.plotsReserved : project.plotsReserved;
-
-        if (plotsSold + plotsReserved > totalPlots) {
-          throw new Error('Plots sold + reserved cannot exceed total plots');
-        }
-      }
-    }
-
-    // Validate date consistency
+  body().custom((_value, { req }) => {
     if (req.body.completionDate && req.body.launchDate) {
       const completionDate = new Date(req.body.completionDate);
       const launchDate = new Date(req.body.launchDate);
-
       if (completionDate < launchDate) {
         throw new Error('Completion Date must be after Launch Date');
       }
     }
-
     return true;
   }),
 ];

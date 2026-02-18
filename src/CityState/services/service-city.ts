@@ -75,16 +75,16 @@ export const cityService = {
     };
   },
 
-  async getCitiesByState(stateId: string): Promise<any[]> {
+  async getCitiesByState(stateId: string): Promise<{ _id: Types.ObjectId; cityName: string }[]> {
     const cities = await City.find({
       stateId: new Types.ObjectId(stateId),
       isDeleted: false,
     })
-      .select('cityName')
+      .select('_id cityName')
       .sort('cityName')
-      .then(docs => docs.map(doc => doc.toObject()));
+      .lean();
 
-    return cities;
+    return cities as { _id: Types.ObjectId; cityName: string }[];
   },
 
   async updateCity(id: string, data: UpdateCityDto, userId: Types.ObjectId): Promise<any | null> {

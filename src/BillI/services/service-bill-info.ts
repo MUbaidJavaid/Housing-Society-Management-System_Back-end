@@ -1,6 +1,7 @@
 import { Types } from 'mongoose';
 import File from '../../File/models/models-file';
 import Member from '../../Member/models/models-member';
+import BillType from '../models/models-bill-type';
 import BillInfo, { BillStatus } from '../models/models-bill-info';
 import {
   BillInfoType,
@@ -21,6 +22,11 @@ const toPlainObject = (doc: any): BillInfoType => {
   }
   if (!plainObj.updatedAt && doc.updatedAt) {
     plainObj.updatedAt = doc.updatedAt;
+  }
+
+  // Map populated billTypeId to billType for API consumers
+  if (plainObj.billTypeId && typeof plainObj.billTypeId === 'object') {
+    plainObj.billType = plainObj.billTypeId;
   }
 
   return plainObj as BillInfoType;
@@ -55,8 +61,19 @@ export const billInfoService = {
       throw new Error('File not found');
     }
 
+    // Check if bill type exists and optionally use defaultAmount
+    const billTypeDoc = await BillType.findById(data.billTypeId);
+    if (!billTypeDoc || (billTypeDoc as any).isDeleted) {
+      throw new Error('Bill type not found');
+    }
+
+    let billAmount = data.billAmount;
+    if (billAmount === undefined || billAmount === null) {
+      billAmount = billTypeDoc.defaultAmount ?? 0;
+    }
+
     // Calculate total payable
-    const totalPayable = data.billAmount + (data.fineAmount || 0) + (data.arrears || 0);
+    const totalPayable = billAmount + (data.fineAmount || 0) + (data.arrears || 0);
 
     // Calculate units consumed if readings are provided
     let unitsConsumed: number | undefined;
@@ -67,6 +84,8 @@ export const billInfoService = {
 
     const billData: any = {
       ...data,
+      billTypeId: data.billTypeId,
+      billAmount,
       unitsConsumed,
       totalPayable,
       fineAmount: data.fineAmount || 0,
@@ -79,7 +98,7 @@ export const billInfoService = {
 
     // Auto-generate bill number if not provided
     if (!billData.billNo) {
-      const prefix = data.billType.substring(0, 3).toUpperCase();
+      const prefix = (billTypeDoc.billTypeName || 'BL ').substring(0, 3).toUpperCase().replace(/\s/g, 'X');
       const timestamp = Date.now().toString().slice(-6);
       const random = Math.floor(Math.random() * 1000)
         .toString()
@@ -92,8 +111,9 @@ export const billInfoService = {
     const bill = await BillInfo.create(billData);
 
     const createdBill = await BillInfo.findById(bill._id)
-      .populate('member', 'fullName memNic mobileNo email')
-      .populate('file', 'fileNo fileType')
+      .populate('billTypeId', 'billTypeName billTypeCategory defaultAmount isRecurring')
+      .populate('memId', 'memName fullName memNic mobileNo email')
+      .populate('fileId', 'fileRegNo')
       .populate('createdBy', 'userName fullName designation');
 
     if (!createdBill) {
@@ -109,8 +129,9 @@ export const billInfoService = {
   async getBillById(id: string): Promise<BillInfoType> {
     try {
       const bill = await BillInfo.findById(id)
-        .populate('member', 'fullName memNic fatherName mobileNo email address')
-        .populate('file', 'fileNo fileType bookingDate totalAmount')
+        .populate('billTypeId', 'billTypeName billTypeCategory defaultAmount isRecurring')
+        .populate('memId', 'memName fullName memNic fatherName mobileNo email address')
+        .populate('fileId', 'fileRegNo bookingDate totalAmount')
         .populate('createdBy', 'userName fullName designation')
         .populate('modifiedBy', 'userName fullName designation');
 
@@ -135,8 +156,9 @@ export const billInfoService = {
       billNo: billNo.toUpperCase(),
       isDeleted: false,
     })
-      .populate('member', 'fullName memNic mobileNo')
-      .populate('file', 'fileNo')
+      .populate('billTypeId', 'billTypeName billTypeCategory')
+      .populate('memId', 'memName fullName memNic mobileNo')
+      .populate('fileId', 'fileRegNo')
       .populate('createdBy', 'userName fullName');
 
     if (!bill) return null;
@@ -182,8 +204,8 @@ export const billInfoService = {
       query.fileId = new Types.ObjectId(fileId);
     }
 
-    if (billType) {
-      query.billType = billType;
+    if (params.billTypeId) {
+      query.billTypeId = new Types.ObjectId(params.billTypeId);
     }
 
     if (status) {
@@ -219,8 +241,9 @@ export const billInfoService = {
 
     const [bills, total] = await Promise.all([
       BillInfo.find(query)
-        .populate('member', 'fullName memNic mobileNo')
-        .populate('file', 'fileNo')
+        .populate('billTypeId', 'billTypeName billTypeCategory')
+        .populate('memId', 'memName fullName memNic mobileNo')
+        .populate('fileId', 'fileRegNo')
         .skip(skip)
         .limit(limit)
         .sort(sort)
@@ -300,8 +323,9 @@ export const billInfoService = {
       { $set: updateObj },
       { new: true, runValidators: true }
     )
-      .populate('member', 'fullName memNic mobileNo')
-      .populate('file', 'fileNo')
+      .populate('billTypeId', 'billTypeName billTypeCategory')
+      .populate('memId', 'memName fullName memNic mobileNo')
+      .populate('fileId', 'fileRegNo')
       .populate('modifiedBy', 'userName fullName');
 
     return bill ? toPlainObject(bill) : null;
@@ -396,8 +420,9 @@ export const billInfoService = {
     }
 
     const updatedBill = await BillInfo.findByIdAndUpdate(id, { $set: updateObj }, { new: true })
-      .populate('member', 'fullName memNic mobileNo')
-      .populate('file', 'fileNo');
+      .populate('billTypeId', 'billTypeName billTypeCategory')
+      .populate('memId', 'memName fullName memNic mobileNo')
+      .populate('fileId', 'fileRegNo');
 
     return updatedBill ? toPlainObject(updatedBill) : null;
   },
@@ -416,7 +441,8 @@ export const billInfoService = {
     }
 
     const bills = await BillInfo.find(query)
-      .populate('file', 'fileNo fileType')
+      .populate('billTypeId', 'billTypeName billTypeCategory')
+      .populate('fileId', 'fileRegNo')
       .sort({ dueDate: -1 })
       .then(docs => docs.map(doc => toPlainObject(doc)));
 
@@ -437,7 +463,8 @@ export const billInfoService = {
     }
 
     const bills = await BillInfo.find(query)
-      .populate('member', 'fullName memNic')
+      .populate('billTypeId', 'billTypeName billTypeCategory')
+      .populate('memId', 'memName fullName memNic')
       .sort({ dueDate: -1 })
       .then(docs => docs.map(doc => toPlainObject(doc)));
 
@@ -461,8 +488,9 @@ export const billInfoService = {
 
     const [bills, total] = await Promise.all([
       BillInfo.find(query)
-        .populate('member', 'fullName memNic mobileNo')
-        .populate('file', 'fileNo')
+        .populate('billTypeId', 'billTypeName billTypeCategory')
+        .populate('memId', 'memName fullName memNic mobileNo')
+        .populate('fileId', 'fileRegNo')
         .sort({ dueDate: 1 })
         .skip(skip)
         .limit(limit)
@@ -663,10 +691,15 @@ export const billInfoService = {
     data: GenerateBillsDto,
     userId: Types.ObjectId
   ): Promise<{ success: number; failed: number; bills: BillInfoType[] }> {
-    const { memberIds, billType, billMonth, dueDate, gracePeriodDays = 7, templateData } = data;
+    const { memberIds, billTypeId, billMonth, dueDate, gracePeriodDays = 7, templateData } = data;
 
     if (!memberIds || !Array.isArray(memberIds) || memberIds.length === 0) {
       throw new Error('Member IDs are required');
+    }
+
+    const billTypeDoc = await BillType.findById(billTypeId);
+    if (!billTypeDoc || (billTypeDoc as any).isDeleted) {
+      throw new Error('Bill type not found');
     }
 
     const validMembers = await Member.find({
@@ -699,8 +732,8 @@ export const billInfoService = {
 
         const file = files[0];
 
-        // Calculate bill amount based on template or default
-        const billAmount = templateData?.baseAmount || 1000; // Default amount
+        // Calculate bill amount based on template or BillType default
+        const billAmount = templateData?.baseAmount ?? billTypeDoc.defaultAmount ?? 1000;
 
         // Check for previous arrears
         const previousBills = await BillInfo.find({
@@ -712,7 +745,7 @@ export const billInfoService = {
         const arrears = previousBills.reduce((sum, bill) => sum + (bill.remainingBalance ?? 0), 0);
 
         // Generate bill number
-        const prefix = billType.substring(0, 3).toUpperCase();
+        const prefix = (billTypeDoc.billTypeName || 'BL ').substring(0, 3).toUpperCase().replace(/\s/g, 'X');
         const timestamp = Date.now().toString().slice(-6);
         const random = Math.floor(Math.random() * 1000)
           .toString()
@@ -721,7 +754,7 @@ export const billInfoService = {
 
         const billData: any = {
           billNo,
-          billType,
+          billTypeId,
           fileId: file._id,
           memId: member._id,
           billMonth,
@@ -744,8 +777,9 @@ export const billInfoService = {
         const bill = await BillInfo.create(billData);
 
         const populatedBill = await BillInfo.findById(bill._id)
-          .populate('member', 'fullName memNic mobileNo')
-          .populate('file', 'fileNo');
+          .populate('billTypeId', 'billTypeName billTypeCategory')
+          .populate('memId', 'memName fullName memNic mobileNo')
+          .populate('fileId', 'fileRegNo');
 
         if (populatedBill) {
           generatedBills.push(toPlainObject(populatedBill));

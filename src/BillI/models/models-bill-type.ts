@@ -179,7 +179,7 @@ billTypeSchema.virtual('modifiedByUser', {
 billTypeSchema.virtual('billCount', {
   ref: 'BillInfo',
   localField: '_id',
-  foreignField: 'billType',
+  foreignField: 'billTypeId',
   count: true,
 });
 
@@ -283,7 +283,7 @@ billTypeSchema.statics.getStatistics = function () {
       $lookup: {
         from: 'billinfos',
         localField: '_id',
-        foreignField: 'billType',
+        foreignField: 'billTypeId',
         as: 'bills',
       },
     },

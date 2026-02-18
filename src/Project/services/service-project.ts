@@ -1,6 +1,13 @@
 import { Types } from 'mongoose';
 import City from '../../CityState/models/models-city';
+import Plot from '../../Plots/models/models-plot';
+import SalesStatus from '../../Sales/models/models-salesstatus';
+import { SalesStatusType } from '../../Sales/models/models-salesstatus';
 import Project, { IProject, ProjectStatus, ProjectType } from '../models/models-project';
+import {
+  getProjectPlotCounts,
+  getProjectPlotCountsBatch,
+} from '../helpers/getProjectPlotCounts';
 import {
   CreateProjectDto,
   ProjectQueryParams,
@@ -50,12 +57,16 @@ export const projectService = {
       throw new Error('City not found');
     }
 
+    const { totalPlots: _t, plotsAvailable: _a, plotsSold: _s, plotsReserved: _r, ...rest } =
+      data as CreateProjectDto & {
+        totalPlots?: number;
+        plotsAvailable?: number;
+        plotsSold?: number;
+        plotsReserved?: number;
+      };
     const projectData = {
-      ...data,
+      ...rest,
       projCode,
-      plotsAvailable: data.totalPlots, // Initially all plots are available
-      plotsSold: 0,
-      plotsReserved: 0,
       cityId: new Types.ObjectId(data.cityId),
       projStatus: data.projStatus || ProjectStatus.PLANNING,
       projType: data.projType || ProjectType.RESIDENTIAL,
@@ -64,7 +75,6 @@ export const projectService = {
       createdBy: userId,
       updatedBy: userId,
     };
-console.log(projectData)
     const project = await Project.create(projectData);
     return project;
   },
@@ -88,13 +98,19 @@ console.log(projectData)
     if (!project) return null;
 
     const projectObj = project.toObject() as any;
-    // Add cityName and stateName for easier access
     if (projectObj.cityId) {
       projectObj.cityName = (projectObj.cityId as any).cityName;
       if ((projectObj.cityId as any).stateId) {
         projectObj.stateName = (projectObj.cityId as any).stateId.stateName;
       }
     }
+
+    const counts = await getProjectPlotCounts(project._id);
+    Object.assign(projectObj, counts);
+    projectObj.progressPercentage =
+      counts.totalPlots > 0
+        ? Math.round(((counts.plotsSold + counts.plotsReserved) / counts.totalPlots) * 100)
+        : 0;
 
     return projectObj;
   },
@@ -121,13 +137,19 @@ console.log(projectData)
     if (!project) return null;
 
     const projectObj = project.toObject() as any;
-    // Add cityName and stateName for easier access
     if (projectObj.cityId) {
       projectObj.cityName = (projectObj.cityId as any).cityName;
       if ((projectObj.cityId as any).stateId) {
         projectObj.stateName = (projectObj.cityId as any).stateId.stateName;
       }
     }
+
+    const counts = await getProjectPlotCounts(project._id);
+    Object.assign(projectObj, counts);
+    projectObj.progressPercentage =
+      counts.totalPlots > 0
+        ? Math.round(((counts.plotsSold + counts.plotsReserved) / counts.totalPlots) * 100)
+        : 0;
 
     return projectObj;
   },
@@ -147,8 +169,6 @@ console.log(projectData)
       isActive,
       cityId,
       country,
-      minPlots,
-      maxPlots,
       minArea,
       maxArea,
       launchedAfter,
@@ -198,12 +218,7 @@ console.log(projectData)
       query.country = { $regex: country, $options: 'i' };
     }
 
-    // Plots range filter
-    if (minPlots !== undefined || maxPlots !== undefined) {
-      query.totalPlots = {};
-      if (minPlots !== undefined) query.totalPlots.$gte = minPlots;
-      if (maxPlots !== undefined) query.totalPlots.$lte = maxPlots;
-    }
+    // Note: minPlots/maxPlots filter removed - totalPlots now calculated from Plot count
 
     // Area range filter
     if (minArea !== undefined || maxArea !== undefined) {
@@ -238,15 +253,20 @@ console.log(projectData)
       Project.countDocuments(query),
     ]);
 
-    // Map projects to include cityName and stateName
+    // Batch fetch plot counts for all projects
+    const countsMap = await getProjectPlotCountsBatch(projects.map(p => p._id));
+
     const projectsWithCityInfo = projects.map(project => {
       const projectObj = project.toObject({ virtuals: true }) as unknown as IProject & {
-        progressPercentage: number;
+        progressPercentage?: number;
         cityName?: string;
         stateName?: string;
+        totalPlots?: number;
+        plotsAvailable?: number;
+        plotsSold?: number;
+        plotsReserved?: number;
       };
 
-      // Add cityName and stateName for easier access
       if (projectObj.cityId && typeof projectObj.cityId === 'object') {
         projectObj.cityName = (projectObj.cityId as any).cityName;
         if ((projectObj.cityId as any).stateId) {
@@ -254,12 +274,24 @@ console.log(projectData)
         }
       }
 
+      const counts = countsMap.get(project._id.toString()) || {
+        totalPlots: 0,
+        plotsAvailable: 0,
+        plotsSold: 0,
+        plotsReserved: 0,
+      };
+      Object.assign(projectObj, counts);
+      projectObj.progressPercentage =
+        counts.totalPlots > 0
+          ? Math.round(((counts.plotsSold + counts.plotsReserved) / counts.totalPlots) * 100)
+          : 0;
+
       return projectObj;
     });
 
     const summary = {
       totalProjects: projectsWithCityInfo.length,
-      totalPlots: projectsWithCityInfo.reduce((sum, proj) => sum + proj.totalPlots, 0),
+      totalPlots: projectsWithCityInfo.reduce((sum, proj) => sum + (proj.totalPlots ?? 0), 0),
       totalArea: projectsWithCityInfo.reduce((sum, proj) => sum + proj.totalArea, 0),
       averageProgress:
         projectsWithCityInfo.length > 0
@@ -354,27 +386,6 @@ console.log(projectData)
       }
     }
 
-    // Validate plot counts consistency if being updated
-    if (
-      data.totalPlots !== undefined ||
-      data.plotsSold !== undefined ||
-      data.plotsReserved !== undefined
-    ) {
-      const totalPlots =
-        data.totalPlots !== undefined ? data.totalPlots : existingProject.totalPlots;
-      const plotsSold = data.plotsSold !== undefined ? data.plotsSold : existingProject.plotsSold;
-      const plotsReserved =
-        data.plotsReserved !== undefined ? data.plotsReserved : existingProject.plotsReserved;
-
-      if (plotsSold + plotsReserved > totalPlots) {
-        throw new Error('Plots sold + reserved cannot exceed total plots');
-      }
-
-      if (totalPlots < 0 || plotsSold < 0 || plotsReserved < 0) {
-        throw new Error('Plot counts cannot be negative');
-      }
-    }
-
     // Validate dates if being updated
     if (data.launchDate) {
       const launchDate = new Date(data.launchDate);
@@ -394,9 +405,22 @@ console.log(projectData)
       }
     }
 
-    // Prepare update data
+    // Exclude plot count fields (now calculated from Plot)
+    const {
+      totalPlots: _t,
+      plotsAvailable: _a,
+      plotsSold: _s,
+      plotsReserved: _r,
+      ...updateFields
+    } = data as UpdateProjectDto & {
+      totalPlots?: number;
+      plotsAvailable?: number;
+      plotsSold?: number;
+      plotsReserved?: number;
+    };
+
     const updateData: any = {
-      ...data,
+      ...updateFields,
       updatedBy: userId,
       updatedAt: new Date(),
     };
@@ -440,13 +464,19 @@ console.log(projectData)
       throw new Error('Failed to update project');
     }
     const projectObj = project.toObject() as any;
-    // Add cityName and stateName for easier access
     if (projectObj.cityId) {
       projectObj.cityName = (projectObj.cityId as any).cityName;
       if ((projectObj.cityId as any).stateId) {
         projectObj.stateName = (projectObj.cityId as any).stateId.stateName;
       }
     }
+
+    const counts = await getProjectPlotCounts(project._id);
+    Object.assign(projectObj, counts);
+    projectObj.progressPercentage =
+      counts.totalPlots > 0
+        ? Math.round(((counts.plotsSold + counts.plotsReserved) / counts.totalPlots) * 100)
+        : 0;
 
     return projectObj;
   },
@@ -523,15 +553,26 @@ console.log(projectData)
       .populate('createdBy', 'firstName lastName email')
       .sort({ projName: 1 });
 
+    const countsMap = await getProjectPlotCountsBatch(projects.map(p => p._id));
     return projects.map(project => {
       const projectObj = project.toObject() as any;
-      // Add cityName and stateName for easier access
       if (projectObj.cityId) {
         projectObj.cityName = (projectObj.cityId as any).cityName;
         if ((projectObj.cityId as any).stateId) {
           projectObj.stateName = (projectObj.cityId as any).stateId.stateName;
         }
       }
+      const counts = countsMap.get(project._id.toString()) || {
+        totalPlots: 0,
+        plotsAvailable: 0,
+        plotsSold: 0,
+        plotsReserved: 0,
+      };
+      Object.assign(projectObj, counts);
+      projectObj.progressPercentage =
+        counts.totalPlots > 0
+          ? Math.round(((counts.plotsSold + counts.plotsReserved) / counts.totalPlots) * 100)
+          : 0;
       return projectObj;
     });
   },
@@ -556,15 +597,26 @@ console.log(projectData)
       .populate('createdBy', 'firstName lastName email')
       .sort({ projName: 1 });
 
+    const countsMap = await getProjectPlotCountsBatch(projects.map(p => p._id));
     return projects.map(project => {
       const projectObj = project.toObject() as any;
-      //   Add cityName and stateName for easier access
       if (projectObj.cityId) {
         projectObj.cityName = (projectObj.cityId as any).cityName;
         if ((projectObj.cityId as any).stateId) {
           projectObj.stateName = (projectObj.cityId as any).stateId.stateName;
         }
       }
+      const counts = countsMap.get(project._id.toString()) || {
+        totalPlots: 0,
+        plotsAvailable: 0,
+        plotsSold: 0,
+        plotsReserved: 0,
+      };
+      Object.assign(projectObj, counts);
+      projectObj.progressPercentage =
+        counts.totalPlots > 0
+          ? Math.round(((counts.plotsSold + counts.plotsReserved) / counts.totalPlots) * 100)
+          : 0;
       return projectObj;
     });
   },
@@ -601,15 +653,26 @@ console.log(projectData)
         .populate('createdBy', 'firstName lastName email')
         .sort({ projName: 1 });
 
+      const countsMap = await getProjectPlotCountsBatch(projects.map(p => p._id));
       return projects.map(project => {
         const projectObj = project.toObject() as any;
-        // Add cityName and stateName for easier access
         if (projectObj.cityId) {
           projectObj.cityName = (projectObj.cityId as any).cityName;
           if ((projectObj.cityId as any).stateId) {
             projectObj.stateName = (projectObj.cityId as any).stateId.stateName;
           }
         }
+        const counts = countsMap.get(project._id.toString()) || {
+          totalPlots: 0,
+          plotsAvailable: 0,
+          plotsSold: 0,
+          plotsReserved: 0,
+        };
+        Object.assign(projectObj, counts);
+        projectObj.progressPercentage =
+          counts.totalPlots > 0
+            ? Math.round(((counts.plotsSold + counts.plotsReserved) / counts.totalPlots) * 100)
+            : 0;
         return projectObj;
       });
     } catch (error) {
@@ -650,15 +713,26 @@ console.log(projectData)
         .populate('createdBy', 'firstName lastName email')
         .sort({ projName: 1 });
 
+      const countsMap = await getProjectPlotCountsBatch(projects.map(p => p._id));
       return projects.map(project => {
         const projectObj = project.toObject() as any;
-        // Add cityName and stateName for easier access
         if (projectObj.cityId) {
           projectObj.cityName = (projectObj.cityId as any).cityName;
           if ((projectObj.cityId as any).stateId) {
             projectObj.stateName = (projectObj.cityId as any).stateId.stateName;
           }
         }
+        const counts = countsMap.get(project._id.toString()) || {
+          totalPlots: 0,
+          plotsAvailable: 0,
+          plotsSold: 0,
+          plotsReserved: 0,
+        };
+        Object.assign(projectObj, counts);
+        projectObj.progressPercentage =
+          counts.totalPlots > 0
+            ? Math.round(((counts.plotsSold + counts.plotsReserved) / counts.totalPlots) * 100)
+            : 0;
         return projectObj;
       });
     } catch (error) {
@@ -700,13 +774,18 @@ console.log(projectData)
     if (!project) return null;
 
     const projectObj = project.toObject() as any;
-    // Add cityName and stateName for easier access
     if (projectObj.cityId) {
       projectObj.cityName = (projectObj.cityId as any).cityName;
       if ((projectObj.cityId as any).stateId) {
         projectObj.stateName = (projectObj.cityId as any).stateId.stateName;
       }
     }
+    const counts = await getProjectPlotCounts(project._id);
+    Object.assign(projectObj, counts);
+    projectObj.progressPercentage =
+      counts.totalPlots > 0
+        ? Math.round(((counts.plotsSold + counts.plotsReserved) / counts.totalPlots) * 100)
+        : 0;
     return projectObj;
   },
 
@@ -742,14 +821,18 @@ console.log(projectData)
     if (!updatedProject) return null;
 
     const projectObj = updatedProject.toObject() as any;
-    // Add cityName and stateName for easier access
     if (projectObj.cityId) {
       projectObj.cityName = (projectObj.cityId as any).cityName;
       if ((projectObj.cityId as any).stateId) {
         projectObj.stateName = (projectObj.cityId as any).stateId.stateName;
       }
     }
-
+    const counts = await getProjectPlotCounts(updatedProject._id);
+    Object.assign(projectObj, counts);
+    projectObj.progressPercentage =
+      counts.totalPlots > 0
+        ? Math.round(((counts.plotsSold + counts.plotsReserved) / counts.totalPlots) * 100)
+        : 0;
     return projectObj;
   },
 
@@ -757,22 +840,66 @@ console.log(projectData)
    * Get project statistics
    */
   async getProjectStatistics(): Promise<ProjectStats> {
-    const stats = await Project.aggregate([
-      {
-        $match: { isDeleted: false },
-      },
-      {
-        $group: {
-          _id: null,
-          totalProjects: { $sum: 1 },
-          totalPlots: { $sum: '$totalPlots' },
-          totalArea: { $sum: '$totalArea' },
-          plotsSold: { $sum: '$plotsSold' },
-          plotsReserved: { $sum: '$plotsReserved' },
-          plotsAvailable: { $sum: '$plotsAvailable' },
+    const [projectStats, plotStats] = await Promise.all([
+      Project.aggregate([
+        { $match: { isDeleted: false } },
+        {
+          $group: {
+            _id: null,
+            totalProjects: { $sum: 1 },
+            totalArea: { $sum: '$totalArea' },
+          },
         },
-      },
+      ]),
+      (async () => {
+        const reservedIds = await SalesStatus.find(
+          { statusType: SalesStatusType.RESERVED, isDeleted: false },
+          { _id: 1 }
+        ).lean();
+        const reservedObjIds = reservedIds.map((s: { _id: Types.ObjectId }) => s._id);
+        const r = await Plot.aggregate([
+          { $match: { isDeleted: false } },
+          {
+            $group: {
+              _id: null,
+              totalPlots: { $sum: 1 },
+              plotsSold: {
+                $sum: {
+                  $cond: [{ $ne: [{ $ifNull: ['$fileId', null] }, null] }, 1, 0],
+                },
+              },
+              plotsReserved: {
+                $sum: {
+                  $cond: [{ $in: ['$salesStatusId', reservedObjIds] }, 1, 0],
+                },
+              },
+            },
+          },
+        ]);
+        const p = r[0] || {
+          totalPlots: 0,
+          plotsSold: 0,
+          plotsReserved: 0,
+        };
+        const plotsAvailable = Math.max(
+          0,
+          p.totalPlots - p.plotsSold - p.plotsReserved
+        );
+        return {
+          totalPlots: p.totalPlots,
+          plotsSold: p.plotsSold,
+          plotsReserved: p.plotsReserved,
+          plotsAvailable,
+        };
+      })(),
     ]);
+
+    const proj = projectStats[0] || { totalProjects: 0, totalArea: 0 };
+    const baseStats = {
+      totalProjects: proj.totalProjects,
+      totalArea: proj.totalArea,
+      ...plotStats,
+    };
 
     const statusStats = await Project.aggregate([
       {
@@ -830,7 +957,7 @@ console.log(projectData)
       },
     ]);
 
-    const recentProjects = await Project.find({ isDeleted: false, isActive: true })
+    const recentProjectsDocs = await Project.find({ isDeleted: false, isActive: true })
       .sort({ createdAt: -1 })
       .limit(5)
       .populate('cityId', 'cityName stateId')
@@ -840,41 +967,40 @@ console.log(projectData)
           path: 'stateId',
           select: 'stateName',
         },
-      })
-      .then(docs =>
-        docs.map(doc => {
-          const projectObj = doc.toObject() as any;
-          //   Add cityName and stateName for easier access
-          if (projectObj.cityId) {
-            projectObj.cityName = (projectObj.cityId as any).cityName;
-            if ((projectObj.cityId as any).stateId) {
-              projectObj.stateName = (projectObj.cityId as any).stateId.stateName;
-            }
-          }
-          return projectObj;
-        })
-      );
+      });
+    const recentCountsMap = await getProjectPlotCountsBatch(recentProjectsDocs.map(p => p._id));
+    const recentProjects = recentProjectsDocs.map(doc => {
+      const projectObj = doc.toObject() as any;
+      if (projectObj.cityId) {
+        projectObj.cityName = (projectObj.cityId as any).cityName;
+        if ((projectObj.cityId as any).stateId) {
+          projectObj.stateName = (projectObj.cityId as any).stateId.stateName;
+        }
+      }
+      const counts = recentCountsMap.get(doc._id.toString()) || {
+        totalPlots: 0,
+        plotsAvailable: 0,
+        plotsSold: 0,
+        plotsReserved: 0,
+      };
+      Object.assign(projectObj, counts);
+      return projectObj;
+    });
 
-    const baseStats = stats[0] || {
-      totalProjects: 0,
-      totalPlots: 0,
-      totalArea: 0,
-      plotsSold: 0,
-      plotsReserved: 0,
-      plotsAvailable: 0,
-    };
-
-    // Calculate average progress
+    // Calculate average progress from Plot counts
     const allProjects = await Project.find({ isDeleted: false });
+    const allCountsMap = await getProjectPlotCountsBatch(allProjects.map(p => p._id));
+    let progressSum = 0;
+    let progressCount = 0;
+    for (const proj of allProjects) {
+      const c = allCountsMap.get(proj._id.toString());
+      if (c && c.totalPlots > 0) {
+        progressSum += ((c.plotsSold + c.plotsReserved) / c.totalPlots) * 100;
+        progressCount++;
+      }
+    }
     const averageProgress =
-      allProjects.length > 0
-        ? Math.round(
-            allProjects.reduce(
-              (sum, proj) => sum + ((proj.plotsSold + proj.plotsReserved) / proj.totalPlots) * 100,
-              0
-            ) / allProjects.length
-          )
-        : 0;
+      progressCount > 0 ? Math.round(progressSum / progressCount) : 0;
 
     const byStatus: Record<ProjectStatus, number> = {} as Record<ProjectStatus, number>;
     statusStats.forEach(stat => {
@@ -917,92 +1043,35 @@ console.log(projectData)
       throw new Error('Project not found');
     }
 
-    const nextNumber = project.plotsSold + project.plotsReserved + 1;
+    const counts = await getProjectPlotCounts(project._id);
+    const nextNumber = counts.plotsSold + counts.plotsReserved + 1;
     return `${project.projPrefix}-${nextNumber.toString().padStart(4, '0')}`;
   },
 
   /**
-   * Increment plot counts (sold/reserved)
+   * Increment plot counts - DEPRECATED. Counts now calculated from Plot.
+   * Kept for API compatibility; returns project with current counts.
    */
   async incrementPlotCount(
     projectId: string,
-    type: 'sold' | 'reserved',
-    count: number = 1,
-    userId: Types.ObjectId
+    _type: 'sold' | 'reserved',
+    _count: number = 1,
+    _userId: Types.ObjectId
   ): Promise<any | null> {
-    const updateField = type === 'sold' ? 'plotsSold' : 'plotsReserved';
-
-    const project = await Project.findByIdAndUpdate(
-      projectId,
-      {
-        $inc: { [updateField]: count },
-        $set: { updatedBy: userId },
-      },
-      { new: true }
-    )
-      .populate('cityId', 'cityName stateId')
-      .populate({
-        path: 'cityId',
-        populate: {
-          path: 'stateId',
-          select: 'stateName',
-        },
-      });
-
-    if (!project) return null;
-
-    const projectObj = project.toObject() as any;
-    // Add cityName and stateName for easier access
-    if (projectObj.cityId) {
-      projectObj.cityName = (projectObj.cityId as any).cityName;
-      if ((projectObj.cityId as any).stateId) {
-        projectObj.stateName = (projectObj.cityId as any).stateId.stateName;
-      }
-    }
-
-    return projectObj;
+    return this.getProjectById(projectId);
   },
 
   /**
-   * Decrement plot counts (sold/reserved)
+   * Decrement plot counts - DEPRECATED. Counts now calculated from Plot.
+   * Kept for API compatibility; returns project with current counts.
    */
   async decrementPlotCount(
     projectId: string,
-    type: 'sold' | 'reserved',
-    count: number = 1,
-    userId: Types.ObjectId
+    _type: 'sold' | 'reserved',
+    _count: number = 1,
+    _userId: Types.ObjectId
   ): Promise<any | null> {
-    const updateField = type === 'sold' ? 'plotsSold' : 'plotsReserved';
-
-    const project = await Project.findByIdAndUpdate(
-      projectId,
-      {
-        $inc: { [updateField]: -count },
-        $set: { updatedBy: userId },
-      },
-      { new: true }
-    )
-      .populate('cityId', 'cityName stateId')
-      .populate({
-        path: 'cityId',
-        populate: {
-          path: 'stateId',
-          select: 'stateName',
-        },
-      });
-
-    if (!project) return null;
-
-    const projectObj = project.toObject() as any;
-    // Add cityName and stateName for easier access
-    if (projectObj.cityId) {
-      projectObj.cityName = (projectObj.cityId as any).cityName;
-      if ((projectObj.cityId as any).stateId) {
-        projectObj.stateName = (projectObj.cityId as any).stateId.stateName;
-      }
-    }
-
-    return projectObj;
+    return this.getProjectById(projectId);
   },
 
   /**
@@ -1037,15 +1106,22 @@ console.log(projectData)
       .populate('createdBy', 'firstName lastName email')
       .limit(50);
 
+    const countsMap = await getProjectPlotCountsBatch(projects.map(p => p._id));
     return projects.map(project => {
       const projectObj = project.toObject() as any;
-      // Add cityName and stateName for easier access
       if (projectObj.cityId) {
         projectObj.cityName = (projectObj.cityId as any).cityName;
         if ((projectObj.cityId as any).stateId) {
           projectObj.stateName = (projectObj.cityId as any).stateId.stateName;
         }
       }
+      const counts = countsMap.get(project._id.toString()) || {
+        totalPlots: 0,
+        plotsAvailable: 0,
+        plotsSold: 0,
+        plotsReserved: 0,
+      };
+      Object.assign(projectObj, counts);
       return projectObj;
     });
   },
@@ -1054,47 +1130,40 @@ console.log(projectData)
    * Get projects with low availability (less than 10% plots available)
    */
   async getProjectsWithLowAvailability(threshold: number = 10): Promise<any[]> {
-    const projects = await Project.aggregate([
-      {
-        $match: {
-          isDeleted: false,
-          isActive: true,
-        },
-      },
-      {
-        $addFields: {
-          availabilityPercentage: {
-            $multiply: [{ $divide: ['$plotsAvailable', '$totalPlots'] }, 100],
-          },
-        },
-      },
-      {
-        $match: {
-          availabilityPercentage: { $lte: threshold },
-        },
-      },
-      {
-        $sort: { availabilityPercentage: 1 },
-      },
-    ]);
-
-    // Populate user and city fields
-    const populatedProjects = await Project.populate(projects, [
-      {
+    const projects = await Project.find({
+      isDeleted: false,
+      isActive: true,
+    })
+      .populate('cityId', 'cityName stateId')
+      .populate({
         path: 'cityId',
-        select: 'cityName stateId',
-        populate: {
-          path: 'stateId',
-          select: 'stateName',
-        },
-      },
-      { path: 'createdBy', select: 'firstName lastName email' },
-      { path: 'updatedBy', select: 'firstName lastName email' },
-    ]);
+        populate: { path: 'stateId', select: 'stateName' },
+      })
+      .populate('createdBy', 'firstName lastName email')
+      .populate('updatedBy', 'firstName lastName email');
 
-    return populatedProjects.map((project: any) => {
-      const projectObj = project.toObject ? project.toObject() : project;
-      // Add cityName and stateName for easier access
+    const countsMap = await getProjectPlotCountsBatch(projects.map(p => p._id));
+    const withCounts = projects.map(project => {
+      const projectObj = project.toObject() as any;
+      const counts = countsMap.get(project._id.toString()) || {
+        totalPlots: 0,
+        plotsAvailable: 0,
+        plotsSold: 0,
+        plotsReserved: 0,
+      };
+      Object.assign(projectObj, counts);
+      projectObj.availabilityPercentage =
+        counts.totalPlots > 0
+          ? Math.round((counts.plotsAvailable / counts.totalPlots) * 100)
+          : 0;
+      return projectObj;
+    });
+
+    const filtered = withCounts
+      .filter(p => p.availabilityPercentage <= threshold)
+      .sort((a, b) => a.availabilityPercentage - b.availabilityPercentage);
+
+    return filtered.map((projectObj: any) => {
       if (projectObj.cityId && typeof projectObj.cityId === 'object') {
         projectObj.cityName = (projectObj.cityId as any).cityName;
         if ((projectObj.cityId as any).stateId) {

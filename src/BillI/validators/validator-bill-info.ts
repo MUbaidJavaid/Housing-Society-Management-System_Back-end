@@ -1,5 +1,5 @@
 import { body, param, query, ValidationChain } from 'express-validator';
-import { BillStatus, BillType } from '../models/models-bill-info';
+import { BillStatus } from '../models/models-bill-info';
 
 export const validateCreateBillInfo = (): ValidationChain[] => [
   body('billNo')
@@ -12,11 +12,11 @@ export const validateCreateBillInfo = (): ValidationChain[] => [
       'Bill number can only contain uppercase letters, numbers, hyphens, underscores, and slashes'
     ),
 
-  body('billType')
+  body('billTypeId')
     .notEmpty()
     .withMessage('Bill type is required')
-    .isIn(Object.values(BillType))
-    .withMessage('Invalid bill type'),
+    .isMongoId()
+    .withMessage('Invalid bill type ID'),
 
   body('fileId')
     .trim()
@@ -50,8 +50,7 @@ export const validateCreateBillInfo = (): ValidationChain[] => [
     .withMessage('Current reading must be a positive number'),
 
   body('billAmount')
-    .notEmpty()
-    .withMessage('Bill amount is required')
+    .optional()
     .isFloat({ min: 0 })
     .withMessage('Bill amount must be a positive number'),
 
@@ -87,15 +86,7 @@ export const validateCreateBillInfo = (): ValidationChain[] => [
       }
     }
 
-    // Validate that at least one area measurement is provided for utility bills
-    if (
-      req.body.billType &&
-      (req.body.billType === BillType.ELECTRICITY || req.body.billType === BillType.WATER)
-    ) {
-      if (req.body.currentReading === undefined || req.body.previousReading === undefined) {
-        throw new Error('Current and previous readings are required for utility bills');
-      }
-    }
+    // Note: Readings validation for utility bill types could be added via BillType lookup if needed
 
     return true;
   }),
@@ -168,7 +159,7 @@ export const validateGetBills = (): ValidationChain[] => [
 
   query('fileId').optional().isMongoId().withMessage('Invalid File ID'),
 
-  query('billType').optional().isIn(Object.values(BillType)).withMessage('Invalid bill type'),
+  query('billTypeId').optional().isMongoId().withMessage('Invalid bill type ID'),
 
   query('status').optional().isIn(Object.values(BillStatus)).withMessage('Invalid bill status'),
 
@@ -257,11 +248,11 @@ export const validateGenerateBills = (): ValidationChain[] => [
     .custom(ids => ids.every((id: string) => typeof id === 'string'))
     .withMessage('All member IDs must be strings'),
 
-  body('billType')
+  body('billTypeId')
     .notEmpty()
     .withMessage('Bill type is required')
-    .isIn(Object.values(BillType))
-    .withMessage('Invalid bill type'),
+    .isMongoId()
+    .withMessage('Invalid bill type ID'),
 
   body('billMonth')
     .trim()

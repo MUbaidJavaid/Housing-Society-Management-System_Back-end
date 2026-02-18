@@ -130,7 +130,7 @@ export const fileService = {
       .populate({
         path: 'plot',
         select:
-          'plotNo plotRegistrationNo plotDimensions plotArea plotAreaUnit plotBasePrice plotTotalAmount surchargeAmount discountAmount plotFacing isPossessionReady plotStreet plotRemarks',
+          'plotNo plotRegistrationNo plotDimensions plotArea plotAreaUnit plotBasePrice plotTotalAmount surchargeAmount discountAmount plotFacing isPossessionReady plotStreet plotRemarks plotType',
         populate: [
           {
             path: 'projectId',
@@ -143,10 +143,6 @@ export const fileService = {
           {
             path: 'plotSizeId',
             select: 'plotSizeName totalArea areaUnit ratePerUnit',
-          },
-          {
-            path: 'plotTypeId',
-            select: 'plotTypeName plotTypeCode',
           },
           {
             path: 'plotCategoryId',
@@ -179,7 +175,7 @@ export const fileService = {
         .populate({
           path: 'plot',
           select:
-            'plotNo plotRegistrationNo plotDimensions plotArea plotAreaUnit plotBasePrice plotTotalAmount surchargeAmount discountAmount plotFacing isPossessionReady plotStreet plotRemarks',
+            'plotNo plotRegistrationNo plotDimensions plotArea plotAreaUnit plotBasePrice plotTotalAmount surchargeAmount discountAmount plotFacing isPossessionReady plotStreet plotRemarks plotType',
           populate: [
             {
               path: 'projectId',
@@ -192,10 +188,6 @@ export const fileService = {
             {
               path: 'plotSizeId',
               select: 'plotSizeName totalArea areaUnit ratePerUnit',
-            },
-            {
-              path: 'plotTypeId',
-              select: 'plotTypeName plotTypeCode',
             },
             {
               path: 'plotCategoryId',
@@ -375,7 +367,7 @@ export const fileService = {
         .populate({
           path: 'plot',
           select:
-            'plotNo plotRegistrationNo plotDimensions plotArea plotAreaUnit plotTotalAmount plotFacing',
+            'plotNo plotRegistrationNo plotDimensions plotArea plotAreaUnit plotTotalAmount plotFacing plotType',
           populate: [
             {
               path: 'projectId',
@@ -388,10 +380,6 @@ export const fileService = {
             {
               path: 'plotSizeId',
               select: 'plotSizeName totalArea areaUnit ratePerUnit',
-            },
-            {
-              path: 'plotTypeId',
-              select: 'plotTypeName plotTypeCode',
             },
             {
               path: 'plotCategoryId',

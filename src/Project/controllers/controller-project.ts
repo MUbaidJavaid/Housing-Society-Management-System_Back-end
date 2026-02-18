@@ -42,10 +42,6 @@ export const projectController = {
         throw new AppError(400, 'Valid Total Area is required');
       }
 
-      if (!createData.totalPlots || createData.totalPlots <= 0) {
-        throw new AppError(400, 'Valid Total Plots is required');
-      }
-
       if (!createData.launchDate) {
         throw new AppError(400, 'Launch Date is required');
       }

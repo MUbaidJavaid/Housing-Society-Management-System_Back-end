@@ -25,10 +25,11 @@ export interface Project {
   projDescription?: string;
   totalArea: number;
   areaUnit: string;
-  totalPlots: number;
-  plotsAvailable: number;
-  plotsSold: number;
-  plotsReserved: number;
+  /** Calculated from Plot count - included in API responses */
+  totalPlots?: number;
+  plotsAvailable?: number;
+  plotsSold?: number;
+  plotsReserved?: number;
   launchDate: Date;
   completionDate?: Date;
   projStatus: ProjectStatus;
@@ -66,7 +67,6 @@ export interface CreateProjectDto {
   projDescription?: string;
   totalArea: number;
   areaUnit: string;
-  totalPlots: number;
   launchDate: Date;
   completionDate?: Date;
   projStatus?: ProjectStatus;
@@ -93,9 +93,6 @@ export interface UpdateProjectDto {
   projDescription?: string;
   totalArea?: number;
   areaUnit?: string;
-  totalPlots?: number;
-  plotsSold?: number;
-  plotsReserved?: number;
   launchDate?: Date;
   completionDate?: Date;
   projStatus?: ProjectStatus;

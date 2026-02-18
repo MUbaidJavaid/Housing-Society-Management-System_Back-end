@@ -215,7 +215,7 @@ export const billTypeService = {
     // Prevent deactivation if bills exist
     if (data.isActive === false && existingBillType.isActive) {
       const billCount = await BillInfo.countDocuments({
-        billType: existingBillType._id,
+        billTypeId: existingBillType._id,
         isDeleted: false,
       });
 
@@ -249,7 +249,7 @@ export const billTypeService = {
 
     // Check if bill type has associated bills
     const billCount = await BillInfo.countDocuments({
-      billType: existingBillType._id,
+      billTypeId: existingBillType._id,
       isDeleted: false,
     });
 

@@ -27,7 +27,7 @@ export const billInfoController = {
       const createData: CreateBillInfoDto = req.body;
 
       // Validate required fields
-      if (!createData.billType) {
+      if (!createData.billTypeId?.trim()) {
         throw new AppError(400, 'Bill type is required');
       }
 
@@ -43,8 +43,8 @@ export const billInfoController = {
         throw new AppError(400, 'Bill month is required');
       }
 
-      if (createData.billAmount === undefined || createData.billAmount < 0) {
-        throw new AppError(400, 'Valid bill amount is required');
+      if (createData.billAmount !== undefined && createData.billAmount < 0) {
+        throw new AppError(400, 'Bill amount cannot be negative');
       }
 
       if (!createData.dueDate) {
@@ -113,7 +113,7 @@ export const billInfoController = {
         limit: req.query.limit ? parseInt(req.query.limit as string) : 20,
         memId: req.query.memId as string,
         fileId: req.query.fileId as string,
-        billType: req.query.billType as any,
+        billTypeId: req.query.billTypeId as string,
         status: req.query.status as any,
         billMonth: req.query.billMonth as string,
         year: req.query.year ? parseInt(req.query.year as string) : undefined,
@@ -350,7 +350,7 @@ export const billInfoController = {
         throw new AppError(400, 'Member IDs are required');
       }
 
-      if (!generateData.billType) {
+      if (!generateData.billTypeId?.trim()) {
         throw new AppError(400, 'Bill type is required');
       }
 

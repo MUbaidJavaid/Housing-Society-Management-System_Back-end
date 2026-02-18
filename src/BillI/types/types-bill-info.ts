@@ -1,10 +1,19 @@
 import { Types } from 'mongoose';
-import { BillStatus, BillType } from '../models/models-bill-info';
+import { BillStatus } from '../models/models-bill-info';
+
+export interface IBillTypePopulated {
+  _id: Types.ObjectId;
+  billTypeName: string;
+  billTypeCategory?: string;
+  defaultAmount?: number;
+  isRecurring?: boolean;
+}
 
 export interface BillInfoType {
   _id: Types.ObjectId;
   billNo: string;
-  billType: BillType;
+  billTypeId: Types.ObjectId;
+  billType?: IBillTypePopulated;
   fileId: Types.ObjectId;
   memId: Types.ObjectId;
   billMonth: string;
@@ -44,13 +53,13 @@ export interface BillInfoType {
 
 export interface CreateBillInfoDto {
   billNo?: string;
-  billType: BillType;
+  billTypeId: string;
   fileId: string;
   memId: string;
   billMonth: string;
   previousReading?: number;
   currentReading?: number;
-  billAmount: number;
+  billAmount?: number; // Optional: uses BillType.defaultAmount if not provided
   fineAmount?: number;
   arrears?: number;
   dueDate: Date;
@@ -87,7 +96,7 @@ export interface BillQueryParams {
   limit?: number;
   memId?: string;
   fileId?: string;
-  billType?: BillType;
+  billTypeId?: string;
   status?: BillStatus;
   billMonth?: string;
   year?: number;
@@ -111,7 +120,7 @@ export interface BillStatistics {
 
 export interface GenerateBillsDto {
   memberIds: string[];
-  billType: BillType;
+  billTypeId: string;
   billMonth: string;
   dueDate: Date;
   gracePeriodDays?: number;

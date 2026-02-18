@@ -24,10 +24,6 @@ export interface IProject extends Document {
   projDescription?: string;
   totalArea: number;
   areaUnit: string;
-  totalPlots: number;
-  plotsAvailable: number;
-  plotsSold: number;
-  plotsReserved: number;
   launchDate: Date;
   completionDate?: Date;
   projStatus: ProjectStatus;
@@ -56,7 +52,8 @@ export interface IProjectModel extends Model<IProject> {
   generateProjectCode(baseName: string): Promise<string>;
 }
 
-const projectSchema = new Schema<IProject>(
+// Use `any` for Model type to avoid TS2590 (Mongoose Schema generics produce too-complex union)
+const projectSchema = new Schema<IProject, any>(
   {
     projName: {
       type: String,
@@ -115,30 +112,6 @@ const projectSchema = new Schema<IProject>(
         message: '{VALUE} is not a valid area unit',
       },
       default: 'acres',
-    },
-
-    totalPlots: {
-      type: Number,
-      required: [true, 'Total Plots is required'],
-      min: [1, 'Total Plots must be at least 1'],
-    },
-
-    plotsAvailable: {
-      type: Number,
-      default: 0,
-      min: [0, 'Plots Available cannot be negative'],
-    },
-
-    plotsSold: {
-      type: Number,
-      default: 0,
-      min: [0, 'Plots Sold cannot be negative'],
-    },
-
-    plotsReserved: {
-      type: Number,
-      default: 0,
-      min: [0, 'Plots Reserved cannot be negative'],
     },
 
     launchDate: {
@@ -277,55 +250,12 @@ const projectSchema = new Schema<IProject>(
   }
 );
 
-// Pre-save middleware to calculate available plots
+// Pre-save middleware
 projectSchema.pre('save', function (next) {
-  // Calculate plots available based on total, sold, and reserved
-  this.plotsAvailable = this.totalPlots - this.plotsSold - this.plotsReserved;
-
-  // Ensure available plots is not negative
-  if (this.plotsAvailable < 0) {
-    next(new Error('Plots sold + reserved cannot exceed total plots'));
-  }
-
-  // Set completion date based on status
   if (this.projStatus === ProjectStatus.COMPLETED && !this.completionDate) {
     this.completionDate = new Date();
   }
-
   next();
-});
-
-// Pre-update middleware
-projectSchema.pre('findOneAndUpdate', function (next) {
-  const update = this.getUpdate() as any;
-
-  // If plots are being updated, recalculate available plots
-  if (
-    update.totalPlots !== undefined ||
-    update.plotsSold !== undefined ||
-    update.plotsReserved !== undefined
-  ) {
-    this.model
-      .findOne(this.getQuery())
-      .then((doc: any) => {
-        const totalPlots = update.totalPlots !== undefined ? update.totalPlots : doc.totalPlots;
-        const plotsSold = update.plotsSold !== undefined ? update.plotsSold : doc.plotsSold;
-        const plotsReserved =
-          update.plotsReserved !== undefined ? update.plotsReserved : doc.plotsReserved;
-
-        update.plotsAvailable = totalPlots - plotsSold - plotsReserved;
-
-        if (update.plotsAvailable < 0) {
-          next(new Error('Plots sold + reserved cannot exceed total plots'));
-          return;
-        }
-
-        next();
-      })
-      .catch(next);
-  } else {
-    next();
-  }
 });
 
 // Compound indexes for common queries
@@ -353,12 +283,6 @@ projectSchema.index(
 if (projectSchema.path('coordinates.latitude') && projectSchema.path('coordinates.longitude')) {
   projectSchema.index({ coordinates: '2dsphere' });
 }
-
-// Virtual for project progress percentage
-projectSchema.virtual('progressPercentage').get(function () {
-  if (this.totalPlots === 0) return 0;
-  return Math.round(((this.plotsSold + this.plotsReserved) / this.totalPlots) * 100);
-});
 
 // Virtual for formatted area display
 projectSchema.virtual('formattedArea').get(function () {
@@ -390,11 +314,6 @@ projectSchema.virtual('statusColor').get(function () {
     [ProjectStatus.CANCELLED]: 'red',
   };
   return colors[this.projStatus] || 'gray';
-});
-
-// Virtual for next plot number in sequence
-projectSchema.virtual('nextPlotNumber').get(function () {
-  return this.plotsSold + this.plotsReserved + 1;
 });
 
 // Virtual for city name (populated)

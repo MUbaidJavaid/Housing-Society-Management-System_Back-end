@@ -9,20 +9,9 @@ export enum BillStatus {
   DISPUTED = 'Disputed',
 }
 
-export enum BillType {
-  MEMBERSHIP_FEE = 'Membership Fee',
-  MAINTENANCE_FEE = 'Maintenance Fee',
-  ELECTRICITY = 'Electricity',
-  WATER = 'Water',
-  GAS = 'Gas',
-  PROPERTY_TAX = 'Property Tax',
-  LEGAL_FEE = 'Legal Fee',
-  OTHER = 'Other',
-}
-
 export interface IBillInfo extends Document {
   billNo: string;
-  billType: BillType;
+  billTypeId: Types.ObjectId;
   fileId: Types.ObjectId;
   memId: Types.ObjectId;
   billMonth: string; // Format: "January 2026"
@@ -71,9 +60,9 @@ const billInfoSchema = new Schema<IBillInfo>(
       maxlength: [50, 'Bill number cannot exceed 50 characters'],
       index: true,
     },
-    billType: {
-      type: String,
-      enum: Object.values(BillType),
+    billTypeId: {
+      type: Schema.Types.ObjectId,
+      ref: 'BillType',
       required: [true, 'Bill type is required'],
       index: true,
     },
@@ -221,7 +210,7 @@ const billInfoSchema = new Schema<IBillInfo>(
 
 // Compound indexes for efficient querying
 billInfoSchema.index({ billNo: 1, isDeleted: 1 }, { unique: true });
-billInfoSchema.index({ memId: 1, billMonth: 1, billType: 1 });
+billInfoSchema.index({ memId: 1, billMonth: 1, billTypeId: 1 });
 billInfoSchema.index({ status: 1, dueDate: 1 });
 billInfoSchema.index({ fileId: 1, isActive: 1 });
 billInfoSchema.index({ dueDate: -1, isActive: 1 });
@@ -370,16 +359,6 @@ billInfoSchema.pre('save', function (next) {
     }
   }
 
-  // Auto-generate bill number if not provided
-  if (!this.billNo) {
-    const prefix = this.billType.substring(0, 3).toUpperCase();
-    const timestamp = Date.now().toString().slice(-6);
-    const random = Math.floor(Math.random() * 1000)
-      .toString()
-      .padStart(3, '0');
-    this.billNo = `${prefix}-${timestamp}-${random}`;
-  }
-
   next();
 });
 
@@ -447,8 +426,8 @@ billInfoSchema.statics.findOverdueBills = function (page: number = 1, limit: num
 
   return Promise.all([
     this.find(query)
-      .populate('member', 'fullName memNic mobileNo')
-      .populate('file', 'fileNo')
+      .populate('memId', 'memName fullName memNic mobileNo')
+      .populate('fileId', 'fileRegNo')
       .sort({ dueDate: 1 })
       .skip(skip)
       .limit(limit),
@@ -464,7 +443,7 @@ billInfoSchema.statics.findByMemberAndMonth = function (memId: string, month: st
     isDeleted: false,
     isActive: true,
   })
-    .populate('file', 'fileNo fileType')
+    .populate('fileId', 'fileRegNo')
     .sort({ dueDate: 1 });
 };
 
@@ -511,7 +490,7 @@ billInfoSchema.statics.getStatistics = function (year?: number) {
         },
         byType: {
           $push: {
-            type: '$billType',
+            type: '$billTypeId',
             amount: '$totalPayable',
           },
         },

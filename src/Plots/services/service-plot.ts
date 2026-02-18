@@ -27,7 +27,7 @@ type PopulatedPlot = {
   plotDimensions: string;
   plotArea: number;
   plotAreaUnit: string;
-  plotTypeId: string;
+  plotType: string;
   plotBasePrice: number;
   surchargeAmount: number;
   discountAmount: number;
@@ -112,6 +112,7 @@ export const plotService = {
       ...data,
       plotArea,
       plotTotalAmount,
+      plotType: data.plotType,
       projectId: new Types.ObjectId(data.projectId),
       plotBlockId: new Types.ObjectId(data.plotBlockId),
       plotSizeId: new Types.ObjectId(data.plotSizeId),
@@ -601,7 +602,7 @@ export const plotService = {
     if (!updatedPlot) return null;
 
     // Update project plot counts
-    await this.updateProjectPlotCounts(plot.projectId);
+    // Plot counts now calculated dynamically per project
 
     return updatedPlot.toObject();
   },
@@ -633,28 +634,9 @@ export const plotService = {
     if (!updatedPlot) return null;
 
     // Update project plot counts
-    await this.updateProjectPlotCounts(plot.projectId);
+    // Plot counts now calculated dynamically per project
 
     return updatedPlot.toObject();
-  },
-
-  /**
-   * Update project plot counts
-   */
-  async updateProjectPlotCounts(projectId: Types.ObjectId): Promise<void> {
-    const [totalPlots, soldPlots] = await Promise.all([
-      Plot.countDocuments({ projectId, isDeleted: false }),
-      Plot.countDocuments({ projectId, fileId: { $exists: true, $ne: null }, isDeleted: false }),
-    ]);
-
-    const availablePlots = totalPlots - soldPlots;
-
-    await Project.findByIdAndUpdate(projectId, {
-      $set: {
-        plotsAvailable: availablePlots,
-        plotsSold: soldPlots,
-      },
-    });
   },
 
   /**
@@ -1176,7 +1158,7 @@ export const plotService = {
         area: plotObj.plotArea,
         areaUnit: plotObj.plotAreaUnit,
         category: (plotObj.plotCategoryId as any)?.categoryName,
-        type: plotObj.plotTypeId,
+        type: plotObj.plotType,
         status: (plotObj.salesStatusId as any)?.statusName,
         developmentStatus: (plotObj.srDevStatId as any)?.srDevStatName,
         basePrice: plotObj.plotBasePrice,
