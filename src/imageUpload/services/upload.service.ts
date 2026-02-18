@@ -6,7 +6,7 @@ import {
   deleteFromCloudinary,
   uploadToCloudinary,
 } from '../config/cloudinary.config';
-import { FileModel } from '../models/File.model';
+import { FileModel, type IFileDocument } from '../models/File.model';
 import {
   EntityType,
   FileType,
@@ -166,7 +166,7 @@ export class UploadService {
    */
   async getFilesByEntity(entityType: EntityType, entityId: string): Promise<IFile[]> {
     const files = await FileModel.findByEntity(entityType, entityId);
-    return files.map(file => file.toObject());
+    return files.map((file: IFileDocument) => file.toObject());
   }
 
   /**

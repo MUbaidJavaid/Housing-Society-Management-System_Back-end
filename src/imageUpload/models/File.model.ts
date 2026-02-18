@@ -173,5 +173,5 @@ FileSchema.statics.softDelete = function (fileId: string, deletedBy: string) {
 };
 
 export const FileModel =
-  (mongoose.models.UploadFile as Model<IFileDocument>) ||
+  (mongoose.models.UploadFile as IFileModel) ||
   mongoose.model<IFileDocument, IFileModel>('UploadFile', FileSchema);

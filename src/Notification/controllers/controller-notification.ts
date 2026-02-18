@@ -3,6 +3,9 @@ import { AuthRequest } from '../../auth/types';
 import { AppError } from '../../middleware/error.middleware';
 import { notificationService } from '../services/service-notification';
 
+const getSingleValue = (value: string | string[] | undefined): string | undefined =>
+  Array.isArray(value) ? value[0] : value;
+
 export const notificationController = {
   /**
    * Get user notifications
@@ -13,9 +16,13 @@ export const notificationController = {
         throw new AppError(401, 'Authentication required');
       }
 
-      const page = req.query.page ? parseInt(req.query.page as string) : 1;
-      const limit = req.query.limit ? parseInt(req.query.limit as string) : 20;
-      const unreadOnly = req.query.unreadOnly === 'true';
+      const pageValue = getSingleValue(req.query.page);
+      const limitValue = getSingleValue(req.query.limit);
+      const unreadOnlyValue = getSingleValue(req.query.unreadOnly);
+
+      const page = pageValue ? parseInt(pageValue, 10) : 1;
+      const limit = limitValue ? parseInt(limitValue, 10) : 20;
+      const unreadOnly = unreadOnlyValue === 'true';
 
       const result = await notificationService.getUserNotifications(req.user.userId.toString(), {
         page,
@@ -43,7 +50,10 @@ export const notificationController = {
         throw new AppError(401, 'Authentication required');
       }
 
-      const notificationId = req.params.id;
+      const notificationId = getSingleValue(req.params.id);
+      if (!notificationId) {
+        throw new AppError(400, 'Notification ID is required');
+      }
       const notification = await notificationService.markAsRead(notificationId, req.user.userId);
 
       if (!notification) {
@@ -89,7 +99,10 @@ export const notificationController = {
         throw new AppError(401, 'Authentication required');
       }
 
-      const notificationId = req.params.id;
+      const notificationId = getSingleValue(req.params.id);
+      if (!notificationId) {
+        throw new AppError(400, 'Notification ID is required');
+      }
       const notification = await notificationService.deleteNotification(notificationId);
 
       if (!notification) {
