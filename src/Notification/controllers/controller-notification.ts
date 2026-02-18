@@ -3,8 +3,18 @@ import { AuthRequest } from '../../auth/types';
 import { AppError } from '../../middleware/error.middleware';
 import { notificationService } from '../services/service-notification';
 
-const getSingleValue = (value: string | string[] | undefined): string | undefined =>
-  Array.isArray(value) ? value[0] : value;
+type ParsedQs = Record<string, unknown>;
+
+const getSingleValue = (
+  value: string | ParsedQs | (string | ParsedQs)[] | undefined
+): string | undefined => {
+  if (Array.isArray(value)) {
+    const first = value[0];
+    return typeof first === 'string' ? first : undefined;
+  }
+
+  return typeof value === 'string' ? value : undefined;
+};
 
 export const notificationController = {
   /**
