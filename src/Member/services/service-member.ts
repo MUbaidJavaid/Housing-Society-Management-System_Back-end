@@ -7,21 +7,77 @@ export const memberService = {
     // Generate registration number if not provided
     if (!data.memRegNo) {
       const year = new Date().getFullYear();
-      const count = await Member.countDocuments();
-      data.memRegNo = `MEM${year}${String(count + 1).padStart(5, '0')}`;
+
+      // Find the highest registration number for the current year to prevent race conditions
+      const lastMember = await Member.findOne({
+        memRegNo: { $regex: `^MEM${year}` },
+      })
+        .sort({ memRegNo: -1 })
+        .select('memRegNo')
+        .lean();
+
+      let nextNumber = 1;
+      if (lastMember?.memRegNo) {
+        // Extract the numeric part from the registration number
+        const match = lastMember.memRegNo.match(/\d+$/);
+        if (match) {
+          nextNumber = parseInt(match[0], 10) + 1;
+        }
+      }
+
+      data.memRegNo = `MEM${year}${String(nextNumber).padStart(5, '0')}`;
     }
 
-    const member = await Member.create({
-      ...data,
-      statusId: data.statusId ? new Types.ObjectId(data.statusId) : undefined,
-      cityId: data.cityId ? new Types.ObjectId(data.cityId) : undefined,
-      dateOfBirth: data.dateOfBirth ? new Date(data.dateOfBirth) : undefined,
-      memIsOverseas: data.memIsOverseas || false,
-      createdBy: userId,
-      updatedBy: userId,
-    });
+    // Try to create the member with retry logic for duplicate key errors
+    let attempts = 0;
+    const maxAttempts = 3;
 
-    return member;
+    while (attempts < maxAttempts) {
+      try {
+        const member = await Member.create({
+          ...data,
+          statusId: data.statusId ? new Types.ObjectId(data.statusId) : undefined,
+          cityId: data.cityId ? new Types.ObjectId(data.cityId) : undefined,
+          dateOfBirth: data.dateOfBirth ? new Date(data.dateOfBirth) : undefined,
+          memIsOverseas: data.memIsOverseas || false,
+          createdBy: userId,
+          updatedBy: userId,
+        });
+
+        return member;
+      } catch (error: any) {
+        // If it's a duplicate key error on memRegNo, regenerate and retry
+        if (error.code === 11000 && error.message?.includes('memRegNo')) {
+          attempts++;
+          if (attempts < maxAttempts) {
+            // Regenerate the registration number
+            const year = new Date().getFullYear();
+            const lastMember = await Member.findOne({
+              memRegNo: { $regex: `^MEM${year}` },
+            })
+              .sort({ memRegNo: -1 })
+              .select('memRegNo')
+              .lean();
+
+            let nextNumber = 1;
+            if (lastMember?.memRegNo) {
+              const match = lastMember.memRegNo.match(/\d+$/);
+              if (match) {
+                nextNumber = parseInt(match[0], 10) + 1;
+              }
+            }
+
+            data.memRegNo = `MEM${year}${String(nextNumber).padStart(5, '0')}`;
+            continue;
+          }
+        }
+
+        // If it's not a duplicate memRegNo error, or we've exceeded max attempts, throw the error
+        throw error;
+      }
+    }
+
+    throw new Error('Failed to create member after multiple attempts');
   },
 
   async getMemberById(id: string): Promise<any | null> {

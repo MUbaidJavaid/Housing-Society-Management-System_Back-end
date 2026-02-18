@@ -51,11 +51,19 @@ export const errorHandler = (
     });
   }
 
-  // Mongoose duplicate key error
-  if (error.name === 'MongoError' && (error as any).code === 11000) {
+  // Mongoose duplicate key error (both old MongoError and new MongoServerError)
+  if (
+    (error.name === 'MongoError' || error.name === 'MongoServerError') &&
+    (error as any).code === 11000
+  ) {
+    // Extract field name from error message if possible
+    const match = error.message?.match(/index: (\w+)_1 dup key/);
+    const field = match ? match[1] : 'field';
+
     return res.status(StatusCodes.CONFLICT).json({
       success: false,
-      error: 'Duplicate key error',
+      error: `A record with this ${field} already exists`,
+      field: field,
     });
   }
 
