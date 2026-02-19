@@ -3,7 +3,6 @@ import { AuthRequest } from '../../auth/types';
 import { AppError } from '../../middleware/error.middleware';
 import {
   CreatePaymentModeDto,
-  PaymentModeName,
   PaymentModeQueryParams,
 } from '../index-paymentmodule';
 import { paymentModeService } from '../services/service-paymentmodule';
@@ -22,13 +21,8 @@ export const paymentModeController = {
       const createData: CreatePaymentModeDto = req.body;
 
       // Validate required fields
-      if (!createData.paymentModeName) {
+      if (!createData.paymentModeName?.trim()) {
         throw new AppError(400, 'Payment Mode Name is required');
-      }
-
-      // Validate enum value
-      if (!Object.values(PaymentModeName).includes(createData.paymentModeName)) {
-        throw new AppError(400, 'Invalid Payment Mode');
       }
 
       // Check if payment mode already exists
@@ -151,13 +145,9 @@ export const paymentModeController = {
       // Check if payment mode name is being changed and if it already exists
       if (
         updateData.paymentModeName &&
+        updateData.paymentModeName.trim() &&
         updateData.paymentModeName !== existingPaymentMode.paymentModeName
       ) {
-        // Validate enum value
-        if (!Object.values(PaymentModeName).includes(updateData.paymentModeName)) {
-          throw new AppError(400, 'Invalid Payment Mode');
-        }
-
         const exists = await paymentModeService.checkPaymentModeNameExists(
           updateData.paymentModeName,
           id

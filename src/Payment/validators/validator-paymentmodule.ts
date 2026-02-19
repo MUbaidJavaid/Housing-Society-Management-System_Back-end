@@ -1,13 +1,12 @@
 import { body, param, query, ValidationChain } from 'express-validator';
-import { PaymentModeName } from '../models/models-paymentmodule';
 
 export const validateCreatePaymentMode = (): ValidationChain[] => [
   body('paymentModeName')
     .trim()
     .notEmpty()
     .withMessage('Payment Mode Name is required')
-    .isIn(Object.values(PaymentModeName))
-    .withMessage('Invalid Payment Mode'),
+    .isLength({ min: 1, max: 100 })
+    .withMessage('Payment Mode Name must be between 1 and 100 characters'),
 
   body('description')
     .optional()

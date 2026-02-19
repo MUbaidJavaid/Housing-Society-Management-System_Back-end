@@ -1,14 +1,7 @@
 import { Document, Model, Schema, Types, model } from 'mongoose';
 
-export enum PaymentModeName {
-  CASH = 'cash',
-  BANK_TRANSFER = 'Bank transfer',
-  CHEQUE = 'check',
-  PAY_ORDER = 'p/0',
-}
-
 export interface IPaymentMode extends Document {
-  paymentModeName: PaymentModeName;
+  paymentModeName: string;
   description?: string;
   isActive: boolean;
   createdBy: Types.ObjectId;
@@ -24,9 +17,10 @@ const paymentModeSchema = new Schema<IPaymentMode>(
   {
     paymentModeName: {
       type: String,
-      enum: Object.values(PaymentModeName),
       required: [true, 'Payment Mode Name is required'],
       trim: true,
+      minlength: [1, 'Payment Mode Name must be at least 1 character'],
+      maxlength: [100, 'Payment Mode Name cannot exceed 100 characters'],
       index: true,
     },
 

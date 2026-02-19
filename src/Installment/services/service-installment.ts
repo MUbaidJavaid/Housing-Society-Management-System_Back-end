@@ -88,8 +88,8 @@ export const installmentService = {
       throw new Error('Plot not found');
     }
 
-    // Check if plot has fileId and belongs to the file
-    if (!plot.fileId || plot.fileId.toString() !== data.fileId) {
+    // Check if file's plotId matches the selected plot (File.plotId is source of truth)
+    if (file.plotId.toString() !== data.plotId) {
       throw new Error('Plot does not belong to the specified file');
     }
 
@@ -172,8 +172,8 @@ export const installmentService = {
       throw new Error('Plot not found');
     }
 
-    // Check if plot has fileId and belongs to the file
-    if (!plot.fileId || plot.fileId.toString() !== data.fileId) {
+    // Check if file's plotId matches the selected plot (File.plotId is source of truth)
+    if (file.plotId.toString() !== data.plotId) {
       throw new Error('Plot does not belong to the specified file');
     }
 

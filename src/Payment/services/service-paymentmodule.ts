@@ -2,7 +2,6 @@ import { Types } from 'mongoose';
 
 import {
   CreatePaymentModeDto,
-  PaymentModeName,
   PaymentModeQueryParams,
   UpdatePaymentModeDto,
 } from '../index-paymentmodule';
@@ -113,11 +112,12 @@ export const paymentModeService = {
   },
 
   async checkPaymentModeNameExists(
-    paymentModeName: PaymentModeName,
+    paymentModeName: string,
     excludeId?: string
   ): Promise<boolean> {
+    const escaped = paymentModeName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const query: any = {
-      paymentModeName: { $regex: new RegExp(`^${paymentModeName}$`, 'i') },
+      paymentModeName: { $regex: new RegExp(`^${escaped}$`, 'i') },
       isDeleted: false,
     };
 
@@ -185,36 +185,8 @@ export const paymentModeService = {
   },
 
   async getDefaultPaymentModes(): Promise<any[]> {
-    // Return default payment modes if none exist
+    // Return existing payment modes (users add their own custom names)
     const existingModes = await PaymentMode.find({ isDeleted: false });
-
-    if (existingModes.length === 0) {
-      const defaultModes = [
-        {
-          paymentModeName: PaymentModeName.CASH,
-          description: 'Cash payment',
-          isActive: true,
-        },
-        {
-          paymentModeName: PaymentModeName.BANK_TRANSFER,
-          description: 'Bank transfer payment',
-          isActive: true,
-        },
-        {
-          paymentModeName: PaymentModeName.CHEQUE,
-          description: 'Cheque payment',
-          isActive: true,
-        },
-        {
-          paymentModeName: PaymentModeName.PAY_ORDER,
-          description: 'Pay order payment',
-          isActive: true,
-        },
-      ];
-
-      return defaultModes;
-    }
-
     return existingModes.map(mode => mode.toObject());
   },
 };

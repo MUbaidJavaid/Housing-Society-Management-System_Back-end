@@ -83,7 +83,8 @@ export const srTransferTypeService = {
     try {
       const transferType = await SrTransferType.findById(id)
         .populate('createdBy', 'userName fullName designation')
-        .populate('modifiedBy', 'userName fullName designation');
+        .populate('modifiedBy', 'userName fullName designation')
+        .populate({ path: 'transferCount', match: { isDeleted: false } });
 
       if (!transferType || transferType.isDeleted) {
         throw new Error('Transfer type not found');
@@ -160,6 +161,7 @@ export const srTransferTypeService = {
     const [transferTypes, total] = await Promise.all([
       SrTransferType.find(query)
         .populate('createdBy', 'userName fullName')
+        .populate({ path: 'transferCount', match: { isDeleted: false } })
         .skip(skip)
         .limit(limit)
         .sort(sort)
