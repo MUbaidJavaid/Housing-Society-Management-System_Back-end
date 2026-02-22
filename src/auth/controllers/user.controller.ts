@@ -31,7 +31,7 @@ export const getVapidPublicKey = (_req: Request, res: Response) => {
       message: 'Push notifications not configured',
     });
   }
-  res.json({ success: true, data: { publicKey: key } });
+  return res.json({ success: true, data: { publicKey: key } });
 };
 
 // User controller functions

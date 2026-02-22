@@ -12,7 +12,7 @@ async function dropObsoleteFileIndex(): Promise<void> {
     if (!db) return;
     const coll = db.collection('files');
     const indexes = await coll.indexes();
-    const hasPublicIdIndex = indexes.some((idx: { name: string }) => idx.name === 'publicId_1');
+    const hasPublicIdIndex = indexes.some(idx => idx.name === 'publicId_1');
     if (hasPublicIdIndex) {
       await coll.dropIndex('publicId_1');
       logger.info('Dropped obsolete publicId_1 index from files collection');

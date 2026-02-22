@@ -1,7 +1,7 @@
-import webPush from 'web-push';
-import { logger } from '../../logger';
-import User from '../../database/models/User';
 import { Types } from 'mongoose';
+import webPush from 'web-push';
+import User from '../../database/models/User';
+import { logger } from '../../logger';
 
 export interface PushNotificationPayload {
   title: string;
@@ -55,9 +55,7 @@ export async function sendPushToUser(
     return { success: false, delivered: 0, failed: 0, message: 'VAPID not configured' };
   }
 
-  const user = await User.findById(userId)
-    .select('pushSubscriptions preferences')
-    .lean();
+  const user = await User.findById(userId).select('pushSubscriptions preferences').lean();
 
   if (!user) {
     return { success: false, delivered: 0, failed: 0, message: 'User not found' };
@@ -125,3 +123,26 @@ export async function sendPushToUser(
     message: `Delivered ${delivered}, failed ${failed}`,
   };
 }
+
+export const pushNotificationService = {
+  async sendToUsers(
+    userIds: Array<string | Types.ObjectId>,
+    payload: PushNotificationPayload
+  ): Promise<PushNotificationResult> {
+    let delivered = 0;
+    let failed = 0;
+
+    for (const userId of userIds) {
+      const result = await sendPushToUser(userId, payload);
+      delivered += result.delivered;
+      failed += result.failed;
+    }
+
+    return {
+      success: failed === 0,
+      delivered,
+      failed,
+      message: `Delivered ${delivered}, failed ${failed}`,
+    };
+  },
+};

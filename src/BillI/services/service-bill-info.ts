@@ -177,7 +177,6 @@ export const billInfoService = {
       limit = 20,
       memId,
       fileId,
-      billType,
       status,
       billMonth,
       year,

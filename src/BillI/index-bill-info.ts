@@ -1,5 +1,5 @@
 // Export types and enums
-export { BillStatus, BillType } from './models/models-bill-info';
+export { BillStatus } from './models/models-bill-info';
 export * from './types/types-bill-info';
 
 // Export services

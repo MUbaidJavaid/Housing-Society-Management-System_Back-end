@@ -1,9 +1,8 @@
 import { Types } from 'mongoose';
-import UserNotification from '../models/models-user-notification';
-import { emitNotificationToUser } from '../../core/socket';
 import { sendPushToUser } from '../../core/notifications/push-notification.service';
-import User from '../../database/models/User';
+import { emitNotificationToUser } from '../../core/socket';
 import { logger } from '../../logger';
+import UserNotification from '../models/models-user-notification';
 
 export interface CreateNotificationInput {
   userId: string | Types.ObjectId;
@@ -91,9 +90,12 @@ export const userNotificationService = {
   },
 
   async markAllAsRead(userId: Types.ObjectId) {
-    return UserNotification.updateMany({ userId, read: false }, {
-      $set: { read: true, readAt: new Date() },
-    });
+    return UserNotification.updateMany(
+      { userId, read: false },
+      {
+        $set: { read: true, readAt: new Date() },
+      }
+    );
   },
 
   async getUnreadCount(userId: string) {

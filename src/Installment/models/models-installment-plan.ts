@@ -1,4 +1,4 @@
-import { Document, Model, Schema, Types, model } from 'mongoose';
+import { Document, Schema, Types, model } from 'mongoose';
 
 export interface IInstallmentPlan extends Document {
   projId: Types.ObjectId;
