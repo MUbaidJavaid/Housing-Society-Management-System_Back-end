@@ -55,6 +55,8 @@ import { plotBlockRoutes } from './Plots/index-plotblock';
 import { plotSizeRoutes } from './Plots/index-plotsize';
 import { plotTypeRoutes } from './Plots/index-plottype';
 import userRoutes from './routes/user.routes';
+import { getVapidPublicKey } from './auth/controllers/user.controller';
+import { initializeWebPush } from './core/notifications/push-notification.service';
 import { scheduleLogRotation, setupLogRotation } from './utils/log-rotation';
 //cityRoutes
 
@@ -80,6 +82,8 @@ import { uploadRoutes } from './imageUpload';
 import { ApiError } from './imageUpload/utils/error-handler';
 import { installmentRoutes } from './Installment/index-installment';
 import { installmentCategoryRoutes } from './Installment/index-installment-category';
+import { installmentPlanDetailRoutes } from './Installment/index-installment-plan-detail';
+import { installmentPlanRoutes } from './Installment/index-installment-plan';
 import { authMemberRoutes } from './Member/indexa-member';
 import { srModuleRoutes } from './Module/index-srmodule';
 import { nomineeRoutes } from './Nominee/index-nominee';
@@ -410,6 +414,9 @@ function setupRoutes(app: Application): void {
   // User/Admin auth at /api/auth
   app.use('/api/auth', authRoutes);
 
+  // VAPID public key for web push (no auth required)
+  app.get('/api/vapid-public-key', getVapidPublicKey);
+
   // Member authentication routes - ALSO at /api/auth, routes will handle path
   // But given the structure, member routes at /api/auth/member is cleaner
   app.use('/api/auth/member', authMemberRoutes);
@@ -496,6 +503,8 @@ function setupRoutes(app: Application): void {
 
   app.use('/api/billtype', billTypeRoutes);
   app.use('/api/installmentcategory', installmentCategoryRoutes);
+  app.use('/api/installment-plans', installmentPlanRoutes);
+  app.use('/api/installment-plan-details', installmentPlanDetailRoutes);
   app.use('/api/installment', installmentRoutes);
   app.get('/api/test', (_req: Request, res: Response) => {
     res.json({ success: true, message: 'API is working' });
@@ -883,6 +892,15 @@ export async function createApp(): Promise<Application> {
       console.log('✅ [createApp-5] Rate limiter initialized');
     } catch (rateLimitError: any) {
       console.warn('⚠️ [createApp-5] Rate limiter initialization failed:', rateLimitError.message);
+    }
+
+    // Initialize web push (VAPID)
+    console.log('🔍 [createApp-5b] Initializing web push...');
+    try {
+      initializeWebPush();
+      console.log('✅ [createApp-5b] Web push initialized');
+    } catch (wpError: any) {
+      console.warn('⚠️ [createApp-5b] Web push init skipped:', wpError?.message || wpError);
     }
 
     // Setup middleware

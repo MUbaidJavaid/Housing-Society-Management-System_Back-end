@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { authenticate, requireMember } from '../../auth/middleware/auth';
+import { validateRequest } from '../../Complaint/middleware/validation.middleware';
 import { authMemberController } from '../controllers/auth-member.controller';
 import {
   validateChangePassword,
@@ -18,7 +19,7 @@ const router: Router = Router();
 
 // Public routes (no authentication required)
 router.post('/signup', validateSignup(), authMemberController.signup);
-router.post('/login', validateLogin(), authMemberController.login);
+router.post('/login', validateLogin(), validateRequest, authMemberController.login);
 router.post('/forgot-password', validateForgotPassword(), authMemberController.forgotPassword);
 router.post('/reset-password', validateResetPassword(), authMemberController.resetPassword);
 router.post('/verify-email', validateVerifyEmail(), authMemberController.verifyEmail);

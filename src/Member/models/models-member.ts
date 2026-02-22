@@ -344,6 +344,17 @@ memberSchema.index({ createdBy: 1, isDeleted: 1 });
 memberSchema.index({ gender: 1, isDeleted: 1 });
 memberSchema.index({ isActive: 1, isDeleted: 1 });
 memberSchema.index({ emailVerified: 1, isDeleted: 1 });
+memberSchema.index(
+  { memContEmail: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      isDeleted: false,
+      memContEmail: { $exists: true, $type: 'string', $ne: '' },
+    },
+    name: 'uniq_active_member_email',
+  }
+);
 
 // Virtual for isLocked
 memberSchema.virtual('isLocked').get(function (this: IMember) {

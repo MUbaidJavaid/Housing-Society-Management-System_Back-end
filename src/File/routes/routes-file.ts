@@ -11,6 +11,7 @@ import {
   validateCreateFile,
   validateGetFiles,
   validateMemIdParam,
+  validatePlanIdParam,
   validateProjIdParam,
   validateTransferFile,
   validateUpdateFile,
@@ -96,6 +97,15 @@ router.get(
   validateProjIdParam(),
   validateRequest,
   fileController.getFilesByProject
+);
+
+router.get(
+  '/by-plan/:planId',
+  authenticate,
+  requireRole(UserRole.ADMIN, UserRole.SUPER_ADMIN),
+  validatePlanIdParam(),
+  validateRequest,
+  fileController.getFilesByPlan
 );
 
 router.get(

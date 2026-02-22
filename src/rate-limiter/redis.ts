@@ -50,9 +50,13 @@ const defaultRedisConfig = {
   commandTimeout: 5000,
 };
 // Create Redis client
-export function createRedisClient(config?: Partial<typeof defaultRedisConfig>) {
-  // Check if Redis should be used
-  const shouldUseRedis = process.env.REDIS_URL || process.env.REDIS_HOST;
+export function createRedisClient(
+  config?: Partial<typeof defaultRedisConfig> & { useMock?: boolean }
+) {
+  // Force mock when useMock is true (e.g. production + localhost Redis)
+  const forceMock = config?.useMock === true;
+  const { useMock: _omit, ...redisConfig } = config || {};
+  const shouldUseRedis = !forceMock && (process.env.REDIS_URL || process.env.REDIS_HOST);
 
   if (!shouldUseRedis) {
     console.log('🚫 Redis not configured - using mock Redis client');
@@ -85,9 +89,10 @@ export function createRedisClient(config?: Partial<typeof defaultRedisConfig>) {
       // Add all methods used in strategies.ts
     } as any;
 
+    redisClient = mockClient;
     return mockClient;
   }
-  const finalConfig = { ...defaultRedisConfig, ...config };
+  const finalConfig = { ...defaultRedisConfig, ...redisConfig };
 
   try {
     redisClient = new Redis(finalConfig);

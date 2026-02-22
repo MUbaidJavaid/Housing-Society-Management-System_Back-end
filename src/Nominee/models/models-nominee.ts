@@ -154,6 +154,17 @@ nomineeSchema.index({ memId: 1, isDeleted: 1 });
 nomineeSchema.index({ nomineeCNIC: 1, isDeleted: 1 }, { unique: true });
 nomineeSchema.index({ isActive: 1, isDeleted: 1 });
 nomineeSchema.index({ nomineeName: 'text', nomineeCNIC: 'text' });
+nomineeSchema.index(
+  { nomineeEmail: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      isDeleted: false,
+      nomineeEmail: { $exists: true, $type: 'string', $ne: '' },
+    },
+    name: 'uniq_active_nominee_email',
+  }
+);
 
 // Virtual for member
 nomineeSchema.virtual('member', {

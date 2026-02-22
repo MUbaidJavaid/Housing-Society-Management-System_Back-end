@@ -41,7 +41,16 @@ export const validateSignup = (): ValidationChain[] => [
 ];
 
 export const validateLogin = (): ValidationChain[] => [
-  body('identifier').trim().notEmpty().withMessage('CNIC or Email is required'),
+  body().custom((_, { req }) => {
+    const identifier = req.body.identifier?.toString().trim();
+    const memContEmail = req.body.memContEmail?.toString().trim();
+
+    if (!identifier && !memContEmail) {
+      throw new Error('Email is required');
+    }
+
+    return true;
+  }),
 
   body('password').trim().notEmpty().withMessage('Password is required'),
 ];

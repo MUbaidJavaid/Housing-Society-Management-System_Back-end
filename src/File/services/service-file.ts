@@ -1,6 +1,7 @@
 // src/database/File/services/service-file.ts
 import { Types } from 'mongoose';
 import Application from '../../Application/models/models-application';
+import InstallmentPlan from '../../Installment/models/models-installment-plan';
 import Member from '../../Member/models/models-member';
 import Nominee from '../../Nominee/models/models-nominee';
 import Plot from '../../Plots/models/models-plot';
@@ -47,15 +48,33 @@ export const fileService = {
       }
     }
 
+    // Plan is REQUIRED
+    if (!data.planId) {
+      throw new Error('Installment plan is required');
+    }
+
     // Plot is REQUIRED
     if (!data.plotId) {
       throw new Error('Plot ID is required - file must be associated with a plot');
+    }
+
+    // Check if plan exists and is active
+    const plan = await InstallmentPlan.findById(data.planId);
+    if (!plan || (plan as any).isDeleted || !(plan as any).isActive) {
+      throw new Error('Installment plan not found or inactive');
     }
 
     // Check if plot exists
     const plot = await Plot.findById(data.plotId);
     if (!plot || (plot as any).isDeleted) {
       throw new Error('Plot not found');
+    }
+
+    // Validate plan belongs to plot's project
+    const plotProjId = (plot.projectId as Types.ObjectId).toString();
+    const planProjId = (plan.projId as Types.ObjectId).toString();
+    if (plotProjId !== planProjId) {
+      throw new Error('Installment plan must belong to the same project as the selected plot');
     }
 
     // Check if member exists
@@ -124,6 +143,7 @@ export const fileService = {
 
     // Populate with detailed plot information
     const createdFile = await File.findById(file._id)
+      .populate('plan', 'planName totalMonths totalAmount projId')
       .populate('member', 'memName memNic mobileNo')
       .populate('nominee', 'nomineeName relationWithMember nomineeCNIC nomineeContact')
       .populate('application', 'applicationNo')
@@ -169,6 +189,7 @@ export const fileService = {
   async getFileById(id: string): Promise<FileType> {
     try {
       const file = await File.findById(id)
+        .populate('plan', 'planName totalMonths totalAmount projId')
         .populate('member', 'memName memNic fatherName mobileNo email address')
         .populate('nominee', 'nomineeName relationWithMember nomineeCNIC nomineeContact')
         .populate('application', 'applicationNo applicationDate statusId')
@@ -227,6 +248,7 @@ export const fileService = {
       fileRegNo: fileRegNo.toUpperCase(),
       isDeleted: false,
     })
+      .populate('plan', 'planName totalMonths totalAmount projId')
       .populate('member', 'memName memNic mobileNo')
       .populate({
         path: 'plot',
@@ -256,6 +278,7 @@ export const fileService = {
       fileBarCode,
       isDeleted: false,
     })
+      .populate('plan', 'planName totalMonths totalAmount projId')
       .populate('member', 'memName memNic mobileNo')
       .populate({
         path: 'plot',
@@ -282,6 +305,7 @@ export const fileService = {
       limit = 20,
       projId,
       projectId,
+      planId,
       memId,
       nomineeId,
       plotId,
@@ -334,6 +358,10 @@ export const fileService = {
       query.plotId = new Types.ObjectId(plotId);
     }
 
+    if (planId) {
+      query.planId = new Types.ObjectId(planId);
+    }
+
     if (status) {
       query.status = status;
     }
@@ -361,6 +389,7 @@ export const fileService = {
 
     const [files, total] = await Promise.all([
       File.find(query)
+        .populate('plan', 'planName totalMonths totalAmount projId')
         .populate('member', 'memName memNic mobileNo')
         .populate('nominee', 'nomineeName relationWithMember nomineeCNIC')
         .populate('application', 'applicationNo applicationDate')
@@ -423,11 +452,46 @@ export const fileService = {
       throw new Error('File not found');
     }
 
+    // Check if planId is being changed
+    const newPlanId = data.planId;
+    if (newPlanId && newPlanId !== existingFile.planId?.toString()) {
+      const plan = await InstallmentPlan.findById(newPlanId);
+      if (!plan || (plan as any).isDeleted || !(plan as any).isActive) {
+        throw new Error('Installment plan not found or inactive');
+      }
+      const plotForProject = await Plot.findById(
+        data.plotId || existingFile.plotId
+      );
+      if (plotForProject) {
+        const plotProjId = (plotForProject.projectId as Types.ObjectId).toString();
+        const planProjId = (plan.projId as Types.ObjectId).toString();
+        if (plotProjId !== planProjId) {
+          throw new Error(
+            'Installment plan must belong to the same project as the file plot'
+          );
+        }
+      }
+    }
+
     // Check if plot is being changed
     if (data.plotId && data.plotId !== existingFile.plotId?.toString()) {
       const plot = await Plot.findById(data.plotId);
       if (!plot || (plot as any).isDeleted) {
         throw new Error('Plot not found');
+      }
+
+      // If planId is also being updated, validate; otherwise ensure existing plan matches new plot's project
+      const planToCheck = newPlanId
+        ? await InstallmentPlan.findById(newPlanId)
+        : await InstallmentPlan.findById(existingFile.planId);
+      if (planToCheck && plot) {
+        const plotProjId = (plot.projectId as Types.ObjectId).toString();
+        const planProjId = (planToCheck.projId as Types.ObjectId).toString();
+        if (plotProjId !== planProjId) {
+          throw new Error(
+            'Installment plan must belong to the same project as the selected plot'
+          );
+        }
       }
 
       // Check if new plot is already allocated
@@ -479,6 +543,7 @@ export const fileService = {
       { $set: updateObj },
       { new: true, runValidators: true }
     )
+      .populate('plan', 'planName totalMonths totalAmount projId')
       .populate('member', 'memName memNic mobileNo')
       .populate({
         path: 'plot',
@@ -539,6 +604,7 @@ export const fileService = {
     }
 
     const files = await File.find(query)
+      .populate('plan', 'planName totalMonths totalAmount projId')
       .populate({
         path: 'plot',
         select: 'plotNo plotRegistrationNo plotArea plotTotalAmount',
@@ -589,10 +655,62 @@ export const fileService = {
 
     const [files, total] = await Promise.all([
       File.find(query)
+        .populate('plan', 'planName totalMonths totalAmount projId')
         .populate('member', 'memName memNic mobileNo')
         .populate({
           path: 'plot',
           select: 'plotNo plotRegistrationNo plotArea',
+          populate: [
+            {
+              path: 'projectId',
+              select: 'projName projCode',
+            },
+            {
+              path: 'plotBlockId',
+              select: 'plotBlockName',
+            },
+            {
+              path: 'plotSizeId',
+              select: 'plotSizeName totalArea',
+            },
+          ],
+        })
+        .sort({ bookingDate: -1 })
+        .skip(skip)
+        .limit(limit)
+        .then(docs => docs.map(doc => toPlainObject(doc))),
+      File.countDocuments(query),
+    ]);
+
+    return {
+      files,
+      total,
+      pages: Math.ceil(total / limit),
+    };
+  },
+
+  /**
+   * Get files by installment plan
+   */
+  async getFilesByPlan(
+    planId: string,
+    page: number = 1,
+    limit: number = 20
+  ): Promise<{ files: FileType[]; total: number; pages: number }> {
+    const skip = (page - 1) * limit;
+
+    const query = {
+      planId: new Types.ObjectId(planId),
+      isDeleted: false,
+    };
+
+    const [files, total] = await Promise.all([
+      File.find(query)
+        .populate('plan', 'planName totalMonths totalAmount projId')
+        .populate('member', 'memName memNic mobileNo')
+        .populate({
+          path: 'plot',
+          select: 'plotNo plotRegistrationNo plotArea plotTotalAmount',
           populate: [
             {
               path: 'projectId',
@@ -934,6 +1052,7 @@ export const fileService = {
         isDeleted: false,
         isActive: true,
       })
+        .populate('plan', 'planName totalMonths totalAmount')
         .populate({
           path: 'plot',
           select: 'plotNo',
@@ -1018,6 +1137,7 @@ export const fileService = {
       isDeleted: false,
       isActive: true,
     })
+      .populate('plan', 'planName totalMonths totalAmount')
       .populate({
         path: 'plot',
         select: 'plotNo plotRegistrationNo',

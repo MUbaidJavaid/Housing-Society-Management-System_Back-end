@@ -14,8 +14,9 @@ export function initializeRateLimiter() {
   const redisHost = process.env.REDIS_HOST;
 
   if (!redisUrl && !redisHost) {
-    logger.warn('Redis not configured - skipping Redis rate limiter initialization');
-    console.log('⚠️ Redis not configured - using memory store for rate limiting');
+    logger.warn('Redis not configured - using mock Redis for rate limiting');
+    console.log('⚠️ Redis not configured - using in-memory rate limiting');
+    createRedisClient(); // Sets mock client so getRedisClient() works
     return;
   }
 
@@ -25,8 +26,9 @@ export function initializeRateLimiter() {
 
     if (isLocalhost) {
       logger.warn('Cannot connect to localhost Redis in production');
-      console.log('⚠️ Localhost Redis detected in production - using memory store');
-      return; // Skip Redis initialization
+      console.log('⚠️ Localhost Redis detected in production - using mock/in-memory rate limiting');
+      createRedisClient({ useMock: true });
+      return;
     }
   }
 

@@ -1,4 +1,4 @@
-import { Response } from 'express';
+import { Request, Response } from 'express';
 import User from '../../database/models/User';
 import { AppError } from '../../middleware/error.middleware';
 import { AuthRequest } from '../types';
@@ -19,6 +19,20 @@ const checkAdminPermission = (user: any) => {
 //     throw new AppError(403, 'You can only access your own resources');
 //   }
 // };
+
+/**
+ * Get VAPID public key for web push subscription (no auth required - public key is safe to expose)
+ */
+export const getVapidPublicKey = (_req: Request, res: Response) => {
+  const key = process.env.VAPID_PUBLIC_KEY;
+  if (!key) {
+    return res.status(503).json({
+      success: false,
+      message: 'Push notifications not configured',
+    });
+  }
+  res.json({ success: true, data: { publicKey: key } });
+};
 
 // User controller functions
 export const userController = {
@@ -282,9 +296,19 @@ export const userController = {
           email: user.email,
           firstName: user.firstName,
           lastName: user.lastName,
+          avatar: user.avatar || '',
+          phone: user.phone || '',
+          address: (user as any).address || '',
+          bio: (user as any).bio || '',
           role: user.role,
           status: user.status,
           emailVerified: user.emailVerified,
+          preferences: user.preferences || {
+            theme: 'auto',
+            language: 'en',
+            notifications: { email: true, push: true, sms: false, inApp: true },
+            privacy: { profileVisibility: 'public', showEmail: false, showPhone: false },
+          },
           createdAt: user.createdAt,
           updatedAt: user.updatedAt,
         },
@@ -303,25 +327,56 @@ export const userController = {
         throw new AppError(401, 'Authentication required');
       }
 
-      const updateData = req.body;
+      const updateData = { ...req.body };
 
       // Users cannot change their role
-      if (updateData.role) {
-        throw new AppError(403, 'You cannot change your role');
+      delete updateData.role;
+
+      // Allowed profile fields
+      const allowed = [
+        'firstName',
+        'lastName',
+        'email',
+        'phone',
+        'avatar',
+        'address',
+        'bio',
+        'preferences',
+      ];
+      const filtered: Record<string, any> = {};
+      for (const k of allowed) {
+        if (updateData[k] !== undefined) filtered[k] = updateData[k];
+      }
+
+      // Push subscription: add to subscriptions array (for VAPID web-push)
+      let pushSubToAdd: any = null;
+      if (updateData.pushSubscription && typeof updateData.pushSubscription === 'object') {
+        const sub = updateData.pushSubscription;
+        if (sub.endpoint && sub.keys?.p256dh && sub.keys?.auth) {
+          pushSubToAdd = {
+            endpoint: sub.endpoint,
+            keys: { p256dh: sub.keys.p256dh, auth: sub.keys.auth },
+            userAgent: sub.userAgent || req.get('user-agent'),
+            createdAt: new Date(),
+          };
+        }
       }
 
       // If changing email, require verification
-      if (updateData.email && updateData.email !== req.user.email) {
-        updateData.email = updateData.email.toLowerCase();
-        updateData.emailVerified = false;
+      if (filtered.email && filtered.email !== req.user.email) {
+        filtered.email = filtered.email.toLowerCase();
+        filtered.emailVerified = false;
       }
 
-      const user = await User.findByIdAndUpdate(
-        req.user.userId,
-        { $set: updateData },
-        { new: true, runValidators: true }
-      )
-        .select('-password')
+      const updateOp: Record<string, any> = { $set: filtered };
+      if (pushSubToAdd) {
+        updateOp.$push = { pushSubscriptions: pushSubToAdd };
+      }
+      const user = await User.findByIdAndUpdate(req.user.userId, updateOp, {
+        new: true,
+        runValidators: true,
+      })
+        .select('-password -pushSubscriptions')
         .lean();
 
       if (!user) {
@@ -335,9 +390,14 @@ export const userController = {
           email: user.email,
           firstName: user.firstName,
           lastName: user.lastName,
+          avatar: (user as any).avatar || '',
+          phone: (user as any).phone || '',
+          address: (user as any).address || '',
+          bio: (user as any).bio || '',
           role: user.role,
           status: user.status,
           emailVerified: user.emailVerified,
+          preferences: (user as any).preferences,
           createdAt: user.createdAt,
           updatedAt: user.updatedAt,
         },

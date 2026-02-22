@@ -3,6 +3,7 @@ import { AppError } from '../../middleware/error.middleware';
 import { authMemberService } from '../services/auth-member.service';
 import {
   ChangePasswordRequest,
+  LoginCredentials,
   ProfileUpdate,
   ResendVerificationRequest,
   ResetPasswordConfirm,
@@ -10,10 +11,6 @@ import {
   SignupCredentials,
   VerifyEmailRequest,
 } from '../types/types-auth-member';
-export interface LoginCredentials {
-  memContEmail: string;
-  password: string;
-}
 
 // Line 30 in auth-member.controller.ts
 const handleError = (error: any, next: NextFunction) => {

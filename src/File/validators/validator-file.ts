@@ -9,6 +9,13 @@ export const validateCreateFile = (): ValidationChain[] => [
     .isLength({ min: 5, max: 50 })
     .withMessage('File registration number must be between 5 and 50 characters'),
 
+  body('planId')
+    .trim()
+    .notEmpty()
+    .withMessage('Installment plan is required')
+    .isMongoId()
+    .withMessage('Invalid Installment Plan ID'),
+
   body('memId')
     .trim()
     .notEmpty()
@@ -80,6 +87,8 @@ export const validateCreateFile = (): ValidationChain[] => [
 ];
 
 export const validateUpdateFile = (): ValidationChain[] => [
+  body('planId').optional().isMongoId().withMessage('Invalid Installment Plan ID'),
+
   body('nomineeId').optional().isMongoId().withMessage('Invalid Nominee ID'),
 
   body('plotId').optional().isMongoId().withMessage('Invalid Plot ID'),
@@ -152,6 +161,8 @@ export const validateGetFiles = (): ValidationChain[] => [
 
   query('plotId').optional().isMongoId().withMessage('Invalid Plot ID'),
 
+  query('planId').optional().isMongoId().withMessage('Invalid Installment Plan ID'),
+
   query('status').optional().isIn(Object.values(FileStatus)).withMessage('Invalid file status'),
 
   query('isAdjusted').optional().isBoolean().withMessage('Is adjusted must be a boolean'),
@@ -188,6 +199,7 @@ export const validateGetFiles = (): ValidationChain[] => [
       'status',
       'createdAt',
       'updatedAt',
+      'planId',
     ])
     .withMessage('Invalid sort field'),
 
@@ -213,6 +225,15 @@ export const validateProjIdParam = (): ValidationChain[] => [
     .withMessage('Project ID is required')
     .isMongoId()
     .withMessage('Invalid Project ID'),
+];
+
+export const validatePlanIdParam = (): ValidationChain[] => [
+  param('planId')
+    .trim()
+    .notEmpty()
+    .withMessage('Plan ID is required')
+    .isMongoId()
+    .withMessage('Invalid Installment Plan ID'),
 ];
 
 export const validateTransferFile = (): ValidationChain[] => [

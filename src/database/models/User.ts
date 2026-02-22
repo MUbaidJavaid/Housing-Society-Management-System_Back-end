@@ -59,6 +59,14 @@ export interface IUser {
   metadata: Record<string, any>;
   isDeleted: boolean;
   authMethod?: 'email' | 'google';
+  address?: string;
+  bio?: string;
+  pushSubscriptions?: Array<{
+    endpoint: string;
+    keys: { p256dh: string; auth: string };
+    userAgent?: string;
+    createdAt?: Date;
+  }>;
   // Security related fields
   twoFactorSecret?: string;
   twoFactorBackupCodes?: string[];
@@ -241,6 +249,7 @@ const userSchema = new Schema<UserDocument, UserModel, IUserMethods>(
         email: { type: Boolean, default: true },
         push: { type: Boolean, default: true },
         sms: { type: Boolean, default: false },
+        inApp: { type: Boolean, default: true },
       },
       privacy: {
         profileVisibility: {
@@ -252,6 +261,20 @@ const userSchema = new Schema<UserDocument, UserModel, IUserMethods>(
         showPhone: { type: Boolean, default: false },
       },
     },
+
+    address: { type: String, trim: true, default: '' },
+    bio: { type: String, trim: true, maxlength: 500, default: '' },
+    pushSubscriptions: [
+      {
+        endpoint: { type: String, required: true },
+        keys: {
+          p256dh: { type: String, required: true },
+          auth: { type: String, required: true },
+        },
+        userAgent: { type: String },
+        createdAt: { type: Date, default: Date.now },
+      },
+    ],
 
     // Metadata
     metadata: { type: Schema.Types.Mixed, default: {} },
@@ -387,6 +410,8 @@ userSchema.methods.getPublicProfile = function () {
     phoneVerified: this.phoneVerified,
     twoFactorEnabled: this.twoFactorEnabled,
     preferences: this.preferences,
+    address: this.address,
+    bio: this.bio,
     lastLogin: this.lastLogin,
     createdAt: this.createdAt,
     updatedAt: this.updatedAt,

@@ -28,6 +28,7 @@ export enum PaymentMode {
 export interface IFile extends Document {
   fileRegNo: string;
   fileBarCode: string;
+  planId: Types.ObjectId;
   memId: Types.ObjectId;
   nomineeId?: Types.ObjectId;
   applicationId?: Types.ObjectId;
@@ -54,6 +55,7 @@ export interface IFile extends Document {
   updatedAt: Date;
 
   // Virtual fields
+  plan?: any;
   member?: any;
   nominee?: any;
   application?: any;
@@ -81,6 +83,12 @@ const fileSchema = new Schema<IFile>(
       type: String,
       trim: true,
       maxlength: 100,
+    },
+    planId: {
+      type: Schema.Types.ObjectId,
+      ref: 'InstallmentPlan',
+      required: [true, 'Installment plan is required'],
+      index: true,
     },
     memId: {
       type: Schema.Types.ObjectId,
@@ -202,6 +210,7 @@ fileSchema.index({ status: 1 });
 fileSchema.index({ bookingDate: 1 });
 fileSchema.index({ isActive: 1 });
 fileSchema.index({ isDeleted: 1 });
+fileSchema.index({ planId: 1 });
 fileSchema.index({ createdBy: 1 });
 fileSchema.index({ paymentMode: 1 });
 
@@ -257,6 +266,13 @@ fileSchema.virtual('statusBadgeColor').get(function () {
 });
 
 // Virtual relationships
+fileSchema.virtual('plan', {
+  ref: 'InstallmentPlan',
+  localField: 'planId',
+  foreignField: '_id',
+  justOne: true,
+});
+
 fileSchema.virtual('member', {
   ref: 'Member',
   localField: 'memId',

@@ -264,6 +264,17 @@ projectSchema.index({ cityId: 1, isActive: 1, isDeleted: 1 });
 projectSchema.index({ projStatus: 1, isActive: 1 });
 projectSchema.index({ projType: 1, isActive: 1 });
 projectSchema.index({ country: 1, cityId: 1, isActive: 1 });
+projectSchema.index(
+  { contactEmail: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      isDeleted: false,
+      contactEmail: { $exists: true, $type: 'string', $ne: '' },
+    },
+    name: 'uniq_active_project_contact_email',
+  }
+);
 
 // Text index for search
 projectSchema.index(

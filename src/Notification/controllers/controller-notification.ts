@@ -1,7 +1,7 @@
 import { NextFunction, Response } from 'express';
 import { AuthRequest } from '../../auth/types';
 import { AppError } from '../../middleware/error.middleware';
-import { notificationService } from '../services/service-notification';
+import { userNotificationService } from '../services/service-user-notification';
 
 type ParsedQs = Record<string, unknown>;
 
@@ -34,7 +34,7 @@ export const notificationController = {
       const limit = limitValue ? parseInt(limitValue, 10) : 20;
       const unreadOnly = unreadOnlyValue === 'true';
 
-      const result = await notificationService.getUserNotifications(req.user.userId.toString(), {
+      const result = await userNotificationService.getUserNotifications(req.user.userId.toString(), {
         page,
         limit,
         unreadOnly,
@@ -64,7 +64,7 @@ export const notificationController = {
       if (!notificationId) {
         throw new AppError(400, 'Notification ID is required');
       }
-      const notification = await notificationService.markAsRead(notificationId, req.user.userId);
+      const notification = await userNotificationService.markAsRead(notificationId, req.user.userId);
 
       if (!notification) {
         throw new AppError(404, 'Notification not found');
@@ -89,7 +89,7 @@ export const notificationController = {
         throw new AppError(401, 'Authentication required');
       }
 
-      const result = await notificationService.markAllAsRead(req.user.userId);
+      const result = await userNotificationService.markAllAsRead(req.user.userId);
 
       res.json({
         success: true,
@@ -113,7 +113,10 @@ export const notificationController = {
       if (!notificationId) {
         throw new AppError(400, 'Notification ID is required');
       }
-      const notification = await notificationService.deleteNotification(notificationId);
+      const notification = await userNotificationService.deleteNotification(
+        notificationId,
+        req.user.userId
+      );
 
       if (!notification) {
         throw new AppError(404, 'Notification not found');
@@ -137,7 +140,7 @@ export const notificationController = {
         throw new AppError(401, 'Authentication required');
       }
 
-      const count = await notificationService.getUnreadCount(req.user.userId.toString());
+      const count = await userNotificationService.getUnreadCount(req.user.userId.toString());
 
       res.json({
         success: true,

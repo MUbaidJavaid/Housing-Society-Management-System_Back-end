@@ -258,6 +258,30 @@ export const fileController = {
   },
 
   /**
+   * Get files by installment plan
+   */
+  getFilesByPlan: async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const planId = req.params.planId as string;
+      const page = req.query.page ? parseInt(req.query.page as string) : 1;
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 20;
+
+      const result = await fileService.getFilesByPlan(planId, page, limit);
+
+      res.json({
+        success: true,
+        data: {
+          files: result.files,
+          total: result.total,
+          pages: result.pages,
+        },
+      });
+    } catch (error) {
+      handleError(error, next);
+    }
+  },
+
+  /**
    * Transfer file to another member
    */
   transferFile: async (req: AuthRequest, res: Response, next: NextFunction) => {

@@ -3,7 +3,9 @@ import Member from '../../Member/models/models-member';
 import Plot from '../../Plots/models/models-plot';
 import Registry from '../../Registry/models/models-registry';
 import UserStaff from '../../UserPermissions/models/models-userstaff';
+import User from '../../database/models/User';
 import { pushNotificationService } from '../../core/notifications/push-notification.service';
+import { userNotificationService } from '../../Notification/services/service-user-notification';
 import { getSocketServer } from '../../core/socket';
 import { logger } from '../../logger';
 import {
@@ -359,7 +361,7 @@ export const announcementService = {
       summary.byTargetType[announcement.targetType] =
         (summary.byTargetType[announcement.targetType] || 0) + 1;
     });
-
+// console.log("Ammouncement Response:", announcements, summary, page,limit,total)
     return {
       announcements,
       summary,
@@ -609,6 +611,36 @@ export const announcementService = {
           announcementId: plainAnnouncement._id.toString(),
           error,
         });
+      }
+    }
+
+    // Also notify auth Users (web app) via UserNotification (socket + VAPID push) when push requested
+    if (data.sendPushNotification) {
+      try {
+        const authUsers = await User.find({ isDeleted: false, status: 'active' })
+        .select('_id preferences')
+        .limit(500)
+        .lean();
+      const title = plainAnnouncement.title;
+      const body =
+        plainAnnouncement.shortDescription ||
+        String(plainAnnouncement.announcementDesc || '').substring(0, 100);
+      const notifData = { announcementId: plainAnnouncement._id.toString(), url: `/announcements/${plainAnnouncement._id}` };
+      for (const u of authUsers) {
+        const prefs = (u as any).preferences?.notifications;
+        if (prefs?.inApp === false && prefs?.push === false) continue;
+        await userNotificationService.createAndDeliver({
+          userId: u._id,
+          type: 'announcement',
+          title: 'New Announcement',
+          message: body || title,
+          data: notifData,
+          sendPush: prefs?.push !== false,
+          emitSocket: prefs?.inApp !== false,
+        });
+      }
+      } catch (e) {
+        logger.warn('Auth user notification failed', { announcementId: id, err: (e as Error).message });
       }
     }
 

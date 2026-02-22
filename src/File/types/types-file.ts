@@ -6,6 +6,7 @@ export interface FileType {
   _id: Types.ObjectId;
   fileRegNo: string;
   fileBarCode: string;
+  planId: Types.ObjectId;
   memId: Types.ObjectId;
   nomineeId?: Types.ObjectId;
   applicationId?: Types.ObjectId;
@@ -46,6 +47,7 @@ export interface FileType {
 
 export interface CreateFileDto {
   fileRegNo?: string;
+  planId: string;
   memId: string;
   nomineeId?: string;
   applicationId?: string;
@@ -61,6 +63,7 @@ export interface CreateFileDto {
 }
 
 export interface UpdateFileDto {
+  planId?: string;
   nomineeId?: string;
   plotId?: string;
   totalAmount?: number;
@@ -86,6 +89,7 @@ export interface FileQueryParams {
   fileBarCode?: string;
   projId?: string; // Filter by project
   projectId?: string; // Back-compat alias
+  planId?: string;
   memId?: string;
   nomineeId?: string;
   plotId?: string;
