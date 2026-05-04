@@ -31,10 +31,13 @@ async function dropObsoleteFileIndex(): Promise<void> {
  */
 export const connectDB = async (): Promise<void> => {
   try {
-    const mongoUri = process.env.MONGO_URI;
+    const mongoUri =
+      process.env.MONGO_URI || process.env.MONGODB_URI;
 
     if (!mongoUri) {
-      throw new Error('MONGO_URI environment variable is not set');
+      throw new Error(
+        'MongoDB URI is not set (set MONGO_URI or MONGODB_URI in environment)'
+      );
     }
 
     const conn = await mongoose.connect(mongoUri);

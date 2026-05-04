@@ -2,24 +2,42 @@
  * Vercel serverless entry — Express app via serverless-http.
  *
  * Build: `pnpm run build` → `dist/app.js` (exports `createApp`).
- * Vercel runs `vercel-build` then routes all traffic → this function.
- *
- * Note: Socket.IO needs a long-lived server; on Vercel it is skipped (see app.ts).
- * Use Pusher/Ably or keep sockets on a small always-on service if required.
  */
 
+const path = require('path');
 const serverless = require('serverless-http');
 
 /** @type {import('serverless-http').Handler | undefined} */
 let cachedHandler;
 
+function resolveAppModule() {
+  const appPath = path.join(__dirname, '..', 'dist', 'app.js');
+  // eslint-disable-next-line import/no-dynamic-require, global-require
+  return require(appPath);
+}
+
 module.exports = async (req, res) => {
-  if (!cachedHandler) {
-    const { createApp } = require('../dist/app.js');
-    const app = await createApp();
-    cachedHandler = serverless(app, {
-      binary: ['application/octet-stream', 'image/*', 'application/pdf'],
-    });
+  try {
+    if (!cachedHandler) {
+      const { createApp } = resolveAppModule();
+      if (typeof createApp !== 'function') {
+        throw new Error('dist/app.js did not export createApp');
+      }
+      const app = await createApp();
+      cachedHandler = serverless(app, {
+        binary: ['application/octet-stream', 'image/*', 'application/pdf'],
+      });
+    }
+    return cachedHandler(req, res);
+  } catch (err) {
+    console.error('[api/index] Serverless bootstrap failed:', err);
+    const message = err instanceof Error ? err.message : String(err);
+    if (!res.headersSent) {
+      res.status(500).json({
+        success: false,
+        error: 'FUNCTION_BOOTSTRAP_FAILED',
+        message,
+      });
+    }
   }
-  return cachedHandler(req, res);
 };
