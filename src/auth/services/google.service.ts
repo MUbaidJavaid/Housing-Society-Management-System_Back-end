@@ -2,7 +2,7 @@ import crypto from 'crypto';
 import { OAuth2Client } from 'google-auth-library';
 import { Types } from 'mongoose';
 import { emailService } from '../../core/email';
-import User, { UserRole, UserStatus } from '../../database/models/User';
+import User, { UserRole, UserStatus, type UserDocument } from '../../database/models/User';
 import { jwtService } from '../jwt'; // Import the instance, not the class
 
 export interface GoogleUserInfo {
@@ -145,19 +145,20 @@ export class GoogleAuthService {
   ): Promise<GoogleAuthResult> {
     try {
       // Check if user exists with Google ID
-      let user = await User.findOne({
+      // `.select('+status')` widens Mongoose's inferred doc type; align with UserDocument.
+      let user: UserDocument | null = (await User.findOne({
         googleId: googleUser.googleId,
         isDeleted: false,
-      }).select('+status +emailVerified');
+      }).select('+status +emailVerified')) as UserDocument | null;
 
       let isNewUser = false;
 
       // If not found by Google ID, check by email
       if (!user) {
-        user = await User.findOne({
+        user = (await User.findOne({
           email: googleUser.email.toLowerCase(),
           isDeleted: false,
-        }).select('+status +emailVerified');
+        }).select('+status +emailVerified')) as UserDocument | null;
 
         if (user) {
           // Link Google account to existing user
