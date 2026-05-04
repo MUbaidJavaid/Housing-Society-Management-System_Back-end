@@ -1,6 +1,6 @@
 # Dependencies
 node_modules/
-pnpm-lock.yaml
+# Keep pnpm-lock.yaml in git for reproducible installs (Vercel / CI).
 
 # Build outputs
 dist/

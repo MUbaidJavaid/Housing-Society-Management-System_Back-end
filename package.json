@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
     "build": "tsc",
+    "vercel-build": "pnpm run build",
     "test": "jest",
     "start": "node dist/server.js",
     "start:dev": "NODE_ENV=development ts-node src/server.ts",
@@ -99,6 +100,7 @@
     "winston": "^3.15.0",
     "winston-daily-rotate-file": "^5.0.0",
     "xss-clean": "^0.1.4",
-    "zod": "^3.23.8"
+    "zod": "^3.23.8",
+    "serverless-http": "^3.2.0"
   }
 }

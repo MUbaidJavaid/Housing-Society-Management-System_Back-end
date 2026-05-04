@@ -46,6 +46,9 @@ export const connectDB = async (): Promise<void> => {
   } catch (error: any) {
     logger.error(`❌ MongoDB Connection Error: ${error.message}`);
     console.error(`❌ MongoDB Connection Error: ${error.message}`);
+    if (process.env.VERCEL === '1') {
+      throw error;
+    }
     process.exit(1);
   }
 };
@@ -61,6 +64,9 @@ export const disconnectDB = async (): Promise<void> => {
   } catch (error: any) {
     logger.error(`Error disconnecting from MongoDB: ${error.message}`);
     console.error(`Error disconnecting from MongoDB: ${error.message}`);
+    if (process.env.VERCEL === '1') {
+      throw error;
+    }
     process.exit(1);
   }
 };

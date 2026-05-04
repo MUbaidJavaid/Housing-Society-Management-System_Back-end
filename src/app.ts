@@ -805,11 +805,15 @@ function validateEnvironment(): void {
       // But for critical vars like MongoDB, we should exit
       if (missingCritical.includes('MONGODB_URI')) {
         console.error('🚨 FATAL: MongoDB URI is required. Exiting...');
-        process.exit(1);
+        if (process.env.VERCEL !== '1') {
+          process.exit(1);
+        }
       }
     } else {
       console.error('🚨 Missing critical environment variables. Exiting...');
-      process.exit(1);
+      if (process.env.VERCEL !== '1') {
+        process.exit(1);
+      }
     }
   }
 
@@ -1043,7 +1047,13 @@ export async function startServer(): Promise<Application> {
     // Return a promise that resolves when server starts
     return new Promise((resolve, reject) => {
       const server = createServer(app);
-      initializeSocket(server);
+      if (process.env.VERCEL !== '1') {
+        initializeSocket(server);
+      } else {
+        console.warn(
+          '[HSMS] VERCEL=1: Socket.IO not initialized (serverless). Use Render or a socket service for realtime.'
+        );
+      }
 
       server.listen(PORT, HOST, () => {
         console.log(`✅ Server successfully started on port ${PORT}`);
