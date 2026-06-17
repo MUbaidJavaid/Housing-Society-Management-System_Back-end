@@ -99,6 +99,15 @@ import { srTransferTypeRoutes } from './Transfer/index-transfer-type';
 import { userPermissionRoutes } from './UserPermissions/index-userpermission';
 import { userRoleRoutes } from './UserPermissions/index-userrole';
 import { userStaffRoutes } from './UserPermissions/index-userstaff';
+import { visitorRoutes } from './Visitor/index-visitor';
+import { facilityRoutes } from './Facility/index-facility';
+import { facilityBookingRoutes } from './Facility/index-facility-booking';
+import { startInstallmentCron, stopInstallmentCron } from './cron';
+import { societyRoutes } from './Society/index-society';
+import { subscriptionRoutes } from './Subscription/index-subscription';
+import { lookupRoutes } from './Lookup/index-lookup';
+import { seedLookupValues } from './Lookup/index-lookup';
+import { seedDefaultModules, seedDefaultRoles } from './seeds/seed-default-roles';
 // Track graceful shutdown
 let isShuttingDown = false;
 dotenv.config();
@@ -506,6 +515,19 @@ function setupRoutes(app: Application): void {
   app.use('/api/installment-plans', installmentPlanRoutes);
   app.use('/api/installment-plan-details', installmentPlanDetailRoutes);
   app.use('/api/installment', installmentRoutes);
+
+  app.use('/api/visitors', visitorRoutes);
+
+  app.use('/api/societies', societyRoutes);
+
+  app.use('/api/subscriptions', subscriptionRoutes);
+
+  app.use('/api/facilities', facilityRoutes);
+
+  app.use('/api/facility-bookings', facilityBookingRoutes);
+
+  app.use('/api/lookups', lookupRoutes);
+
   app.get('/api/test', (_req: Request, res: Response) => {
     res.json({ success: true, message: 'API is working' });
   });
@@ -596,6 +618,9 @@ function setupGracefulShutdown(app: Application): void {
     logger.info(`Received ${signal}, starting graceful shutdown...`);
 
     isShuttingDown = true;
+
+    // Stop cron jobs
+    stopInstallmentCron();
 
     // Get the server instance
     const server = (app as any).server;
@@ -884,6 +909,31 @@ export async function createApp(): Promise<Application> {
     try {
       await initializeDatabase();
       console.log('✅ [createApp-4] Database initialized');
+      // Seed lookup values after successful DB connection
+      console.log('🔍 [createApp-4b] Seeding lookup values...');
+      try {
+        await seedLookupValues();
+        console.log('✅ [createApp-4b] Lookup values seeded');
+      } catch (seedError: any) {
+        console.warn('⚠️ [createApp-4b] Lookup seeding failed:', seedError.message);
+      }
+
+      // Seed default modules and roles
+      console.log('🔍 [createApp-4c] Seeding default modules...');
+      try {
+        await seedDefaultModules();
+        console.log('✅ [createApp-4c] Default modules seeded');
+      } catch (seedError: any) {
+        console.warn('⚠️ [createApp-4c] Module seeding failed:', seedError.message);
+      }
+
+      console.log('🔍 [createApp-4d] Seeding default roles & permissions...');
+      try {
+        await seedDefaultRoles();
+        console.log('✅ [createApp-4d] Default roles & permissions seeded');
+      } catch (seedError: any) {
+        console.warn('⚠️ [createApp-4d] Role seeding failed:', seedError.message);
+      }
     } catch (dbError: any) {
       console.warn('⚠️ [createApp-4] Database initialization failed:', dbError.message);
       console.log('✅ [createApp-4] Continuing without database...');
@@ -921,6 +971,11 @@ export async function createApp(): Promise<Application> {
     console.log('🔍 [createApp-8] Setting up routes...');
     setupRoutes(app);
     console.log('✅ [createApp-8] Routes setup');
+
+    // Start installment cron jobs
+    console.log('🔍 [createApp-8b] Starting installment cron jobs...');
+    startInstallmentCron();
+    console.log('✅ [createApp-8b] Installment cron jobs started');
 
     // Setup error handling
     console.log('🔍 [createApp-9] Setting up error handling...');

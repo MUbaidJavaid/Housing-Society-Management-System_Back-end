@@ -1,5 +1,6 @@
 import { Document, Model, Schema, Types, model } from 'mongoose';
 
+// @deprecated - use LookupValue collection (category: 'bill_status') instead
 export enum BillStatus {
   PENDING = 'Pending',
   PAID = 'Paid',
@@ -24,7 +25,7 @@ export interface IBillInfo extends Document {
   totalPayable: number;
   dueDate: Date;
   gracePeriodDays: number;
-  status: BillStatus;
+  status: string;
   paymentDate?: Date;
   paymentMethod?: string;
   transactionId?: string;
@@ -139,8 +140,9 @@ const billInfoSchema = new Schema<IBillInfo>(
     },
     status: {
       type: String,
-      enum: Object.values(BillStatus),
-      default: BillStatus.PENDING,
+      // Validated via LookupValue (category: 'bill_status')
+      default: 'Pending',
+      trim: true,
       index: true,
     },
     paymentDate: {

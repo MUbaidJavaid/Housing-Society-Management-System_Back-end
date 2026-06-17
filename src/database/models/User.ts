@@ -41,6 +41,7 @@ export interface IUser {
   lastName: string;
   fullName?: string;
   role: UserRole;
+  roleId?: Types.ObjectId;
   status: UserStatus;
   avatar?: string;
   phone?: string;
@@ -136,6 +137,11 @@ const userSchema = new Schema<UserDocument, UserModel, IUserMethods>(
       default: 'User', // default value set کریں
     },
     role: { type: String, enum: Object.values(UserRole), default: UserRole.USER, index: true },
+    roleId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Role',
+      index: true,
+    },
     status: {
       type: String,
       enum: Object.values(UserStatus),

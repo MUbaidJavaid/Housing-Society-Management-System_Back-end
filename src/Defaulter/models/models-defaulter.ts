@@ -1,5 +1,6 @@
 import { Document, Model, Schema, Types, model } from 'mongoose';
 
+// @deprecated - use LookupValue collection (category: 'defaulter_status') instead
 export enum DefaulterStatus {
   WARNING = 'Warning',
   SUSPENDED = 'Suspended',
@@ -15,8 +16,9 @@ export interface IDefaulter extends Document {
   lastPaymentDate?: Date;
   daysOverdue: number;
   noticeSentCount: number;
-  status: DefaulterStatus;
+  status: string;
   remarks?: string;
+  societyId?: Types.ObjectId;
   createdBy: Types.ObjectId;
   modifiedBy?: Types.ObjectId;
   isActive: boolean;
@@ -76,14 +78,20 @@ const defaulterSchema = new Schema<IDefaulter>(
     },
     status: {
       type: String,
-      enum: Object.values(DefaulterStatus),
-      default: DefaulterStatus.WARNING,
+      // Validated via LookupValue (category: 'defaulter_status')
+      default: 'Warning',
+      trim: true,
       index: true,
     },
     remarks: {
       type: String,
       trim: true,
       maxlength: [1000, 'Remarks cannot exceed 1000 characters'],
+    },
+    societyId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Society',
+      index: true,
     },
     createdBy: {
       type: Schema.Types.ObjectId,

@@ -16,6 +16,7 @@ export interface IAnnouncement extends Document {
   expiresAt?: Date;
   isActive: boolean;
   views: number;
+  societyId?: Types.ObjectId;
   createdBy: Types.ObjectId;
   updatedBy?: Types.ObjectId;
   isDeleted: boolean;
@@ -135,6 +136,12 @@ const announcementSchema = new Schema<IAnnouncement>(
     views: {
       type: Number,
       default: 0,
+    },
+
+    societyId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Society',
+      index: true,
     },
 
     createdBy: {

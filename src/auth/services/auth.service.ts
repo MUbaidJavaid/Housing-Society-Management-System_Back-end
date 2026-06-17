@@ -477,6 +477,7 @@ export class AuthService {
   ): Promise<{
     user: any;
     tokens: TokenPair;
+    permissions: Record<string, Record<string, boolean>>;
   }> {
     try {
       // Check for login attempts and lockout
@@ -537,8 +538,36 @@ export class AuthService {
       const tokens = await jwtService.generateTokenPair(
         user._id as Types.ObjectId,
         user.email,
-        user.role
+        user.role,
+        (user as any).roleId?.toString(),
+        (user as any).societyId?.toString()
       );
+
+      // Fetch user permissions for frontend
+      let permissionsMap: Record<string, Record<string, boolean>> = {};
+      if ((user as any).roleId) {
+        const UserPermissionModel = require('../../UserPermissions/models/models-userpermission').default;
+        const perms = await UserPermissionModel.find({
+          roleId: (user as any).roleId,
+          isActive: true,
+          isDeleted: false,
+        }).populate('srModuleId', 'moduleCode');
+
+        for (const perm of perms) {
+          const moduleCode = (perm.srModuleId as any)?.moduleCode;
+          if (!moduleCode) continue;
+          permissionsMap[moduleCode] = {
+            canRead: perm.canRead || false,
+            canCreate: perm.canCreate || false,
+            canUpdate: perm.canUpdate || false,
+            canDelete: perm.canDelete || false,
+            canExport: perm.canExport || false,
+            canImport: perm.canImport || false,
+            canApprove: perm.canApprove || false,
+            canVerify: perm.canVerify || false,
+          };
+        }
+      }
 
       // Store session info
       await this.recordLoginSession(
@@ -551,6 +580,7 @@ export class AuthService {
       return {
         user: user.getPublicProfile(),
         tokens,
+        permissions: permissionsMap,
       };
     } catch (error) {
       logger.error('Login error:', error);

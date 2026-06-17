@@ -1,6 +1,7 @@
 import { Types } from 'mongoose';
 import SrModule from '../../Module/models/models-srmodule';
 import { Role } from '../../users/models/Role.model';
+import { invalidatePermissionCache } from '../../auth/middleware/permission-cache';
 import UserPermission from '../models/models-userpermission';
 import {
   AccessType,
@@ -107,6 +108,9 @@ export const userPermissionService = {
     if (!createdPermission) {
       throw new Error('Failed to create permission');
     }
+
+    // Invalidate permission cache for this role
+    invalidatePermissionCache(data.roleId.toString());
 
     return toPlainObject(createdPermission);
   },
@@ -360,6 +364,11 @@ export const userPermissionService = {
       .populate('createdBy', 'firstName lastName email')
       .populate('updatedBy', 'firstName lastName email');
 
+    // Invalidate permission cache for this role
+    if (permission) {
+      invalidatePermissionCache(existingPermission.roleId.toString());
+    }
+
     return permission ? toPlainObject(permission) : null;
   },
 
@@ -384,6 +393,9 @@ export const userPermissionService = {
       },
       { new: true }
     );
+
+    // Invalidate permission cache for this role
+    invalidatePermissionCache(existingPermission.roleId.toString());
 
     return !!result;
   },
@@ -445,6 +457,9 @@ export const userPermissionService = {
     if (!populatedPermission) {
       throw new Error('Failed to set permissions');
     }
+
+    // Invalidate permission cache for this role
+    invalidatePermissionCache(data.roleId.toString());
 
     return toPlainObject(populatedPermission);
   },
@@ -551,6 +566,13 @@ export const userPermissionService = {
       }
     });
 
+    // Get affected roleIds before update for cache invalidation
+    const affectedPermissions = await UserPermission.find({
+      _id: { $in: objectIds },
+      isDeleted: false,
+    }).select('roleId');
+    const affectedRoleIds = [...new Set(affectedPermissions.map(p => p.roleId.toString()))];
+
     const result = await UserPermission.updateMany(
       {
         _id: { $in: objectIds },
@@ -560,6 +582,9 @@ export const userPermissionService = {
         $set: updateObj,
       }
     );
+
+    // Invalidate permission cache for all affected roles
+    affectedRoleIds.forEach(roleId => invalidatePermissionCache(roleId));
 
     return {
       matched: result.matchedCount,
@@ -636,6 +661,9 @@ export const userPermissionService = {
         errors.push(`Module ${sourcePermission.moduleName}: ${error.message}`);
       }
     }
+
+    // Invalidate permission cache for target role
+    invalidatePermissionCache(data.targetRoleId.toString());
 
     return { copied, skipped, errors };
   },
@@ -1149,6 +1177,9 @@ export const userPermissionService = {
       .populate('roleId', 'roleName roleCode description')
       .populate('createdBy', 'firstName lastName email')
       .populate('updatedBy', 'firstName lastName email');
+
+    // Invalidate permission cache for this role
+    invalidatePermissionCache(permission.roleId.toString());
 
     return updatedPermission ? toPlainObject(updatedPermission) : null;
   },

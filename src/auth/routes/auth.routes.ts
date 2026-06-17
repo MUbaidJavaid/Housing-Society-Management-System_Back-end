@@ -48,6 +48,7 @@ router.post('/google/callback', googleAuthController.callback);
  * Protected routes
  */
 router.get('/me', authenticate, authController.getCurrentUser);
+router.get('/me/permissions', authenticate, authController.getMyPermissions);
 router.post('/logout', optionalAuth, authController.logout);
 router.post('/logout-all', authenticate, authController.logoutAll);
 router.post(

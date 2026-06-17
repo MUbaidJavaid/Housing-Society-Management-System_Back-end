@@ -114,6 +114,7 @@ export const authController = {
         data: {
           user: result.user,
           tokens: result.tokens,
+          permissions: result.permissions,
         },
         message: 'Login successful',
       });
@@ -356,6 +357,73 @@ export const authController = {
       res.json({
         success: true,
         message: 'Session revoked successfully',
+      });
+    } catch (error) {
+      handleError(error, next);
+    }
+  },
+
+  /**
+   * Get current user's permissions
+   */
+  getMyPermissions: async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      if (!req.user) {
+        throw new AppError(401, 'Authentication required');
+      }
+
+      const roleId = req.user.roleId;
+
+      if (!roleId) {
+        // Return basic role-based permissions for backward compat
+        const roleDefaults: Record<string, string[]> = {
+          super_admin: ['*'],
+          admin: ['read', 'create', 'update', 'delete', 'export', 'import', 'approve', 'verify'],
+          moderator: ['read', 'create', 'update'],
+          accountant: ['read', 'create', 'update'],
+          user: ['read'],
+          member: ['read'],
+        };
+        res.json({
+          success: true,
+          data: {
+            permissions: {},
+            role: req.user.role,
+            defaultActions: roleDefaults[req.user.role] || ['read'],
+          },
+          message: 'Permissions retrieved (role-based fallback)',
+        });
+        return;
+      }
+
+      // Import and use the permission loading function
+      const UserPermissionModel = require('../../UserPermissions/models/models-userpermission').default;
+      const permissions = await UserPermissionModel.find({
+        roleId,
+        isActive: true,
+        isDeleted: false,
+      }).populate('srModuleId', 'moduleCode moduleName');
+
+      const permissionsMap: Record<string, Record<string, boolean>> = {};
+      for (const perm of permissions) {
+        const moduleCode = (perm.srModuleId as any)?.moduleCode;
+        if (!moduleCode) continue;
+        permissionsMap[moduleCode] = {
+          canRead: perm.canRead || false,
+          canCreate: perm.canCreate || false,
+          canUpdate: perm.canUpdate || false,
+          canDelete: perm.canDelete || false,
+          canExport: perm.canExport || false,
+          canImport: perm.canImport || false,
+          canApprove: perm.canApprove || false,
+          canVerify: perm.canVerify || false,
+        };
+      }
+
+      res.json({
+        success: true,
+        data: { permissions: permissionsMap, role: req.user.role },
+        message: 'Permissions retrieved successfully',
       });
     } catch (error) {
       handleError(error, next);

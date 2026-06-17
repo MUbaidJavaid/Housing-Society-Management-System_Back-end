@@ -68,7 +68,9 @@ export class JwtService {
   async generateTokenPair(
     userId: Types.ObjectId,
     email: string,
-    role: UserRole
+    role: UserRole,
+    roleId?: string,
+    societyId?: string
   ): Promise<TokenPair> {
     try {
       const sessionId = this.generateSessionId();
@@ -76,6 +78,8 @@ export class JwtService {
         userId,
         email,
         role,
+        roleId,
+        societyId,
         sessionId,
         type: 'access',
       };

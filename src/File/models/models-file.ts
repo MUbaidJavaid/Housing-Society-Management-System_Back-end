@@ -2,6 +2,7 @@
 import { Document, Model, Schema, Types, model, models } from 'mongoose';
 
 // ------------------- ENUMS -------------------
+// @deprecated - use LookupValue collection (category: 'file_status') instead
 export enum FileStatus {
   ACTIVE = 'Active',
   PENDING = 'Pending',
@@ -13,6 +14,7 @@ export enum FileStatus {
   DISPUTED = 'Disputed',
 }
 
+// @deprecated - use LookupValue collection (category: 'payment_mode') instead
 export enum PaymentMode {
   CASH = 'Cash',
   BANK_TRANSFER = 'Bank Transfer',
@@ -36,16 +38,17 @@ export interface IFile extends Document {
 
   totalAmount: number;
   downPayment: number;
-  paymentMode: PaymentMode;
+  paymentMode: string;
   isAdjusted: boolean;
   adjustmentRef?: string;
-  status: FileStatus;
+  status: string;
   fileRemarks?: string;
   bookingDate: Date;
   expectedCompletionDate?: Date;
   actualCompletionDate?: Date;
   cancellationDate?: Date;
   cancellationReason?: string;
+  societyId?: Types.ObjectId;
   createdBy: Types.ObjectId;
   modifiedBy?: Types.ObjectId;
   isActive: boolean;
@@ -127,8 +130,10 @@ const fileSchema = new Schema<IFile>(
     },
     paymentMode: {
       type: String,
-      enum: Object.values(PaymentMode),
+      // Validated via LookupValue (category: 'payment_mode')
       required: true,
+      trim: true,
+      index: true,
     },
     isAdjusted: {
       type: Boolean,
@@ -141,8 +146,10 @@ const fileSchema = new Schema<IFile>(
     },
     status: {
       type: String,
-      enum: Object.values(FileStatus),
-      default: FileStatus.PENDING,
+      // Validated via LookupValue (category: 'file_status')
+      default: 'Pending',
+      trim: true,
+      index: true,
     },
     fileRemarks: {
       type: String,
@@ -166,6 +173,11 @@ const fileSchema = new Schema<IFile>(
       type: String,
       trim: true,
       maxlength: 500,
+    },
+    societyId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Society',
+      index: true,
     },
     createdBy: {
       type: Schema.Types.ObjectId,

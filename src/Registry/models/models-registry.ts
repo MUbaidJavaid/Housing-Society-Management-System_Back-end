@@ -30,6 +30,7 @@ export interface IRegistry extends Document {
   verificationRemarks?: string;
   verifiedBy?: Types.ObjectId;
   verifiedAt?: Date;
+  societyId?: Types.ObjectId;
   isActive: boolean;
   registeredBy: Types.ObjectId;
   updatedBy?: Types.ObjectId;
@@ -237,6 +238,12 @@ const registrySchema = new Schema<IRegistry>(
 
     verifiedAt: {
       type: Date,
+      index: true,
+    },
+
+    societyId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Society',
       index: true,
     },
 

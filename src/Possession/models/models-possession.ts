@@ -1,5 +1,6 @@
 import { Document, HydratedDocument, Model, Schema, Types, model } from 'mongoose';
 
+// @deprecated - use LookupValue collection (category: 'possession_status') instead
 export enum PossessionStatus {
   REQUESTED = 'requested',
   SURVEYED = 'surveyed',
@@ -10,7 +11,7 @@ export enum PossessionStatus {
 }
 export interface IPossession extends Document {
   possessionCode: string;
-  possessionStatus: PossessionStatus;
+  possessionStatus: string;
 
   possessionInitDate: Date;
   possessionHandoverDate?: Date;
@@ -29,6 +30,7 @@ export interface IPossession extends Document {
   possessionDurationDays?: number;
 
   statusDisplayName?: string;
+  societyId?: Types.ObjectId;
   createdBy: Types.ObjectId;
   updatedBy: Types.ObjectId;
 
@@ -39,9 +41,9 @@ export interface IPossession extends Document {
 export interface PossessionBase {
   fileId: Types.ObjectId;
   plotId: Types.ObjectId;
-  possessionStatus: PossessionStatus;
+  possessionStatus: string;
   possessionCode: string;
-  allowedNextStatuses?: PossessionStatus[]; // 👈 ADD THIS
+  allowedNextStatuses?: string[]; // 👈 ADD THIS
   statusDisplayName?: string;
   possessionInitDate: Date;
   possessionHandoverDate?: Date;
@@ -67,6 +69,7 @@ export interface PossessionBase {
   possessionLongitude?: number;
   updatedAt?: Date;
   createdAt?: Date;
+  societyId?: Types.ObjectId;
   createdBy: Types.ObjectId;
   updatedBy?: Types.ObjectId;
   isDeleted: boolean;
@@ -78,7 +81,7 @@ export interface PossessionVirtuals {
   possessionDurationDays?: number;
   possessionAgeDays?: number;
   statusDisplayName?: string;
-  allowedNextStatuses?: PossessionStatus[];
+  allowedNextStatuses?: string[];
 }
 
 /* ---------------- METHODS ---------------- */
@@ -125,12 +128,10 @@ const possessionSchema = new Schema<PossessionBase, PossessionModel>(
 
     possessionStatus: {
       type: String,
+      // Validated via LookupValue (category: 'possession_status')
       required: [true, 'Possession Status is required'],
-      enum: {
-        values: Object.values(PossessionStatus),
-        message: '{VALUE} is not a valid possession status',
-      },
-      default: PossessionStatus.REQUESTED,
+      default: 'requested',
+      trim: true,
       index: true,
     },
 
@@ -265,6 +266,12 @@ const possessionSchema = new Schema<PossessionBase, PossessionModel>(
       type: Number,
       min: [-180, 'Longitude must be between -180 and 180'],
       max: [180, 'Longitude must be between -180 and 180'],
+    },
+
+    societyId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Society',
+      index: true,
     },
 
     createdBy: {

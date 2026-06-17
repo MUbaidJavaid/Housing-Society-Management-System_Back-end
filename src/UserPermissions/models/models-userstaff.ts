@@ -85,9 +85,10 @@ const userStaffSchema = new Schema<IUserStaff>(
       sparse: true, // Allow null/undefined while maintaining unique constraint
     },
 
+    // Consolidated: references 'Role' model (src/users/models/Role.model.ts) instead of 'UserRole'
     roleId: {
       type: Schema.Types.ObjectId,
-      ref: 'UserRole',
+      ref: 'Role',
       required: true,
       index: true,
     },
@@ -186,9 +187,9 @@ userStaffSchema.index(
   }
 );
 
-// Virtual for role
+// Virtual for role (consolidated to use 'Role' model)
 userStaffSchema.virtual('role', {
-  ref: 'UserRole',
+  ref: 'Role',
   localField: 'roleId',
   foreignField: '_id',
   justOne: true,

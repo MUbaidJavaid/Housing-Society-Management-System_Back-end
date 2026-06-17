@@ -6,7 +6,9 @@ export interface JwtPayload {
   userId: Types.ObjectId;
   email: string;
   role: string;
+  roleId?: string;
   sessionId: string;
+  societyId?: string;
   type: 'access' | 'refresh';
 }
 

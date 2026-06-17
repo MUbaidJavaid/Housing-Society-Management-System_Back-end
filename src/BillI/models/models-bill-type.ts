@@ -1,5 +1,6 @@
 import { Document, Model, Schema, Types, model } from 'mongoose';
 
+// @deprecated - use LookupValue collection (category: 'bill_type_category') instead
 export enum BillTypeCategory {
   UTILITY = 'Utility',
   ADMINISTRATIVE = 'Administrative',
@@ -11,7 +12,7 @@ export enum BillTypeCategory {
 
 export interface IBillType extends Document {
   billTypeName: string;
-  billTypeCategory: BillTypeCategory;
+  billTypeCategory: string;
   description?: string;
   isRecurring: boolean;
   defaultAmount?: number;
@@ -47,8 +48,9 @@ const billTypeSchema = new Schema<IBillType>(
     },
     billTypeCategory: {
       type: String,
-      enum: Object.values(BillTypeCategory),
+      // Validated via LookupValue (category: 'bill_type_category')
       required: [true, 'Bill type category is required'],
+      trim: true,
       index: true,
     },
     description: {

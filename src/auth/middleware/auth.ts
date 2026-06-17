@@ -264,7 +264,8 @@ export const requireRole = (...roles: UserRole[]) => {
 };
 
 /**
- * Check if user has specific permission
+ * @deprecated Use requireModulePermission from './permission.middleware' instead.
+ * This function uses a STATIC hardcoded map and does NOT check the database.
  */
 export const requirePermission = (...permissions: Permission[]) => {
   return async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
@@ -365,3 +366,7 @@ export const requireOwnership = (paramName = 'userId') => {
     next();
   };
 };
+
+// Re-export new permission middleware
+export { requireModulePermission, requireAnyPermission, requireAllPermissions } from './permission.middleware';
+export { invalidatePermissionCache } from './permission-cache';

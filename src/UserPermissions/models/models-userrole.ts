@@ -1,3 +1,4 @@
+// @deprecated - Use Role model (src/users/models/Role.model.ts) instead. This model is kept for backward compatibility.
 import { Document, Model, Schema, Types, model } from 'mongoose';
 
 export interface IUserRole extends Document {

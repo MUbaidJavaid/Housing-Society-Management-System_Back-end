@@ -1,5 +1,6 @@
 import { Model, Schema, Types, model } from 'mongoose';
 
+// @deprecated - use LookupValue collection (category: 'transfer_status') instead
 export enum TransferStatus {
   PENDING = 'Pending',
   UNDER_REVIEW = 'Under Review',
@@ -34,10 +35,11 @@ export interface ISrTransfer {
   transfIsAtt: boolean;
   transfClearanceCertPath?: string;
   nomineeId?: Types.ObjectId;
-  status: TransferStatus;
+  status: string;
   remarks?: string;
   legalReviewNotes?: string;
   cancellationReason?: string;
+  societyId?: Types.ObjectId;
   createdBy: Types.ObjectId;
   modifiedBy?: Types.ObjectId;
   isActive: boolean;
@@ -167,8 +169,9 @@ const srTransferSchema = new Schema(
     },
     status: {
       type: String,
-      enum: Object.values(TransferStatus),
-      default: TransferStatus.PENDING,
+      // Validated via LookupValue (category: 'transfer_status')
+      default: 'Pending',
+      trim: true,
       index: true,
     },
     remarks: {
@@ -185,6 +188,11 @@ const srTransferSchema = new Schema(
       type: String,
       trim: true,
       maxlength: [500, 'Cancellation reason cannot exceed 500 characters'],
+    },
+    societyId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Society',
+      index: true,
     },
     createdBy: {
       type: Schema.Types.ObjectId,

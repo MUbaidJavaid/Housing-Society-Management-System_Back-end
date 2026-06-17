@@ -1,5 +1,6 @@
 import { Document, Model, Schema, Types, model } from 'mongoose';
 
+// @deprecated - use LookupValue collection (category: 'complaint_priority') instead
 export enum ComplaintPriority {
   LOW = 'low',
   MEDIUM = 'medium',
@@ -7,6 +8,7 @@ export enum ComplaintPriority {
   EMERGENCY = 'emergency',
 }
 
+// @deprecated - use LookupValue collection (category: 'complaint_status') instead
 export enum ComplaintStatus {
   OPEN = 'open',
   IN_PROGRESS = 'in_progress',
@@ -24,7 +26,7 @@ export interface IComplaint extends Document {
   compTitle: string;
   compDescription: string;
   compDate: Date;
-  compPriority: ComplaintPriority;
+  compPriority: string;
   statusId: Types.ObjectId;
   status?: string;
   assignedTo?: Types.ObjectId;
@@ -42,6 +44,7 @@ export interface IComplaint extends Document {
   estimatedResolutionDate?: Date;
   tags: string[];
   followUpDate?: Date;
+  societyId?: Types.ObjectId;
   createdBy: Types.ObjectId;
   updatedBy?: Types.ObjectId;
   isDeleted: boolean;
@@ -87,8 +90,10 @@ const complaintSchema = new Schema<IComplaint>(
     },
     compPriority: {
       type: String,
-      enum: Object.values(ComplaintPriority),
-      default: ComplaintPriority.MEDIUM,
+      // Validated via LookupValue (category: 'complaint_priority')
+      default: 'medium',
+      trim: true,
+      index: true,
     },
     statusId: {
       type: Schema.Types.ObjectId,
@@ -97,8 +102,9 @@ const complaintSchema = new Schema<IComplaint>(
     },
     status: {
       type: String,
-      enum: Object.values(ComplaintStatus),
-      default: ComplaintStatus.OPEN,
+      // Validated via LookupValue (category: 'complaint_status')
+      default: 'open',
+      trim: true,
     },
     assignedTo: {
       type: Schema.Types.ObjectId,
@@ -165,6 +171,11 @@ const complaintSchema = new Schema<IComplaint>(
     ],
     followUpDate: {
       type: Date,
+    },
+    societyId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Society',
+      index: true,
     },
     createdBy: {
       type: Schema.Types.ObjectId,

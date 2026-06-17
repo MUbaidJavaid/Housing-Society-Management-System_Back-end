@@ -1,5 +1,6 @@
 import { Document, Model, Schema, Types, model } from 'mongoose';
 
+// @deprecated - use LookupValue collection (category: 'project_status') instead
 export enum ProjectStatus {
   PLANNING = 'planning',
   UNDER_DEVELOPMENT = 'under_development',
@@ -8,6 +9,7 @@ export enum ProjectStatus {
   CANCELLED = 'cancelled',
 }
 
+// @deprecated - use LookupValue collection (category: 'project_type') instead
 export enum ProjectType {
   RESIDENTIAL = 'residential',
   COMMERCIAL = 'commercial',
@@ -26,8 +28,8 @@ export interface IProject extends Document {
   areaUnit: string;
   launchDate: Date;
   completionDate?: Date;
-  projStatus: ProjectStatus;
-  projType?: ProjectType;
+  projStatus: string;
+  projType?: string;
   isActive: boolean;
   website?: string;
   contactEmail?: string;
@@ -40,6 +42,7 @@ export interface IProject extends Document {
     longitude: number;
   };
   amenities?: string[];
+  societyId?: Types.ObjectId;
   createdBy: Types.ObjectId;
   updatedBy?: Types.ObjectId;
   isDeleted: boolean;
@@ -137,22 +140,18 @@ const projectSchema = new Schema<IProject, any>(
 
     projStatus: {
       type: String,
+      // Validated via LookupValue (category: 'project_status')
       required: [true, 'Project Status is required'],
-      enum: {
-        values: Object.values(ProjectStatus),
-        message: '{VALUE} is not a valid project status',
-      },
-      default: ProjectStatus.PLANNING,
+      default: 'planning',
+      trim: true,
       index: true,
     },
 
     projType: {
       type: String,
-      enum: {
-        values: Object.values(ProjectType),
-        message: '{VALUE} is not a valid project type',
-      },
-      default: ProjectType.RESIDENTIAL,
+      // Validated via LookupValue (category: 'project_type')
+      default: 'residential',
+      trim: true,
       index: true,
     },
 
@@ -221,6 +220,12 @@ const projectSchema = new Schema<IProject, any>(
         trim: true,
       },
     ],
+
+    societyId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Society',
+      index: true,
+    },
 
     createdBy: {
       type: Schema.Types.ObjectId,

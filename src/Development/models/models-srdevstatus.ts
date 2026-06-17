@@ -1,5 +1,6 @@
 import { CallbackWithoutResult, Document, model, Model, Schema, Types } from 'mongoose';
 
+// @deprecated - use LookupValue collection (category: 'dev_category') instead
 export enum DevCategory {
   INFRASTRUCTURE = 'infrastructure',
   CONSTRUCTION = 'construction',
@@ -9,6 +10,7 @@ export enum DevCategory {
   COMPLETION = 'completion',
 }
 
+// @deprecated - use LookupValue collection (category: 'dev_phase') instead
 export enum DevPhase {
   PRE_CONSTRUCTION = 'pre_construction',
   CONSTRUCTION = 'construction',
@@ -19,8 +21,8 @@ export enum DevPhase {
 export interface ISrDevStatus extends Document {
   srDevStatName: string;
   srDevStatCode: string;
-  devCategory: DevCategory;
-  devPhase: DevPhase;
+  devCategory: string;
+  devPhase: string;
   description?: string;
   sequence: number;
   isActive: boolean;
@@ -65,23 +67,19 @@ const srDevStatusSchema = new Schema<ISrDevStatus>(
 
     devCategory: {
       type: String,
+      // Validated via LookupValue (category: 'dev_category')
       required: [true, 'Development Category is required'],
-      enum: {
-        values: Object.values(DevCategory),
-        message: '{VALUE} is not a valid development category',
-      },
-      default: DevCategory.INFRASTRUCTURE,
+      default: 'infrastructure',
+      trim: true,
       index: true,
     },
 
     devPhase: {
       type: String,
+      // Validated via LookupValue (category: 'dev_phase')
       required: [true, 'Development Phase is required'],
-      enum: {
-        values: Object.values(DevPhase),
-        message: '{VALUE} is not a valid development phase',
-      },
-      default: DevPhase.PRE_CONSTRUCTION,
+      default: 'pre_construction',
+      trim: true,
       index: true,
     },
 

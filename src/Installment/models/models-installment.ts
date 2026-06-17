@@ -1,5 +1,6 @@
 import { Document, Model, Schema, Types, model } from 'mongoose';
 
+// @deprecated - use LookupValue collection (category: 'installment_status') instead
 export enum InstallmentStatus {
   UNPAID = 'Unpaid',
   PARTIALLY_PAID = 'Partially Paid',
@@ -9,6 +10,7 @@ export enum InstallmentStatus {
   REFUNDED = 'Refunded',
 }
 
+// @deprecated - use LookupValue collection (category: 'installment_type') instead
 export enum InstallmentType {
   MONTHLY = 'Monthly',
   QUARTERLY = 'Quarterly',
@@ -25,6 +27,7 @@ export enum InstallmentType {
   OTHER = 'Other',
 }
 
+// @deprecated - use LookupValue collection (category: 'payment_mode') instead
 export enum PaymentMode {
   CASH = 'Cash',
   BANK_TRANSFER = 'Bank Transfer',
@@ -42,7 +45,7 @@ export interface IInstallment extends Document {
   installmentCategoryId: Types.ObjectId;
   installmentNo: number;
   installmentTitle: string;
-  installmentType: InstallmentType;
+  installmentType: string;
   dueDate: Date;
   amountDue: number;
   lateFeeSurcharge?: number;
@@ -50,10 +53,11 @@ export interface IInstallment extends Document {
   amountPaid: number;
   balanceAmount: number;
   paidDate?: Date;
-  paymentMode?: PaymentMode;
+  paymentMode?: string;
   transactionRefNo?: string;
-  status: InstallmentStatus;
+  status: string;
   installmentRemarks?: string;
+  societyId?: Types.ObjectId;
   createdBy: Types.ObjectId;
   modifiedBy?: Types.ObjectId;
   isDeleted: boolean;
@@ -113,8 +117,9 @@ const installmentSchema = new Schema<IInstallment>(
     },
     installmentType: {
       type: String,
-      enum: Object.values(InstallmentType),
+      // Validated via LookupValue (category: 'installment_type')
       required: [true, 'Installment type is required'],
+      trim: true,
       index: true,
     },
     dueDate: {
@@ -153,7 +158,8 @@ const installmentSchema = new Schema<IInstallment>(
     },
     paymentMode: {
       type: String,
-      enum: Object.values(PaymentMode),
+      // Validated via LookupValue (category: 'payment_mode')
+      trim: true,
       index: true,
     },
     transactionRefNo: {
@@ -164,14 +170,20 @@ const installmentSchema = new Schema<IInstallment>(
     },
     status: {
       type: String,
-      enum: Object.values(InstallmentStatus),
-      default: InstallmentStatus.UNPAID,
+      // Validated via LookupValue (category: 'installment_status')
+      default: 'Unpaid',
+      trim: true,
       index: true,
     },
     installmentRemarks: {
       type: String,
       trim: true,
       maxlength: [1000, 'Remarks cannot exceed 1000 characters'],
+    },
+    societyId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Society',
+      index: true,
     },
     createdBy: {
       type: Schema.Types.ObjectId,

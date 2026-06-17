@@ -6,6 +6,7 @@ export interface IInstallmentPlan extends Document {
   totalMonths: number;
   totalAmount: number;
   isActive: boolean;
+  societyId?: Types.ObjectId;
   createdBy: Types.ObjectId;
   updatedBy?: Types.ObjectId;
   createdAt: Date;
@@ -49,6 +50,11 @@ const installmentPlanSchema = new Schema<IInstallmentPlan>(
     isActive: {
       type: Boolean,
       default: true,
+      index: true,
+    },
+    societyId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Society',
       index: true,
     },
     createdBy: {

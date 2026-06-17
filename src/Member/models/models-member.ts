@@ -46,6 +46,9 @@ export interface IMember extends Document {
   emailVerificationToken?: string;
   emailVerificationExpires?: Date;
 
+  // Multi-tenancy
+  societyId?: Types.ObjectId;
+
   // Audit fields
   createdBy: Types.ObjectId;
   createdAt: Date;
@@ -304,6 +307,12 @@ const memberSchema = new Schema<IMember>(
     emailVerificationExpires: {
       type: Date,
       select: false,
+    },
+
+    societyId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Society',
+      index: true,
     },
 
     // Audit fields

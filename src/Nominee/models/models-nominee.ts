@@ -1,5 +1,6 @@
 import { Document, Model, Schema, Types, model } from 'mongoose';
 
+// @deprecated - use LookupValue collection (category: 'relation_type') instead
 export enum RelationType {
   SON = 'Son',
   DAUGHTER = 'Daughter',
@@ -23,7 +24,7 @@ export interface INominee extends Document {
   memId: Types.ObjectId;
   nomineeName: string;
   nomineeCNIC: string;
-  relationWithMember: RelationType;
+  relationWithMember: string;
   nomineeContact: string;
   nomineeEmail?: string;
   nomineeAddress?: string;
@@ -68,8 +69,9 @@ const nomineeSchema = new Schema<INominee, INomineeModel, INomineeMethods>(
     },
     relationWithMember: {
       type: String,
-      enum: Object.values(RelationType),
+      // Validated via LookupValue (category: 'relation_type')
       required: [true, 'Relation with member is required'],
+      trim: true,
       index: true,
     },
     nomineeContact: {

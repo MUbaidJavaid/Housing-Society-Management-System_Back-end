@@ -1,5 +1,6 @@
 import { Model, Schema, Types, model } from 'mongoose';
 
+// @deprecated - use LookupValue collection (category: 'plot_type') instead
 export enum PlotType {
   RESIDENTIAL = 'residential',
   COMMERCIAL = 'commercial',
@@ -17,7 +18,7 @@ export interface IPlot {
   plotNo: string; // Unique within project
   plotBlockId: Types.ObjectId;
   plotSizeId: Types.ObjectId;
-  plotType: PlotType;
+  plotType: string;
   plotCategoryId: Types.ObjectId;
   plotStreet?: string;
   plotLength: number; // in feet/meters
@@ -47,6 +48,7 @@ export interface IPlot {
     uploadedDate: Date;
     uploadedBy: Types.ObjectId;
   }>;
+  societyId?: Types.ObjectId;
   createdBy: Types.ObjectId;
   updatedBy?: Types.ObjectId;
   isDeleted: boolean;
@@ -101,12 +103,10 @@ const plotSchema = new Schema<IPlot, any, IPlotMethods>(
 
     plotType: {
       type: String,
+      // Validated via LookupValue (category: 'plot_type')
       required: [true, 'Plot Type is required'],
-      enum: {
-        values: Object.values(PlotType),
-        message: '{VALUE} is not a valid plot type',
-      },
-      default: PlotType.RESIDENTIAL,
+      default: 'residential',
+      trim: true,
       index: true,
     },
 
@@ -301,6 +301,12 @@ const plotSchema = new Schema<IPlot, any, IPlotMethods>(
         },
       },
     ],
+
+    societyId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Society',
+      index: true,
+    },
 
     createdBy: {
       type: Schema.Types.ObjectId,
