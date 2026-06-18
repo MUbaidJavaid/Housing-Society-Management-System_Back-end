@@ -280,7 +280,7 @@ srDevStatusSchema.virtual('badgeVariant').get(function () {
     [DevPhase.POST_CONSTRUCTION]: 'primary',
     [DevPhase.COMPLETION]: 'success',
   };
-  return variants[this.devPhase] || 'default';
+  return (variants as Record<string, string>)[this.devPhase] || 'default';
 });
 
 srDevStatusSchema.virtual('phaseDescription').get(function () {
@@ -291,7 +291,7 @@ srDevStatusSchema.virtual('phaseDescription').get(function () {
     [DevPhase.POST_CONSTRUCTION]: 'Finishing and handover phase',
     [DevPhase.COMPLETION]: 'Project completion phase',
   };
-  return descriptions[this.devPhase] || '';
+  return (descriptions as Record<string, string>)[this.devPhase] || '';
 });
 
 // Virtual for progress bar color based on percentage

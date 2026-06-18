@@ -358,7 +358,7 @@ export const visitorService = {
     if (!visitor) return null;
 
     const cancellableStatuses = [VisitorStatus.PENDING, VisitorStatus.APPROVED];
-    if (!cancellableStatuses.includes(visitor.status)) {
+    if (!cancellableStatuses.includes(visitor.status as VisitorStatus)) {
       throw new Error(
         `Cannot cancel visitor with status "${visitor.status}". Only Pending or Approved visits can be cancelled.`
       );

@@ -988,7 +988,7 @@ export const srTransferService = {
       timeline.push({
         date: transfer.transferInitDate,
         action: 'Transfer Initiated',
-        status: transfer.status,
+        status: transfer.status as TransferStatus,
         performedBy: 'System',
         notes: 'Transfer process officially started',
       });
@@ -999,7 +999,7 @@ export const srTransferService = {
       timeline.push({
         date: transfer.transferFeePaidDate,
         action: 'Fee Paid',
-        status: transfer.status,
+        status: transfer.status as TransferStatus,
         performedBy: 'Finance Department',
         notes: `Transfer fee of Rs. ${transfer.transferFeeAmount} paid`,
       });
@@ -1011,7 +1011,7 @@ export const srTransferService = {
       timeline.push({
         date: transfer.updatedAt,
         action: 'NDC Uploaded',
-        status: transfer.status,
+        status: transfer.status as TransferStatus,
         performedBy: 'Legal Department',
         notes: 'No Demand Certificate uploaded',
       });
@@ -1022,7 +1022,7 @@ export const srTransferService = {
       timeline.push({
         date: transfer.updatedAt,
         action: 'Clearance Certificates Attached',
-        status: transfer.status,
+        status: transfer.status as TransferStatus,
         performedBy: 'Legal Department',
         notes: 'All required clearance certificates uploaded',
       });
@@ -1044,7 +1044,7 @@ export const srTransferService = {
       timeline.push({
         date: transfer.updatedAt,
         action: 'Transfer Updated',
-        status: transfer.status,
+        status: transfer.status as TransferStatus,
         performedBy: transfer.modifiedByUser?.fullName || 'System',
         notes: 'Transfer details updated',
       });

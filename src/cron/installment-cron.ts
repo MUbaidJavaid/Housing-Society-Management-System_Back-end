@@ -18,7 +18,7 @@ let overdueTask: ScheduledTask | null = null;
  * Calculate the due date for a specific occurrence based on the file's booking date
  * and the plan's total months to determine frequency.
  */
-function calculateDueDate(bookingDate: Date, occurrence: number, totalMonths: number): Date {
+function calculateDueDate(bookingDate: Date, occurrence: number, _totalMonths: number): Date {
   const dueDate = new Date(bookingDate);
   // Each occurrence represents a month increment from the booking date
   // occurrence 1 = bookingDate, occurrence 2 = bookingDate + 1 month, etc.
@@ -445,7 +445,6 @@ export function startInstallmentCron(): void {
         }
       },
       {
-        scheduled: true,
         timezone: process.env.TZ || 'Asia/Karachi',
       }
     );
@@ -463,7 +462,6 @@ export function startInstallmentCron(): void {
         }
       },
       {
-        scheduled: true,
         timezone: process.env.TZ || 'Asia/Karachi',
       }
     );
