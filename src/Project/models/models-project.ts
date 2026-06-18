@@ -329,7 +329,7 @@ projectSchema.virtual('statusColor').get(function () {
     [ProjectStatus.ON_HOLD]: 'yellow',
     [ProjectStatus.CANCELLED]: 'red',
   };
-  return colors[this.projStatus] || 'gray';
+  return (colors as Record<string, string>)[this.projStatus] || 'gray';
 });
 
 // Virtual for city name (populated)

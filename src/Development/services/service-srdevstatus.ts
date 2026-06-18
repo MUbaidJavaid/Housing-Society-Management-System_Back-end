@@ -199,8 +199,8 @@ export const srDevStatusService = {
 
     // Count statuses by category and phase
     srDevStatuses.forEach(status => {
-      summary.byCategory[status.devCategory] = (summary.byCategory[status.devCategory] || 0) + 1;
-      summary.byPhase[status.devPhase] = (summary.byPhase[status.devPhase] || 0) + 1;
+      (summary.byCategory as Record<string, number>)[status.devCategory] = ((summary.byCategory as Record<string, number>)[status.devCategory] || 0) + 1;
+      (summary.byPhase as Record<string, number>)[status.devPhase] = ((summary.byPhase as Record<string, number>)[status.devPhase] || 0) + 1;
     });
 
     return {
@@ -258,7 +258,7 @@ export const srDevStatusService = {
           data.percentageComplete !== undefined
             ? data.percentageComplete
             : currentStatus.percentageComplete;
-        this.validatePhasePercentage(phase, percentage);
+        this.validatePhasePercentage(phase as DevPhase, percentage);
       }
     }
 
@@ -504,7 +504,7 @@ export const srDevStatusService = {
 
     srDevStatuses.forEach(status => {
       const statusObj = status.toObject();
-      workflowByPhase[status.devPhase].push(statusObj);
+      (workflowByPhase as Record<string, any[]>)[status.devPhase].push(statusObj);
     });
 
     // Calculate phase progress

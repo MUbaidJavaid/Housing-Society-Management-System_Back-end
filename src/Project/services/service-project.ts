@@ -314,10 +314,10 @@ export const projectService = {
     });
 
     projectsWithCityInfo.forEach(proj => {
-      summary.byStatus[proj.projStatus] = (summary.byStatus[proj.projStatus] || 0) + 1;
+      (summary.byStatus as Record<string, number>)[proj.projStatus] = ((summary.byStatus as Record<string, number>)[proj.projStatus] || 0) + 1;
 
       if (proj.projType) {
-        summary.byType[proj.projType] = (summary.byType[proj.projType] || 0) + 1;
+        (summary.byType as Record<string, number>)[proj.projType] = ((summary.byType as Record<string, number>)[proj.projType] || 0) + 1;
       }
     });
 

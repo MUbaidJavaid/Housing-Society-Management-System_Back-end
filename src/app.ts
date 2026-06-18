@@ -107,7 +107,31 @@ import { societyRoutes } from './Society/index-society';
 import { subscriptionRoutes } from './Subscription/index-subscription';
 import { lookupRoutes } from './Lookup/index-lookup';
 import { seedLookupValues } from './Lookup/index-lookup';
+
+// V2.0 New Modules
+import { workflowRoutes } from './Workflow/index-workflow';
+import { customFormRoutes } from './CustomForm/index-custom-form';
+import { privacyRoutes } from './Privacy/index-privacy';
+import { aiRoutes } from './AI/index-ai';
+import { vendorRoutes } from './Vendor/index-vendor';
+import { attendanceRoutes } from './Attendance/index-attendance';
+import { gamificationRoutes } from './Gamification/index-gamification';
+import { plraRoutes } from './PLRA/index-plra';
+import { paymentGatewayRoutes } from './PaymentGateway/index-payment-gateway';
+import { smsRoutes } from './SMS/index-sms';
+import { pdfGeneratorRoutes } from './PDFGenerator/index-pdf-generator';
+import { meetingRoutes } from './Meeting/index-meeting';
+import { pollRoutes } from './Poll/index-poll';
+import { emergencyRoutes } from './Emergency/index-emergency';
+import { parkingRoutes } from './Parking/index-parking';
+import { marketplaceRoutes } from './Marketplace/index-marketplace';
+import { forumRoutes } from './Forum/index-forum';
+import { staffRegistryRoutes } from './StaffRegistry/index-staff-registry';
+import { maintenanceRequestRoutes } from './MaintenanceRequest/index-maintenance';
+import { gatePassRoutes } from './GatePass/index-gate-pass';
+import { bulkOperationsRoutes } from './BulkOperations/index-bulk-operations';
 import { seedDefaultModules, seedDefaultRoles } from './seeds/seed-default-roles';
+import { seedUsers } from './seeds/seed-users';
 // Track graceful shutdown
 let isShuttingDown = false;
 dotenv.config();
@@ -528,6 +552,37 @@ function setupRoutes(app: Application): void {
 
   app.use('/api/lookups', lookupRoutes);
 
+  // V2.0 New Module Routes
+  app.use('/api/workflows', workflowRoutes);
+  app.use('/api/custom-forms', customFormRoutes);
+  app.use('/api/privacy', privacyRoutes);
+  app.use('/api/ai', aiRoutes);
+  app.use('/api/vendors', vendorRoutes);
+  app.use('/api/attendance', attendanceRoutes);
+  app.use('/api/gamification', gamificationRoutes);
+  app.use('/api/plra', plraRoutes);
+
+  // V2.0 Payment, SMS, PDF modules
+  app.use('/api/payment-gateway', paymentGatewayRoutes);
+  app.use('/api/sms', smsRoutes);
+  app.use('/api/pdf', pdfGeneratorRoutes);
+
+  // V2.0 Meeting, Poll, Emergency modules
+  app.use('/api/meetings', meetingRoutes);
+  app.use('/api/polls', pollRoutes);
+  app.use('/api/emergency', emergencyRoutes);
+
+  // V2.0 Parking, Marketplace, Forum, Staff, Maintenance, GatePass
+  app.use('/api/parking', parkingRoutes);
+  app.use('/api/marketplace', marketplaceRoutes);
+  app.use('/api/forum', forumRoutes);
+  app.use('/api/staff-registry', staffRegistryRoutes);
+  app.use('/api/maintenance-requests', maintenanceRequestRoutes);
+  app.use('/api/gate-passes', gatePassRoutes);
+
+  // Bulk Operations (Import/Export)
+  app.use('/api/bulk-operations', bulkOperationsRoutes);
+
   app.get('/api/test', (_req: Request, res: Response) => {
     res.json({ success: true, message: 'API is working' });
   });
@@ -933,6 +988,15 @@ export async function createApp(): Promise<Application> {
         console.log('✅ [createApp-4d] Default roles & permissions seeded');
       } catch (seedError: any) {
         console.warn('⚠️ [createApp-4d] Role seeding failed:', seedError.message);
+      }
+
+      // Seed test users, society, project, plots, and members
+      console.log('🔍 [createApp-4e] Seeding test users & sample data...');
+      try {
+        await seedUsers();
+        console.log('✅ [createApp-4e] Test users & sample data seeded');
+      } catch (seedError: any) {
+        console.warn('⚠️ [createApp-4e] User seeding failed:', seedError.message);
       }
     } catch (dbError: any) {
       console.warn('⚠️ [createApp-4] Database initialization failed:', dbError.message);

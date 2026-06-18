@@ -400,7 +400,7 @@ possessionSchema.virtual('statusColor').get(function () {
     [PossessionStatus.CANCELLED]: 'red',
     [PossessionStatus.ON_HOLD]: 'yellow',
   };
-  return colors[this.possessionStatus] || 'gray';
+  return (colors as Record<string, string>)[this.possessionStatus] || 'gray';
 });
 
 // Virtual for status display name
@@ -413,7 +413,7 @@ possessionSchema.virtual('statusDisplayName').get(function () {
     [PossessionStatus.CANCELLED]: 'Cancelled',
     [PossessionStatus.ON_HOLD]: 'On Hold',
   };
-  return names[this.possessionStatus] || this.possessionStatus;
+  return (names as Record<string, string>)[this.possessionStatus] || this.possessionStatus;
 });
 
 // Virtual for next allowed statuses
@@ -445,7 +445,7 @@ possessionSchema.virtual('allowedNextStatuses').get(function () {
     ],
   };
 
-  return transitions[this.possessionStatus] || [];
+  return (transitions as Record<string, PossessionStatus[]>)[this.possessionStatus] || [];
 });
 
 // Virtual for formatted dates

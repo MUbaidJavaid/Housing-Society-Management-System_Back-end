@@ -271,7 +271,7 @@ complaintSchema.virtual('priorityColor').get(function (this: IComplaint) {
     [ComplaintPriority.MEDIUM]: '#FFA500',
     [ComplaintPriority.LOW]: '#32CD32',
   };
-  return colors[this.compPriority] || '#808080';
+  return (colors as Record<string, string>)[this.compPriority] || '#808080';
 });
 
 complaintSchema.virtual('statusLabel').get(function (this: IComplaint) {
