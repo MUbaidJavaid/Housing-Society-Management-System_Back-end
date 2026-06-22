@@ -23,16 +23,14 @@ export const validateCreateListing = (): ValidationChain[] => [
     .withMessage('Description cannot exceed 2000 characters'),
 
   body('societyId')
+    .optional({ values: 'falsy' })
     .trim()
-    .notEmpty()
-    .withMessage('Society ID is required')
     .isMongoId()
     .withMessage('Invalid Society ID'),
 
   body('sellerId')
+    .optional({ values: 'falsy' })
     .trim()
-    .notEmpty()
-    .withMessage('Seller ID is required')
     .isMongoId()
     .withMessage('Invalid Seller ID'),
 

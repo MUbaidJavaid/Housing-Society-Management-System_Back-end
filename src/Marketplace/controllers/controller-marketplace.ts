@@ -19,7 +19,11 @@ export const marketplaceController = {
         throw new AppError(401, 'Authentication required');
       }
 
-      const data: CreateListingDto = req.body;
+      const data: CreateListingDto = {
+        ...req.body,
+        sellerId: req.body.sellerId || req.user.userId.toString(),
+        societyId: req.body.societyId || (req as any).societyId || req.user.societyId?.toString() || '',
+      };
       const listing = await marketplaceService.createListing(data, req.user.userId);
 
       res.status(201).json({
