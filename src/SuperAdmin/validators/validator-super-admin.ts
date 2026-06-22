@@ -1,24 +1,27 @@
 import { z } from 'zod';
 
+// Transform empty strings to undefined so .optional() skips validation
+const emptyToUndefined = z.literal('').transform(() => undefined);
+
 export const createSocietySchema = z.object({
   societyName: z.string().min(3).max(200),
-  societyCode: z.string().min(3).max(20).optional(),
+  societyCode: z.string().min(3).max(20).optional().or(emptyToUndefined),
   address: z.string().min(1),
-  cityId: z.string().optional(),
-  stateId: z.string().optional(),
+  cityId: z.string().optional().or(emptyToUndefined),
+  stateId: z.string().optional().or(emptyToUndefined),
   country: z.string().default('Pakistan'),
-  zipCode: z.string().optional(),
+  zipCode: z.string().optional().or(emptyToUndefined),
   contactEmail: z.string().email(),
   contactPhone: z.string().min(8),
-  website: z.string().url().optional(),
+  website: z.string().url().optional().or(emptyToUndefined),
   subscriptionPlanId: z.string().min(1, 'Subscription plan is required'),
   billingCycle: z.enum(['monthly', 'yearly']).default('monthly'),
   // Admin for the society
   adminEmail: z.string().email(),
   adminFirstName: z.string().min(2).max(50),
   adminLastName: z.string().min(1).max(50),
-  adminPhone: z.string().optional(),
-  adminPassword: z.string().min(8).optional(),
+  adminPhone: z.string().optional().or(emptyToUndefined),
+  adminPassword: z.string().min(8).optional().or(emptyToUndefined),
 });
 
 export const updateSocietySchema = z.object({

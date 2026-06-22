@@ -99,15 +99,14 @@ export const authController = {
         throw new AppError(403, 'Please verify your email before logging in');
       }
 
-      // Set cookies if needed
-      if (req.body?.rememberMe) {
-        res.cookie('refreshToken', result.tokens.refreshToken, {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === 'production',
-          sameSite: 'strict',
-          maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-        });
-      }
+      // Always set refresh token in httpOnly cookie for secure session persistence
+      res.cookie('refreshToken', result.tokens.refreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+        path: '/',
+      });
 
       res.json({
         success: true,
@@ -268,6 +267,15 @@ export const authController = {
       }
 
       const tokens = await authService.refreshToken({ refreshToken });
+
+      // Set the new refresh token cookie after rotation
+      res.cookie('refreshToken', tokens.refreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+        path: '/',
+      });
 
       res.json({
         success: true,

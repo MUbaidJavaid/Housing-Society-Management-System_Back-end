@@ -134,7 +134,7 @@ export async function createSociety(
           userId: superAdminId,
           action: 'SOCIETY_CREATED',
     
-          entityType: 'Society',
+          entityType: 'SOCIETY',
           entityId: society._id,
           description: `Society "${dto.societyName}" (${societyCode}) created with admin ${dto.adminEmail}`,
           ipAddress: '',
@@ -280,7 +280,7 @@ export async function updateSociety(
     userId: superAdminId,
     action: 'SOCIETY_UPDATED',
 
-    entityType: 'Society',
+    entityType: 'SOCIETY',
     entityId: societyId,
     description: `Society "${society.societyName}" updated`,
     metadata: { changes: dto },
@@ -307,7 +307,7 @@ export async function deleteSociety(societyId: string, superAdminId: Types.Objec
     userId: superAdminId,
     action: 'SOCIETY_DELETED',
 
-    entityType: 'Society',
+    entityType: 'SOCIETY',
     entityId: societyId,
     description: `Society "${society.societyName}" deactivated`,
   });
