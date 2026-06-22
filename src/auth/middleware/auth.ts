@@ -1,4 +1,5 @@
 import { NextFunction, Request, Response } from 'express';
+import { Types } from 'mongoose';
 import logger from '../../core/logger';
 import Token from '../../database/models/Token';
 import User from '../../database/models/User';
@@ -137,6 +138,28 @@ export const authenticate = async (
       lastActive: new Date(),
       isRevoked: false,
     };
+
+    // Auto-extract tenant context from JWT
+    // Super admin can override via X-Society-Id header or query param
+    if (decoded.role === UserRole.SUPER_ADMIN) {
+      const overrideSocietyId =
+        (req.headers['x-society-id'] as string) ||
+        (req.query.societyId as string);
+      if (overrideSocietyId) {
+        // Validate it's a proper ObjectId to prevent NoSQL injection
+        if (!Types.ObjectId.isValid(overrideSocietyId)) {
+          res.status(400).json({
+            success: false,
+            error: 'Invalid society ID format',
+            code: 'INVALID_SOCIETY_ID',
+          });
+          return;
+        }
+        (req as any).societyId = overrideSocietyId;
+      }
+    } else if (decoded.societyId) {
+      (req as any).societyId = decoded.societyId;
+    }
 
     // Update user's last activity
     await User.findByIdAndUpdate(decoded.userId, {

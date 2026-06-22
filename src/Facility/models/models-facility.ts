@@ -43,7 +43,7 @@ export interface IFacility extends Document {
   cancellationPolicyHours: number;
   requiresApproval: boolean;
   rules?: string;
-  societyId?: Types.ObjectId;
+  societyId: Types.ObjectId;
   isActive: boolean;
   createdBy: Types.ObjectId;
   modifiedBy?: Types.ObjectId;
@@ -208,6 +208,7 @@ const facilitySchema = new Schema<IFacility>(
     societyId: {
       type: Schema.Types.ObjectId,
       ref: 'Society',
+      required: [true, 'Society ID is required for tenant isolation'],
       index: true,
     },
 

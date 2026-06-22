@@ -2,6 +2,7 @@ import { Document, Model, Schema, Types, model } from 'mongoose';
 
 export interface IPlotType extends Document {
   plotTypeName: string;
+  societyId?: Types.ObjectId;
   createdBy: Types.ObjectId;
   createdAt: Date;
   updatedBy?: Types.ObjectId;
@@ -19,6 +20,13 @@ const plotTypeSchema = new Schema<IPlotType>(
       minlength: [2, 'Plot Type Name must be at least 2 characters'],
       maxlength: [100, 'Plot Type Name cannot exceed 100 characters'],
       index: true,
+    },
+
+    societyId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Society',
+      index: true,
+      default: null,
     },
 
     createdBy: {

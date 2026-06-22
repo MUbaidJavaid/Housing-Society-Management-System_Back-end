@@ -11,6 +11,7 @@ export enum BillStatus {
 }
 
 export interface IBillInfo extends Document {
+  societyId: Types.ObjectId;
   billNo: string;
   billTypeId: Types.ObjectId;
   fileId: Types.ObjectId;
@@ -51,6 +52,12 @@ export interface IBillInfo extends Document {
 
 const billInfoSchema = new Schema<IBillInfo>(
   {
+    societyId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Society',
+      required: [true, 'Society ID is required for tenant isolation'],
+      index: true,
+    },
     billNo: {
       type: String,
       required: [true, 'Bill number is required'],
@@ -211,6 +218,7 @@ const billInfoSchema = new Schema<IBillInfo>(
 );
 
 // Compound indexes for efficient querying
+billInfoSchema.index({ societyId: 1, isDeleted: 1 });
 billInfoSchema.index({ billNo: 1, isDeleted: 1 }, { unique: true });
 billInfoSchema.index({ memId: 1, billMonth: 1, billTypeId: 1 });
 billInfoSchema.index({ status: 1, dueDate: 1 });

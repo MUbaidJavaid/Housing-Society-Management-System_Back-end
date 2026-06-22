@@ -2,6 +2,7 @@ import { Document, Model, Schema, Types, model } from 'mongoose';
 
 export interface IPlotSize extends Document {
   plotSizeName: string;
+  societyId?: Types.ObjectId;
   totalArea: number;
   areaUnit: string;
   ratePerUnit: number;
@@ -22,6 +23,13 @@ const plotSizeSchema = new Schema<IPlotSize>(
       minlength: [2, 'Plot Size Name must be at least 2 characters'],
       maxlength: [100, 'Plot Size Name cannot exceed 100 characters'],
       index: true,
+    },
+
+    societyId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Society',
+      index: true,
+      default: null,
     },
 
     totalArea: {

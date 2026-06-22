@@ -48,7 +48,7 @@ export interface IFile extends Document {
   actualCompletionDate?: Date;
   cancellationDate?: Date;
   cancellationReason?: string;
-  societyId?: Types.ObjectId;
+  societyId: Types.ObjectId;
   createdBy: Types.ObjectId;
   modifiedBy?: Types.ObjectId;
   isActive: boolean;
@@ -177,6 +177,7 @@ const fileSchema = new Schema<IFile>(
     societyId: {
       type: Schema.Types.ObjectId,
       ref: 'Society',
+      required: [true, 'Society ID is required for tenant isolation'],
       index: true,
     },
     createdBy: {

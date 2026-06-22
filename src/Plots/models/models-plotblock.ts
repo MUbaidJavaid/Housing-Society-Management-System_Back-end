@@ -1,6 +1,7 @@
 import { Document, Model, Schema, Types, model } from 'mongoose';
 
 export interface IPlotBlock extends Document {
+  societyId?: Types.ObjectId;
   projectId: Types.ObjectId; // Added: Foreign key to Project
   plotBlockName: string;
   plotBlockDesc?: string;
@@ -14,6 +15,12 @@ export interface IPlotBlock extends Document {
 
 const plotBlockSchema = new Schema<IPlotBlock>(
   {
+    societyId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Society',
+      index: true,
+    },
+
     projectId: {
       type: Schema.Types.ObjectId,
       ref: 'Project',
@@ -78,6 +85,9 @@ const plotBlockSchema = new Schema<IPlotBlock>(
     timestamps: true, // This automatically creates createdAt and updatedAt
   }
 );
+
+// Compound index for societyId
+plotBlockSchema.index({ societyId: 1, isDeleted: 1 });
 
 // Compound index for name uniqueness within the same project
 plotBlockSchema.index(

@@ -42,6 +42,7 @@ export interface IUser {
   fullName?: string;
   role: UserRole;
   roleId?: Types.ObjectId;
+  societyId?: Types.ObjectId; // Tenant isolation — null for Super Admin
   status: UserStatus;
   avatar?: string;
   phone?: string;
@@ -141,6 +142,12 @@ const userSchema = new Schema<UserDocument, UserModel, IUserMethods>(
       type: Schema.Types.ObjectId,
       ref: 'Role',
       index: true,
+    },
+    societyId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Society',
+      index: true,
+      default: null, // null for Super Admin (platform-level user)
     },
     status: {
       type: String,
@@ -410,6 +417,8 @@ userSchema.methods.getPublicProfile = function () {
     fullName: this.fullName,
     avatar: this.avatar,
     role: this.role,
+    roleId: this.roleId,
+    societyId: this.societyId,
     status: this.status,
     emailVerified: this.emailVerified,
     phone: this.phone,

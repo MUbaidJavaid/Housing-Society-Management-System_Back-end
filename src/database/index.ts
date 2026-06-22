@@ -1,5 +1,11 @@
 import logger from '../core/logger';
 import { connectDB, disconnectDB } from './connection';
+import { registerTenantPlugin } from './tenant-global-plugin';
+
+// Register the tenant isolation plugin BEFORE any models are compiled.
+// This ensures all schemas with societyId get automatic soft-delete filtering
+// and compound indexes for tenant queries.
+registerTenantPlugin();
 
 /**
  * Initialize database connection

@@ -2,6 +2,7 @@ import { Document, Model, Schema, Types, model } from 'mongoose';
 
 export interface IPaymentMode extends Document {
   paymentModeName: string;
+  societyId?: Types.ObjectId;
   description?: string;
   isActive: boolean;
   createdBy: Types.ObjectId;
@@ -22,6 +23,13 @@ const paymentModeSchema = new Schema<IPaymentMode>(
       minlength: [1, 'Payment Mode Name must be at least 1 character'],
       maxlength: [100, 'Payment Mode Name cannot exceed 100 characters'],
       index: true,
+    },
+
+    societyId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Society',
+      index: true,
+      default: null,
     },
 
     description: {

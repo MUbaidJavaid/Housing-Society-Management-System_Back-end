@@ -18,7 +18,7 @@ export interface IDefaulter extends Document {
   noticeSentCount: number;
   status: string;
   remarks?: string;
-  societyId?: Types.ObjectId;
+  societyId: Types.ObjectId;
   createdBy: Types.ObjectId;
   modifiedBy?: Types.ObjectId;
   isActive: boolean;
@@ -91,6 +91,7 @@ const defaulterSchema = new Schema<IDefaulter>(
     societyId: {
       type: Schema.Types.ObjectId,
       ref: 'Society',
+      required: [true, 'Society ID is required for tenant isolation'],
       index: true,
     },
     createdBy: {

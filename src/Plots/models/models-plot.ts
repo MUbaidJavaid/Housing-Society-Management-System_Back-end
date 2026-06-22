@@ -48,7 +48,7 @@ export interface IPlot {
     uploadedDate: Date;
     uploadedBy: Types.ObjectId;
   }>;
-  societyId?: Types.ObjectId;
+  societyId: Types.ObjectId;
   createdBy: Types.ObjectId;
   updatedBy?: Types.ObjectId;
   isDeleted: boolean;
@@ -305,6 +305,7 @@ const plotSchema = new Schema<IPlot, any, IPlotMethods>(
     societyId: {
       type: Schema.Types.ObjectId,
       ref: 'Society',
+      required: [true, 'Society ID is required for tenant isolation'],
       index: true,
     },
 

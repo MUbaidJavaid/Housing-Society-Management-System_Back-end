@@ -2,6 +2,7 @@ import { Document, Model, Schema, Types, model } from 'mongoose';
 
 export interface IPlotCategory extends Document {
   categoryName: string;
+  societyId?: Types.ObjectId;
   surchargePercentage?: number;
   surchargeFixedAmount?: number;
   categoryDesc?: string;
@@ -22,6 +23,13 @@ const plotCategorySchema = new Schema<IPlotCategory>(
       minlength: [2, 'Category Name must be at least 2 characters'],
       maxlength: [100, 'Category Name cannot exceed 100 characters'],
       index: true,
+    },
+
+    societyId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Society',
+      index: true,
+      default: null,
     },
 
     surchargePercentage: {

@@ -1,6 +1,7 @@
 import { Document, Model, Schema, Types, model } from 'mongoose';
 
 export interface IUserPermission extends Document {
+  societyId?: Types.ObjectId;
   srModuleId: Types.ObjectId;
   roleId: Types.ObjectId;
   moduleName: string;
@@ -29,6 +30,12 @@ export interface IUserPermission extends Document {
 
 const userPermissionSchema = new Schema<IUserPermission>(
   {
+    societyId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Society',
+      index: true,
+    },
+
     srModuleId: {
       type: Schema.Types.ObjectId,
       ref: 'SrModule',
@@ -137,6 +144,7 @@ const userPermissionSchema = new Schema<IUserPermission>(
 );
 
 // Compound indexes for efficient querying
+userPermissionSchema.index({ societyId: 1, isDeleted: 1 });
 userPermissionSchema.index({ srModuleId: 1, roleId: 1, isDeleted: 1 }, { unique: true });
 userPermissionSchema.index({ roleId: 1, isActive: 1 });
 userPermissionSchema.index({ moduleName: 1, roleId: 1 });

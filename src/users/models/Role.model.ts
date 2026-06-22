@@ -27,6 +27,12 @@ const RoleSchema = new Schema<IRole>(
       trim: true,
       maxlength: [500, 'Role description cannot exceed 500 characters'],
     },
+    societyId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Society',
+      index: true,
+      default: null, // null for system/global roles
+    },
     isActive: {
       type: Boolean,
       default: true,

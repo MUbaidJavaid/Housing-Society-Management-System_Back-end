@@ -33,6 +33,7 @@ export interface IRole extends Document {
   roleName: string;
   roleCode: string;
   roleDescription?: string;
+  societyId?: Types.ObjectId; // null for system/global roles, set for per-society custom roles
   isActive: boolean;
   isSystem?: boolean;
   priority?: number;

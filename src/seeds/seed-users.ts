@@ -8,6 +8,8 @@ import PlotBlock from '../Plots/models/models-plotblock';
 import PlotSize from '../Plots/models/models-plotsize';
 import PlotCategory from '../Plots/models/models-plotcategory';
 import Plot from '../Plots/models/models-plot';
+import { seedSubscriptionPlans } from './seed-subscription-plans';
+import SubscriptionPackage from '../Subscription/models/models-subscription-package';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -602,14 +604,55 @@ export async function seedUsers(): Promise<void> {
   // Use the super admin as the createdBy for subsequent records
   const superAdminId = userMap.get('superadmin@societysphere.com') || SYSTEM_USER_ID;
 
-  // 2. Seed Society
+  // 2a. Seed Subscription Plans (must come before society)
+  try {
+    await seedSubscriptionPlans(superAdminId);
+    console.log('[seed-users] Subscription plans seeded');
+  } catch (err: any) {
+    console.warn('[seed-users] Subscription plan seeding skipped:', err.message);
+  }
+
+  // 2b. Seed Society (linked to Professional plan)
   let societyId: mongoose.Types.ObjectId;
   try {
     societyId = await seedSociety(superAdminId);
     console.log('[seed-users] Society seeded');
+
+    // Link society to Professional plan if not already linked
+    const society = await Society.findById(societyId);
+    if (society && !society.subscriptionPlanId) {
+      const proPlan = await SubscriptionPackage.findOne({ packageCode: 'professional', isDeleted: false });
+      if (proPlan) {
+        await Society.findByIdAndUpdate(societyId, {
+          subscriptionPlanId: proPlan._id,
+          subscriptionStatus: 'active',
+          subscriptionStartDate: new Date(),
+          subscriptionEndDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+          enabledModules: proPlan.features.modules,
+          maxMembers: proPlan.features.maxMembers,
+          maxProjects: proPlan.features.maxProjects,
+          maxStaff: proPlan.features.maxStaff,
+        });
+        console.log('[seed-users] Society linked to Professional plan');
+      }
+    }
   } catch (err: any) {
     console.warn('[seed-users] Society seeding skipped:', err.message);
     societyId = new mongoose.Types.ObjectId();
+  }
+
+  // 2c. Link non-super-admin users to the society
+  try {
+    const nonSuperAdminUsers = TEST_USERS.filter(u => u.role !== UserRole.SUPER_ADMIN);
+    for (const userData of nonSuperAdminUsers) {
+      const userId = userMap.get(userData.email);
+      if (userId) {
+        await User.findByIdAndUpdate(userId, { societyId }, { new: true });
+      }
+    }
+    console.log(`[seed-users] ${nonSuperAdminUsers.length} users linked to society`);
+  } catch (err: any) {
+    console.warn('[seed-users] User-society linking skipped:', err.message);
   }
 
   // 3. Seed City & State (needed for Project)

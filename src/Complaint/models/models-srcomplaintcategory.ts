@@ -1,6 +1,7 @@
 import { Document, Model, Schema, Types, model } from 'mongoose';
 
 export interface ISrComplaintCategory extends Document {
+  societyId?: Types.ObjectId;
   categoryName: string;
   categoryCode: string;
   description?: string;
@@ -20,6 +21,12 @@ export interface ISrComplaintCategory extends Document {
 
 const srComplaintCategorySchema = new Schema<ISrComplaintCategory>(
   {
+    societyId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Society',
+      index: true,
+    },
+
     categoryName: {
       type: String,
       required: [true, 'Category Name is required'],
@@ -117,6 +124,7 @@ const srComplaintCategorySchema = new Schema<ISrComplaintCategory>(
 );
 
 // Compound indexes
+srComplaintCategorySchema.index({ societyId: 1, isDeleted: 1 });
 srComplaintCategorySchema.index({ isActive: 1, isDeleted: 1 });
 srComplaintCategorySchema.index({ priorityLevel: 1, isActive: 1 });
 

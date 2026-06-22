@@ -57,7 +57,7 @@ export interface IInstallment extends Document {
   transactionRefNo?: string;
   status: string;
   installmentRemarks?: string;
-  societyId?: Types.ObjectId;
+  societyId: Types.ObjectId;
   createdBy: Types.ObjectId;
   modifiedBy?: Types.ObjectId;
   isDeleted: boolean;
@@ -183,6 +183,7 @@ const installmentSchema = new Schema<IInstallment>(
     societyId: {
       type: Schema.Types.ObjectId,
       ref: 'Society',
+      required: [true, 'Society ID is required for tenant isolation'],
       index: true,
     },
     createdBy: {

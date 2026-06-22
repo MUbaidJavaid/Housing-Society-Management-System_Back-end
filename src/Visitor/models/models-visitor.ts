@@ -58,7 +58,7 @@ export interface IVisitor extends Document {
   remarks?: string;
   gateNumber?: string;
   numberOfGuests: number;
-  societyId?: Types.ObjectId;
+  societyId: Types.ObjectId;
   createdBy: Types.ObjectId;
   modifiedBy?: Types.ObjectId;
   isDeleted: boolean;
@@ -205,6 +205,8 @@ const visitorSchema = new Schema<IVisitor>(
     societyId: {
       type: Schema.Types.ObjectId,
       ref: 'Society',
+      required: [true, 'Society ID is required for tenant isolation'],
+      index: true,
     },
     createdBy: {
       type: Schema.Types.ObjectId,

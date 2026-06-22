@@ -16,6 +16,7 @@ export enum SalesStatusType {
 export interface ISalesStatus extends Document {
   statusName: string;
   statusCode: string;
+  societyId?: Types.ObjectId;
   statusType: SalesStatusType;
   description?: string;
   colorCode: string; // For UI display
@@ -53,6 +54,13 @@ const salesStatusSchema = new Schema<ISalesStatus>(
       minlength: [2, 'Status Code must be at least 2 characters'],
       maxlength: [20, 'Status Code cannot exceed 20 characters'],
       index: true,
+    },
+
+    societyId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Society',
+      index: true,
+      default: null,
     },
 
     statusType: {

@@ -47,7 +47,7 @@ export interface IMember extends Document {
   emailVerificationExpires?: Date;
 
   // Multi-tenancy
-  societyId?: Types.ObjectId;
+  societyId: Types.ObjectId;
 
   // Audit fields
   createdBy: Types.ObjectId;
@@ -312,6 +312,7 @@ const memberSchema = new Schema<IMember>(
     societyId: {
       type: Schema.Types.ObjectId,
       ref: 'Society',
+      required: [true, 'Society ID is required for tenant isolation'],
       index: true,
     },
 

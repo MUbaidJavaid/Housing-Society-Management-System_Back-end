@@ -22,6 +22,7 @@ export interface INomineeMethods {
 
 export interface INominee extends Document {
   memId: Types.ObjectId;
+  societyId?: Types.ObjectId;
   nomineeName: string;
   nomineeCNIC: string;
   relationWithMember: string;
@@ -50,6 +51,11 @@ const nomineeSchema = new Schema<INominee, INomineeModel, INomineeMethods>(
       type: Schema.Types.ObjectId,
       ref: 'Member',
       required: true,
+      index: true,
+    },
+    societyId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Society',
       index: true,
     },
     nomineeName: {
@@ -152,6 +158,7 @@ const nomineeSchema = new Schema<INominee, INomineeModel, INomineeMethods>(
 );
 
 // Compound indexes for efficient querying
+nomineeSchema.index({ societyId: 1, isDeleted: 1 });
 nomineeSchema.index({ memId: 1, isDeleted: 1 });
 nomineeSchema.index({ nomineeCNIC: 1, isDeleted: 1 }, { unique: true });
 nomineeSchema.index({ isActive: 1, isDeleted: 1 });

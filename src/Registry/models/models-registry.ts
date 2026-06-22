@@ -30,7 +30,7 @@ export interface IRegistry extends Document {
   verificationRemarks?: string;
   verifiedBy?: Types.ObjectId;
   verifiedAt?: Date;
-  societyId?: Types.ObjectId;
+  societyId: Types.ObjectId;
   isActive: boolean;
   registeredBy: Types.ObjectId;
   updatedBy?: Types.ObjectId;
@@ -244,6 +244,7 @@ const registrySchema = new Schema<IRegistry>(
     societyId: {
       type: Schema.Types.ObjectId,
       ref: 'Society',
+      required: [true, 'Society ID is required for tenant isolation'],
       index: true,
     },
 

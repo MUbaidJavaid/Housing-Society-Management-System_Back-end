@@ -3,6 +3,7 @@ import { Document, Model, Schema, Types, model } from 'mongoose';
 export interface IInstallmentCategory extends Document {
   instCatName: string;
   instCatDescription?: string;
+  societyId?: Types.ObjectId;
   isRefundable: boolean;
   isMandatory: boolean;
   sequenceOrder: number;
@@ -27,6 +28,11 @@ const installmentCategorySchema = new Schema<IInstallmentCategory>(
       type: String,
       trim: true,
       maxlength: [500, 'Description cannot exceed 500 characters'],
+    },
+    societyId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Society',
+      index: true,
     },
     isRefundable: {
       type: Boolean,
@@ -92,6 +98,7 @@ const installmentCategorySchema = new Schema<IInstallmentCategory>(
 );
 
 // Compound indexes for efficient querying
+installmentCategorySchema.index({ societyId: 1, isActive: 1 });
 installmentCategorySchema.index({ isActive: 1, sequenceOrder: 1 });
 installmentCategorySchema.index({ isMandatory: 1, isActive: 1 });
 installmentCategorySchema.index({ isRefundable: 1, isActive: 1 });

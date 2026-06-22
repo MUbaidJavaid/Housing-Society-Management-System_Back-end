@@ -37,7 +37,7 @@ export interface IFacilityBooking extends Document {
   cancellationReason?: string;
   cancelledAt?: Date;
   remarks?: string;
-  societyId?: Types.ObjectId;
+  societyId: Types.ObjectId;
   createdBy: Types.ObjectId;
   modifiedBy?: Types.ObjectId;
   isDeleted: boolean;
@@ -175,6 +175,7 @@ const facilityBookingSchema = new Schema<IFacilityBooking>(
     societyId: {
       type: Schema.Types.ObjectId,
       ref: 'Society',
+      required: [true, 'Society ID is required for tenant isolation'],
       index: true,
     },
 

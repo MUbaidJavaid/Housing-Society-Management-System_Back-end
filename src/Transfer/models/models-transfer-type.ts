@@ -3,6 +3,7 @@ import { Model, Schema, Types, model } from 'mongoose';
 export interface ISrTransferType {
   typeName: string;
   description?: string;
+  societyId?: Types.ObjectId;
   transferFee: number;
   isActive: boolean;
   createdBy: Types.ObjectId;
@@ -33,6 +34,11 @@ const srTransferTypeSchema = new Schema(
       type: String,
       trim: true,
       maxlength: [500, 'Description cannot exceed 500 characters'],
+    },
+    societyId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Society',
+      index: true,
     },
     transferFee: {
       type: Number,
@@ -85,6 +91,7 @@ const srTransferTypeSchema = new Schema(
 );
 
 // Compound indexes for efficient querying
+srTransferTypeSchema.index({ societyId: 1, isDeleted: 1 });
 srTransferTypeSchema.index({ typeName: 1, isDeleted: 1 }, { unique: true });
 srTransferTypeSchema.index({ isActive: 1, isDeleted: 1 });
 srTransferTypeSchema.index({ transferFee: 1 });

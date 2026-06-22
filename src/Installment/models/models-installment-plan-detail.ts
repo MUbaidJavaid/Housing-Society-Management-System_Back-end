@@ -3,6 +3,7 @@ import { Document, Schema, Types, model } from 'mongoose';
 export interface IInstallmentPlanDetail extends Document {
   planId: Types.ObjectId;
   instCatId: Types.ObjectId;
+  societyId?: Types.ObjectId;
   occurrence: number;
   percentageAmount: number;
   fixedAmount: number;
@@ -32,6 +33,11 @@ const installmentPlanDetailSchema = new Schema<IInstallmentPlanDetail>(
       type: Schema.Types.ObjectId,
       ref: 'InstallmentCategory',
       required: [true, 'Installment category is required'],
+      index: true,
+    },
+    societyId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Society',
       index: true,
     },
     occurrence: {
@@ -98,6 +104,7 @@ const installmentPlanDetailSchema = new Schema<IInstallmentPlanDetail>(
   }
 );
 
+installmentPlanDetailSchema.index({ societyId: 1, isDeleted: 1 });
 installmentPlanDetailSchema.index({ planId: 1, occurrence: 1 });
 installmentPlanDetailSchema.index(
   { planId: 1, occurrence: 1 },

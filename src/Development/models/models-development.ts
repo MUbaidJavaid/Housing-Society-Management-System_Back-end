@@ -3,6 +3,7 @@ import { Document, Model, Schema, Types, model } from 'mongoose';
 export interface IDevelopment extends Document {
   plotId: Types.ObjectId;
   memId: Types.ObjectId;
+  societyId?: Types.ObjectId;
   developmentStatusName: string;
   applicationId: Types.ObjectId;
   approvedBy?: Types.ObjectId;
@@ -28,6 +29,12 @@ const developmentSchema = new Schema<IDevelopment>(
       type: Schema.Types.ObjectId,
       ref: 'Member', // Assuming you have a Member model
       required: true,
+      index: true,
+    },
+
+    societyId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Society',
       index: true,
     },
 
@@ -94,6 +101,7 @@ developmentSchema.index(
 );
 
 // Indexes for common queries
+developmentSchema.index({ societyId: 1, isDeleted: 1 });
 developmentSchema.index({ memId: 1, isDeleted: 1 });
 developmentSchema.index({ applicationId: 1, isDeleted: 1 });
 developmentSchema.index({ createdBy: 1, isDeleted: 1 });

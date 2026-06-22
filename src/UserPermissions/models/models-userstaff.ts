@@ -9,6 +9,7 @@ export interface IUserStaff extends Document {
   mobileNo?: string;
   email?: string;
   roleId: Types.ObjectId;
+  societyId?: Types.ObjectId;
   cityId: Types.ObjectId;
   designation?: string;
   isActive: boolean;
@@ -90,6 +91,12 @@ const userStaffSchema = new Schema<IUserStaff>(
       type: Schema.Types.ObjectId,
       ref: 'Role',
       required: true,
+      index: true,
+    },
+
+    societyId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Society',
       index: true,
     },
 

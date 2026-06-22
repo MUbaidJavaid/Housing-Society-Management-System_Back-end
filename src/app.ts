@@ -132,6 +132,9 @@ import { gatePassRoutes } from './GatePass/index-gate-pass';
 import { bulkOperationsRoutes } from './BulkOperations/index-bulk-operations';
 import { seedDefaultModules, seedDefaultRoles } from './seeds/seed-default-roles';
 import { seedUsers } from './seeds/seed-users';
+
+// Super Admin SaaS Control Plane
+import { superAdminRoutes } from './SuperAdmin/index-super-admin';
 // Track graceful shutdown
 let isShuttingDown = false;
 dotenv.config();
@@ -582,6 +585,9 @@ function setupRoutes(app: Application): void {
 
   // Bulk Operations (Import/Export)
   app.use('/api/bulk-operations', bulkOperationsRoutes);
+
+  // ── Super Admin SaaS Control Plane ──
+  app.use('/api/super-admin', superAdminRoutes);
 
   app.get('/api/test', (_req: Request, res: Response) => {
     res.json({ success: true, message: 'API is working' });

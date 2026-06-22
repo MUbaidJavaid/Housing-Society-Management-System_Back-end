@@ -6,7 +6,7 @@ export interface IInstallmentPlan extends Document {
   totalMonths: number;
   totalAmount: number;
   isActive: boolean;
-  societyId?: Types.ObjectId;
+  societyId: Types.ObjectId;
   createdBy: Types.ObjectId;
   updatedBy?: Types.ObjectId;
   createdAt: Date;
@@ -55,6 +55,7 @@ const installmentPlanSchema = new Schema<IInstallmentPlan>(
     societyId: {
       type: Schema.Types.ObjectId,
       ref: 'Society',
+      required: [true, 'Society ID is required for tenant isolation'],
       index: true,
     },
     createdBy: {

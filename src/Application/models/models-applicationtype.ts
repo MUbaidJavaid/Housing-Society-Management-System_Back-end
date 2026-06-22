@@ -1,6 +1,7 @@
 import { Document, Model, Schema, Types, model } from 'mongoose';
 
 export interface ISrApplicationType extends Document {
+  societyId?: Types.ObjectId;
   applicationName: string;
   applicationDesc?: string;
   applicationFee: number;
@@ -15,6 +16,12 @@ export interface ISrApplicationType extends Document {
 
 const srApplicationTypeSchema = new Schema<ISrApplicationType>(
   {
+    societyId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Society',
+      index: true,
+    },
+
     applicationName: {
       type: String,
       required: [true, 'Application Name is required'],
@@ -69,6 +76,9 @@ const srApplicationTypeSchema = new Schema<ISrApplicationType>(
     timestamps: true,
   }
 );
+
+// Compound index for societyId
+srApplicationTypeSchema.index({ societyId: 1, isDeleted: 1 });
 
 // Compound index for name uniqueness
 srApplicationTypeSchema.index(

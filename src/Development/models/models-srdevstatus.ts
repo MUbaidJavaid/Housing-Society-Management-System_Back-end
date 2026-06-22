@@ -21,6 +21,7 @@ export enum DevPhase {
 export interface ISrDevStatus extends Document {
   srDevStatName: string;
   srDevStatCode: string;
+  societyId?: Types.ObjectId;
   devCategory: string;
   devPhase: string;
   description?: string;
@@ -63,6 +64,13 @@ const srDevStatusSchema = new Schema<ISrDevStatus>(
       minlength: [2, 'Development Status Code must be at least 2 characters'],
       maxlength: [20, 'Development Status Code cannot exceed 20 characters'],
       index: true,
+    },
+
+    societyId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Society',
+      index: true,
+      default: null,
     },
 
     devCategory: {

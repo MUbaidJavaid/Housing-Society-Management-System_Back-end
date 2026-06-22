@@ -1,6 +1,7 @@
 import { Document, Model, Schema, Types, model } from 'mongoose';
 
 export interface IAnnouncementCategory extends Document {
+  societyId?: Types.ObjectId;
   categoryName: string;
   description?: string;
   icon?: string;
@@ -23,6 +24,12 @@ export interface IAnnouncementCategory extends Document {
 
 const announcementCategorySchema = new Schema<IAnnouncementCategory>(
   {
+    societyId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Society',
+      index: true,
+    },
+
     categoryName: {
       type: String,
       required: [true, 'Category name is required'],
@@ -116,6 +123,7 @@ const announcementCategorySchema = new Schema<IAnnouncementCategory>(
 );
 
 // Compound indexes for efficient querying
+announcementCategorySchema.index({ societyId: 1, isDeleted: 1 });
 announcementCategorySchema.index({ categoryName: 1, isDeleted: 1 }, { unique: true });
 announcementCategorySchema.index({ isActive: 1, isDeleted: 1 });
 announcementCategorySchema.index({ priority: -1, categoryName: 1 });

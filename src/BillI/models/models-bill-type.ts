@@ -11,6 +11,7 @@ export enum BillTypeCategory {
 }
 
 export interface IBillType extends Document {
+  societyId?: Types.ObjectId;
   billTypeName: string;
   billTypeCategory: string;
   description?: string;
@@ -38,6 +39,11 @@ export interface IBillType extends Document {
 
 const billTypeSchema = new Schema<IBillType>(
   {
+    societyId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Society',
+      index: true,
+    },
     billTypeName: {
       type: String,
       required: [true, 'Bill type name is required'],
@@ -142,6 +148,7 @@ const billTypeSchema = new Schema<IBillType>(
 );
 
 // Compound indexes for efficient querying
+billTypeSchema.index({ societyId: 1, isDeleted: 1 });
 billTypeSchema.index({ billTypeName: 1, isDeleted: 1 }, { unique: true });
 billTypeSchema.index({ billTypeCategory: 1, isActive: 1 });
 billTypeSchema.index({ isRecurring: 1, isActive: 1 });

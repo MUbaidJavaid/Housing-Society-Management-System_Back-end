@@ -13,6 +13,7 @@ export interface IReplyAttachment {
 
 export interface IForumReply extends Document {
   threadId: Types.ObjectId;
+  societyId?: Types.ObjectId;
   content: string;
   authorId: Types.ObjectId;
   isAnonymous: boolean;
@@ -33,6 +34,11 @@ const forumReplySchema = new Schema<IForumReply>(
       type: Schema.Types.ObjectId,
       ref: 'ForumThread',
       required: [true, 'Thread ID is required'],
+    },
+    societyId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Society',
+      index: true,
     },
     content: {
       type: String,
@@ -85,6 +91,7 @@ const forumReplySchema = new Schema<IForumReply>(
 );
 
 // Indexes
+forumReplySchema.index({ societyId: 1, isDeleted: 1 });
 forumReplySchema.index({ threadId: 1, createdAt: 1, isDeleted: 1 });
 forumReplySchema.index({ authorId: 1 });
 forumReplySchema.index({ parentReplyId: 1 });

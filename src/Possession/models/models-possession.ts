@@ -30,7 +30,7 @@ export interface IPossession extends Document {
   possessionDurationDays?: number;
 
   statusDisplayName?: string;
-  societyId?: Types.ObjectId;
+  societyId: Types.ObjectId;
   createdBy: Types.ObjectId;
   updatedBy: Types.ObjectId;
 
@@ -69,7 +69,7 @@ export interface PossessionBase {
   possessionLongitude?: number;
   updatedAt?: Date;
   createdAt?: Date;
-  societyId?: Types.ObjectId;
+  societyId: Types.ObjectId;
   createdBy: Types.ObjectId;
   updatedBy?: Types.ObjectId;
   isDeleted: boolean;
@@ -271,6 +271,7 @@ const possessionSchema = new Schema<PossessionBase, PossessionModel>(
     societyId: {
       type: Schema.Types.ObjectId,
       ref: 'Society',
+      required: [true, 'Society ID is required for tenant isolation'],
       index: true,
     },
 

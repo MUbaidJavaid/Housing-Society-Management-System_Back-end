@@ -11,6 +11,11 @@ export enum AuditAction {
   REJECT = 'REJECT',
   EXPORT = 'EXPORT',
   IMPORT = 'IMPORT',
+  // Super Admin actions
+  SOCIETY_CREATED = 'SOCIETY_CREATED',
+  SOCIETY_UPDATED = 'SOCIETY_UPDATED',
+  SOCIETY_DELETED = 'SOCIETY_DELETED',
+  USER_IMPERSONATED = 'USER_IMPERSONATED',
 }
 
 export enum EntityType {
@@ -27,6 +32,8 @@ export enum EntityType {
   SR_DEV_STATUS = 'SR_DEV_STATUS',
   DEVELOPMENT = 'DEVELOPMENT',
   PROJECT = 'PROJECT',
+  SOCIETY = 'SOCIETY',
+  SUBSCRIPTION = 'SUBSCRIPTION',
 }
 
 export interface IAuditLog extends Document {

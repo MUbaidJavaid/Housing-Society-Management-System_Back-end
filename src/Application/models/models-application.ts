@@ -1,6 +1,7 @@
 import { Document, Model, Schema, Types, model } from 'mongoose';
 
 export interface IApplication extends Document {
+  societyId?: Types.ObjectId;
   applicationNo: string;
   applicationTypeID: Types.ObjectId;
   memId: Types.ObjectId;
@@ -17,6 +18,12 @@ export interface IApplication extends Document {
 
 const applicationSchema = new Schema<IApplication>(
   {
+    societyId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Society',
+      index: true,
+    },
+
     applicationNo: {
       type: String,
       required: true,
@@ -111,6 +118,7 @@ applicationSchema.index(
 );
 
 // Indexes for performance
+applicationSchema.index({ societyId: 1, isDeleted: 1 });
 applicationSchema.index({ applicationNo: 1, isDeleted: 1 }, { unique: true });
 applicationSchema.index({ applicationTypeID: 1, isDeleted: 1 });
 applicationSchema.index({ memId: 1, isDeleted: 1 });

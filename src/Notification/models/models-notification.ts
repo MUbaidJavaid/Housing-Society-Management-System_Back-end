@@ -3,6 +3,7 @@ import { Document, Schema, Types, model } from 'mongoose';
 export interface INotification extends Document {
   title: string;
   message: string;
+  societyId?: Types.ObjectId;
   referenceId?: Types.ObjectId;
   module: string;
   targetUsers?: Types.ObjectId[];
@@ -23,6 +24,12 @@ const notificationSchema = new Schema<INotification>(
       required: [true, 'Title is required'],
       trim: true,
       maxlength: [200, 'Title cannot exceed 200 characters'],
+      index: true,
+    },
+
+    societyId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Society',
       index: true,
     },
 
@@ -103,6 +110,7 @@ const notificationSchema = new Schema<INotification>(
 );
 
 // Indexes for efficient querying
+notificationSchema.index({ societyId: 1, isDeleted: 1 });
 notificationSchema.index({ isRead: 1, isDeleted: 1, createdAt: -1 });
 notificationSchema.index({ module: 1, isDeleted: 1 });
 notificationSchema.index({ targetUsers: 1, isRead: 1 });
