@@ -16,7 +16,7 @@ initializeRateLimiter();
 
 // Global rate limiting middleware
 export const globalRateLimit = createRateLimitMiddleware({
-  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000'), // 15 minutes default
+  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '60000'), // 1 minute default
   max: parseInt(process.env.RATE_LIMIT_MAX || '100'),
   message: process.env.RATE_LIMIT_MESSAGE || 'Too many requests, please try again later.',
   skip: req => {

@@ -1,26 +1,50 @@
 # Dependencies
+
 node_modules/
+
 # Keep pnpm-lock.yaml in git for reproducible installs (Vercel / CI).
 
+
+
 # Build outputs
+
 dist/
+
 coverage/
 
+
+
 # Environment variables
-.env
-.env.local
+
+
+
+
 
 # IDE
+
 .vscode/
+
 .idea/
+
 *.swp
+
 *.swo
 
+
+
 # Logs
+
 logs/
+
 *.log
+
 npm-debug.log*
 
+
+
 # OS
+
 .DS_Store
+
 Thumbs.db
+config.bat
