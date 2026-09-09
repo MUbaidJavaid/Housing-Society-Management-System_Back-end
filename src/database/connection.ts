@@ -40,9 +40,18 @@ export const connectDB = async (): Promise<void> => {
       );
     }
 
-    const conn = await mongoose.connect(mongoUri);
+    const lite = process.env.NODE_ENV !== 'production';
+    const conn = await mongoose.connect(mongoUri, {
+      maxPoolSize: process.env.NODE_ENV === 'production' ? 20 : 2,
+      minPoolSize: 0,
+      autoIndex: !lite,
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 45000,
+    });
 
-    await dropObsoleteFileIndex();
+    if (!lite) {
+      await dropObsoleteFileIndex();
+    }
 
     logger.info(`✅ MongoDB Connected: ${conn.connection.host}`);
     console.log(`✅ MongoDB Connected: ${conn.connection.host}`);

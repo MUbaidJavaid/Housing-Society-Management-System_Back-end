@@ -21,7 +21,7 @@
           <span class="dot"></span>
           <strong id="statusLabel">Checking</strong>
         </div>
-        <p class="updated">Updated <span id="updatedAt">—</span></p>
+        <p class="updated">Updated <span id="updatedAt">—</span> · every 60s</p>
       </div>
     </header>
 
@@ -59,7 +59,7 @@
         <article class="card">
           <div class="card-head">
             <h2>Host RAM</h2>
-            <span class="hint">Machine physical memory</span>
+            <span class="hint">Machine physical memory — not this API</span>
           </div>
           <div id="hostMemory"></div>
         </article>
@@ -74,6 +74,26 @@
       </section>
 
       <section class="grid">
+        <article class="card span-2">
+          <div class="card-head">
+            <h2>What is using this machine</h2>
+            <span class="hint">Grouped RSS · Chrome and Cursor are not the API</span>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Process group</th>
+                  <th>RAM</th>
+                  <th>CPU</th>
+                  <th>Processes</th>
+                </tr>
+              </thead>
+              <tbody id="consumersBody"></tbody>
+            </table>
+          </div>
+        </article>
+
         <article class="card">
           <div class="card-head">
             <h2>Disk</h2>

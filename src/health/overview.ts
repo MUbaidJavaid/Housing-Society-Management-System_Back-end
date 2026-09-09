@@ -1,3 +1,4 @@
+import { execFileSync } from 'child_process';
 import { statfsSync } from 'fs';
 import mongoose from 'mongoose';
 import os from 'os';
@@ -62,10 +63,74 @@ function checkStatus(ok: boolean, warn = false): CheckStatus {
   return 'healthy';
 }
 
-function overallStatus(checks: Array<{ status: string }>): CheckStatus {
-  if (checks.some(c => c.status === 'unhealthy')) return 'unhealthy';
-  if (checks.some(c => c.status === 'degraded')) return 'degraded';
+function overallStatus(checks: Array<{ status: string; affectsOverall?: boolean }>): CheckStatus {
+  const blocking = checks.filter(c => c.affectsOverall !== false);
+  if (blocking.some(c => c.status === 'unhealthy')) return 'unhealthy';
+  if (blocking.some(c => c.status === 'degraded')) return 'degraded';
   return 'healthy';
+}
+
+function groupProcessName(command: string): string {
+  const name = (command || '').toLowerCase();
+  if (name.includes('chrome') || name.includes('chromium')) return 'Google Chrome';
+  if (name.includes('tsserver')) return 'TypeScript language server';
+  if (name.includes('/usr/share/cursor') || name.includes('cursor --')) return 'Cursor IDE';
+  if (name.includes('next-server') || name.includes('housing-society-management-system_front-end')) {
+    return 'Next.js frontend';
+  }
+  if (name.includes('mongod')) return 'MongoDB';
+  if (
+    name.includes('housing-society-management-system_back-end') ||
+    name.includes('tsx watch') ||
+    name.includes('ts-node-dev')
+  ) {
+    return 'Backend API (dev)';
+  }
+  if (name.includes('gnome-shell')) return 'GNOME Shell';
+  const short = (command || 'unknown').trim().split(/\s+/)[0]?.split('/').pop() || 'unknown';
+  return short;
+}
+
+function readTopConsumers(limit = 8): Array<{
+  name: string;
+  rssMb: number;
+  cpuPercent: number;
+  processes: number;
+}> {
+  if (process.env.NODE_ENV !== 'production') {
+    return [];
+  }
+  try {
+    const out = execFileSync('ps', ['-eo', 'rss,pcpu,args'], {
+      encoding: 'utf8',
+      timeout: 800,
+    });
+    const grouped = new Map<string, { rssKb: number; cpu: number; count: number }>();
+    for (const line of out.split('\n').slice(1)) {
+      const parts = line.trim().split(/\s+/, 3);
+      if (parts.length < 3) continue;
+      const rssKb = Number(parts[0]);
+      const cpu = Number(parts[1]);
+      if (!Number.isFinite(rssKb) || rssKb <= 0) continue;
+      const name = groupProcessName(parts[2]);
+      const current = grouped.get(name) || { rssKb: 0, cpu: 0, count: 0 };
+      current.rssKb += rssKb;
+      current.cpu += Number.isFinite(cpu) ? cpu : 0;
+      current.count += 1;
+      grouped.set(name, current);
+    }
+    return [...grouped.entries()]
+      .map(([name, value]) => ({
+        name,
+        rssMb: Math.round(value.rssKb / 1024),
+        cpuPercent: Math.round(value.cpu * 10) / 10,
+        processes: value.count,
+      }))
+      .sort((a, b) => b.rssMb - a.rssMb)
+      .slice(0, limit);
+  } catch {
+    return [];
+  }
 }
 
 export function wantsHtmlDashboard(req: Request): boolean {
@@ -84,7 +149,56 @@ export function sendHealthDashboard(_req: Request, res: Response): void {
   res.sendFile(path.join(process.cwd(), 'public', 'health', 'index.html'));
 }
 
-export async function buildHealthOverview() {
+let overviewCache: { at: number; data: Awaited<ReturnType<typeof collectHealthOverview>> } | null =
+  null;
+let mongoStatsCache: { at: number; data: Record<string, unknown> } | null = null;
+const OVERVIEW_TTL_MS = 15000;
+const MONGO_STATS_TTL_MS = 15000;
+
+async function readMongoStats(): Promise<Record<string, unknown>> {
+  if (mongoStatsCache && Date.now() - mongoStatsCache.at < MONGO_STATS_TTL_MS) {
+    return mongoStatsCache.data;
+  }
+
+  let mongo: Record<string, unknown> = {
+    state: mongoStateName(mongoose.connection.readyState),
+    readyState: mongoose.connection.readyState,
+    host: mongoose.connection.host || 'localhost',
+    name: mongoose.connection.name || 'hsms',
+  };
+
+  try {
+    if (mongoose.connection.readyState === 1 && mongoose.connection.db) {
+      const pingStart = Date.now();
+      await mongoose.connection.db.admin().ping();
+      mongo.pingMs = Date.now() - pingStart;
+      if (process.env.NODE_ENV === 'production') {
+        const dbStats = await mongoose.connection.db.stats().catch(() => null);
+        mongo = {
+          ...mongo,
+          collections: dbStats?.collections ?? null,
+          objects: dbStats?.objects ?? null,
+          dataSize: dbStats?.dataSize ?? null,
+          dataSizeLabel: dbStats?.dataSize ? bytes(dbStats.dataSize) : null,
+          storageSize: dbStats?.storageSize ?? null,
+          storageSizeLabel: dbStats?.storageSize ? bytes(dbStats.storageSize) : null,
+          indexSize: dbStats?.indexSize ?? null,
+          indexSizeLabel: dbStats?.indexSize ? bytes(dbStats.indexSize) : null,
+        };
+      }
+    }
+  } catch (error: unknown) {
+    mongo = {
+      ...mongo,
+      error: error instanceof Error ? error.message : 'MongoDB stats unavailable',
+    };
+  }
+
+  mongoStatsCache = { at: Date.now(), data: mongo };
+  return mongo;
+}
+
+async function collectHealthOverview() {
   const started = Date.now();
   const loopStart = Date.now();
   await new Promise<void>(resolve => setImmediate(resolve));
@@ -99,55 +213,30 @@ export async function buildHealthOverview() {
   const load = os.loadavg();
   const traffic = getApiTrafficStats();
   const disk = readDisk(process.cwd());
+  const mongo = await readMongoStats();
 
-  let mongo: Record<string, unknown> = {
-    state: mongoStateName(mongoose.connection.readyState),
-    readyState: mongoose.connection.readyState,
-    host: mongoose.connection.host || 'localhost',
-    name: mongoose.connection.name || 'hsms',
-  };
-
-  try {
-    if (mongoose.connection.readyState === 1 && mongoose.connection.db) {
-      const pingStart = Date.now();
-      await mongoose.connection.db.admin().ping();
-      const dbStats = await mongoose.connection.db.stats().catch(() => null);
-      mongo = {
-        ...mongo,
-        pingMs: Date.now() - pingStart,
-        collections: dbStats?.collections ?? null,
-        objects: dbStats?.objects ?? null,
-        dataSize: dbStats?.dataSize ?? null,
-        dataSizeLabel: dbStats?.dataSize ? bytes(dbStats.dataSize) : null,
-        storageSize: dbStats?.storageSize ?? null,
-        storageSizeLabel: dbStats?.storageSize ? bytes(dbStats.storageSize) : null,
-        indexSize: dbStats?.indexSize ?? null,
-        indexSizeLabel: dbStats?.indexSize ? bytes(dbStats.indexSize) : null,
-      };
-    }
-  } catch (error: unknown) {
-    mongo = {
-      ...mongo,
-      error: error instanceof Error ? error.message : 'MongoDB stats unavailable',
-    };
-  }
-
-  const heapPct = pct(mem.heapUsed, mem.heapTotal);
+  const heapBudgetBytes = 384 * 1024 * 1024;
+  const heapPct = pct(mem.heapUsed, heapBudgetBytes);
   const rssPct = pct(mem.rss, totalMem);
   const ramPct = pct(usedMem, totalMem);
   const loadPct = cpus.length ? pct(load[0], cpus.length) : 0;
   const mongoUp = mongo.readyState === 1;
   const diskPct = disk?.usedPercent ?? 0;
+  const serverErrorRate =
+    traffic.totalRequests === 0
+      ? 0
+      : ((traffic.status['5xx'] || 0) / traffic.totalRequests) * 100;
 
   const checks = [
     {
       name: 'api',
       component: 'HTTP API',
-      status: checkStatus(true, (traffic.errorRate || 0) > 5),
+      status: checkStatus(true, serverErrorRate > 5),
       severity: 'critical',
       message: 'Express server is accepting traffic',
       duration: Date.now() - started,
       type: 'internal',
+      affectsOverall: true,
     },
     {
       name: 'mongodb',
@@ -159,24 +248,27 @@ export async function buildHealthOverview() {
         : 'Database is not connected',
       duration: typeof mongo.pingMs === 'number' ? mongo.pingMs : 0,
       type: 'internal',
+      affectsOverall: true,
     },
     {
       name: 'process-heap',
       component: 'Process heap',
-      status: checkStatus(heapPct < 95, heapPct >= 80),
+      status: checkStatus(heapPct < 95, heapPct >= 85),
       severity: 'high',
-      message: `${bytes(mem.heapUsed)} / ${bytes(mem.heapTotal)} (${heapPct.toFixed(1)}%)`,
+      message: `${bytes(mem.heapUsed)} used of ${bytes(heapBudgetBytes)} budget (V8 committed ${bytes(mem.heapTotal)})`,
       duration: 0,
       type: 'infrastructure',
+      affectsOverall: true,
     },
     {
       name: 'host-ram',
       component: 'Host RAM',
-      status: checkStatus(ramPct < 98, ramPct >= 85),
+      status: checkStatus(ramPct < 98, ramPct >= 90),
       severity: 'medium',
       message: `${bytes(usedMem)} / ${bytes(totalMem)} (${ramPct.toFixed(1)}%)`,
       duration: 0,
       type: 'infrastructure',
+      affectsOverall: false,
     },
     {
       name: 'cpu-load',
@@ -186,15 +278,19 @@ export async function buildHealthOverview() {
       message: `1m load ${load[0].toFixed(2)} on ${cpus.length} cores`,
       duration: 0,
       type: 'infrastructure',
+      affectsOverall: false,
     },
     {
       name: 'disk',
       component: 'Disk',
       status: disk ? checkStatus(diskPct < 95, diskPct >= 85) : 'degraded',
       severity: 'high',
-      message: disk ? `${disk.usedLabel} / ${disk.totalLabel} (${diskPct.toFixed(1)}%)` : 'Disk metrics unavailable',
+      message: disk
+        ? `${disk.usedLabel} / ${disk.totalLabel} (${diskPct.toFixed(1)}%)`
+        : 'Disk metrics unavailable',
       duration: 0,
       type: 'infrastructure',
+      affectsOverall: true,
     },
     {
       name: 'event-loop',
@@ -204,6 +300,7 @@ export async function buildHealthOverview() {
       message: `Delay ${eventLoopDelay}ms`,
       duration: eventLoopDelay,
       type: 'infrastructure',
+      affectsOverall: true,
     },
   ];
 
@@ -277,8 +374,9 @@ export async function buildHealthOverview() {
     },
     disk,
     eventLoopDelay,
-    handles: (process as any)._getActiveHandles?.()?.length || 0,
-    activeRequests: (process as any)._getActiveRequests?.()?.length || 0,
+    hostConsumers: readTopConsumers(),
+    handles: 0,
+    activeRequests: 0,
     api: traffic,
     mongo,
     redis: {
@@ -296,4 +394,13 @@ export async function buildHealthOverview() {
       ping: '/ping',
     },
   };
+}
+
+export async function buildHealthOverview() {
+  if (overviewCache && Date.now() - overviewCache.at < OVERVIEW_TTL_MS) {
+    return overviewCache.data;
+  }
+  const data = await collectHealthOverview();
+  overviewCache = { at: Date.now(), data };
+  return data;
 }

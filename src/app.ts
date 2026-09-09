@@ -1,12 +1,9 @@
 // src/app.ts
 import compression from 'compression';
 import cookieParser from 'cookie-parser';
-import cors from 'cors';
 import express, { Application, NextFunction, Request, Response } from 'express';
 import 'express-async-errors';
-import helmet from 'helmet';
 import { createServer } from 'http';
-import morgan from 'morgan';
 
 // Import configurations and middleware
 import config from './config';
@@ -229,18 +226,7 @@ function setupMiddleware(app: Application): void {
   // 2. Health headers
   app.use(healthHeaders);
 
-  // 3. Security middleware
-  app.use(
-    helmet({
-      contentSecurityPolicy: {
-        useDefaults: true,
-        directives: {
-          upgradeInsecureRequests: null,
-        },
-      },
-    })
-  );
-  app.use(cors(config.cors || {}));
+  // 3. Security middleware (helmet/CORS/rate-limit live here — do not duplicate)
   app.use(securityMiddleware);
   app.use(securityHeaders);
 
@@ -250,17 +236,12 @@ function setupMiddleware(app: Application): void {
     next();
   });
 
-  // 5. HTTP logging (Morgan) - this returns middleware
-  app.use(httpLogger());
-
-  // 6. Custom request logging
-  app.use(requestLogger);
-
-  // 7. Database query logging
-  app.use(databaseLogger());
-
-  // 8. Performance monitoring
-  app.use(performanceLogger());
+  if (!config.liteMode) {
+    app.use(httpLogger());
+    app.use(requestLogger);
+    app.use(databaseLogger());
+    app.use(performanceLogger());
+  }
   app.use(responseTimeMiddleware);
   // Rate limiting
   const limiter = rateLimit({
@@ -274,14 +255,7 @@ function setupMiddleware(app: Application): void {
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
   app.use(cookieParser());
-  // Compression
-  app.use(compression());
-  // 10. Request logging (conditional based on environment)
-  if (config.isDevelopment) {
-    app.use(morgan('dev'));
-  }
-
-  // 11. Compression
+  // Compression once
   if (config.compression?.enabled) {
     app.use(compression(config.compression));
     logger.info('Compression middleware enabled');
@@ -951,11 +925,14 @@ export async function createApp(): Promise<Application> {
     validateEnvironment();
     console.log('✅ [createApp-1] Environment validated');
 
-    // Setup log rotation
-    console.log('🔍 [createApp-2] Setting up log rotation...');
-    setupLogRotation();
-    scheduleLogRotation();
-    console.log('✅ [createApp-2] Log rotation setup');
+    if (!config.liteMode) {
+      console.log('🔍 [createApp-2] Setting up log rotation...');
+      setupLogRotation();
+      scheduleLogRotation();
+      console.log('✅ [createApp-2] Log rotation setup');
+    } else {
+      console.log('⏭️ [createApp-2] Skipping log rotation (lite mode)');
+    }
 
     // Create Express app
     console.log('🔍 [createApp-3] Creating Express app...');
@@ -967,39 +944,40 @@ export async function createApp(): Promise<Application> {
     try {
       await initializeDatabase();
       console.log('✅ [createApp-4] Database initialized');
-      // Seed lookup values after successful DB connection
-      console.log('🔍 [createApp-4b] Seeding lookup values...');
-      try {
-        await seedLookupValues();
-        console.log('✅ [createApp-4b] Lookup values seeded');
-      } catch (seedError: any) {
-        console.warn('⚠️ [createApp-4b] Lookup seeding failed:', seedError.message);
-      }
+      if (process.env.SEED_ON_BOOT === 'true') {
+        console.log('🔍 [createApp-4b] Seeding lookup values...');
+        try {
+          await seedLookupValues();
+          console.log('✅ [createApp-4b] Lookup values seeded');
+        } catch (seedError: any) {
+          console.warn('⚠️ [createApp-4b] Lookup seeding failed:', seedError.message);
+        }
 
-      // Seed default modules and roles
-      console.log('🔍 [createApp-4c] Seeding default modules...');
-      try {
-        await seedDefaultModules();
-        console.log('✅ [createApp-4c] Default modules seeded');
-      } catch (seedError: any) {
-        console.warn('⚠️ [createApp-4c] Module seeding failed:', seedError.message);
-      }
+        console.log('🔍 [createApp-4c] Seeding default modules...');
+        try {
+          await seedDefaultModules();
+          console.log('✅ [createApp-4c] Default modules seeded');
+        } catch (seedError: any) {
+          console.warn('⚠️ [createApp-4c] Module seeding failed:', seedError.message);
+        }
 
-      console.log('🔍 [createApp-4d] Seeding default roles & permissions...');
-      try {
-        await seedDefaultRoles();
-        console.log('✅ [createApp-4d] Default roles & permissions seeded');
-      } catch (seedError: any) {
-        console.warn('⚠️ [createApp-4d] Role seeding failed:', seedError.message);
-      }
+        console.log('🔍 [createApp-4d] Seeding default roles & permissions...');
+        try {
+          await seedDefaultRoles();
+          console.log('✅ [createApp-4d] Default roles & permissions seeded');
+        } catch (seedError: any) {
+          console.warn('⚠️ [createApp-4d] Role seeding failed:', seedError.message);
+        }
 
-      // Seed test users, society, project, plots, and members
-      console.log('🔍 [createApp-4e] Seeding test users & sample data...');
-      try {
-        await seedUsers();
-        console.log('✅ [createApp-4e] Test users & sample data seeded');
-      } catch (seedError: any) {
-        console.warn('⚠️ [createApp-4e] User seeding failed:', seedError.message);
+        console.log('🔍 [createApp-4e] Seeding test users & sample data...');
+        try {
+          await seedUsers();
+          console.log('✅ [createApp-4e] Test users & sample data seeded');
+        } catch (seedError: any) {
+          console.warn('⚠️ [createApp-4e] User seeding failed:', seedError.message);
+        }
+      } else {
+        console.log('⏭️ [createApp-4b] Skipping boot seed (set SEED_ON_BOOT=true to run)');
       }
     } catch (dbError: any) {
       console.warn('⚠️ [createApp-4] Database initialization failed:', dbError.message);
@@ -1015,13 +993,14 @@ export async function createApp(): Promise<Application> {
       console.warn('⚠️ [createApp-5] Rate limiter initialization failed:', rateLimitError.message);
     }
 
-    // Initialize web push (VAPID)
-    console.log('🔍 [createApp-5b] Initializing web push...');
-    try {
-      initializeWebPush();
-      console.log('✅ [createApp-5b] Web push initialized');
-    } catch (wpError: any) {
-      console.warn('⚠️ [createApp-5b] Web push init skipped:', wpError?.message || wpError);
+    if (!config.liteMode) {
+      console.log('🔍 [createApp-5b] Initializing web push...');
+      try {
+        initializeWebPush();
+        console.log('✅ [createApp-5b] Web push initialized');
+      } catch (wpError: any) {
+        console.warn('⚠️ [createApp-5b] Web push init skipped:', wpError?.message || wpError);
+      }
     }
 
     // Setup middleware
@@ -1029,20 +1008,26 @@ export async function createApp(): Promise<Application> {
     setupMiddleware(app);
     console.log('✅ [createApp-6] Middleware setup');
 
-    // Setup Swagger
-    console.log('🔍 [createApp-7] Setting up Swagger...');
-    setupSwagger(app);
-    console.log('✅ [createApp-7] Swagger setup');
+    if (!config.liteMode) {
+      console.log('🔍 [createApp-7] Setting up Swagger...');
+      setupSwagger(app);
+      console.log('✅ [createApp-7] Swagger setup');
+    } else {
+      console.log('⏭️ [createApp-7] Skipping Swagger (lite mode)');
+    }
 
     // Setup routes
     console.log('🔍 [createApp-8] Setting up routes...');
     setupRoutes(app);
     console.log('✅ [createApp-8] Routes setup');
 
-    // Start installment cron jobs
-    console.log('🔍 [createApp-8b] Starting installment cron jobs...');
-    startInstallmentCron();
-    console.log('✅ [createApp-8b] Installment cron jobs started');
+    if (!config.liteMode) {
+      console.log('🔍 [createApp-8b] Starting installment cron jobs...');
+      startInstallmentCron();
+      console.log('✅ [createApp-8b] Installment cron jobs started');
+    } else {
+      console.log('⏭️ [createApp-8b] Skipping cron (lite mode)');
+    }
 
     // Setup error handling
     console.log('🔍 [createApp-9] Setting up error handling...');

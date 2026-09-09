@@ -1,6 +1,7 @@
 import { NextFunction, Request, RequestHandler, Response } from 'express';
 import morgan from 'morgan';
 import { logger, morganStream } from '../logger';
+import { isMonitorPath } from '../utils/monitor-path';
 
 // Morgan token for user ID (if authenticated)
 morgan.token('userId', (req: Request) => {
@@ -37,85 +38,35 @@ export function httpLogger(): RequestHandler {
 
   return morgan(format, {
     stream: morganStream,
-    skip: (req: Request) => {
-      // Skip health check endpoints in production
-      if (process.env.NODE_ENV === 'production') {
-        return req.url.startsWith('/health') || req.url === '/ping';
-      }
-      return false;
-    },
+    skip: (req: Request) => isMonitorPath(req.originalUrl || req.url),
   });
 }
 
 // Detailed request logging middleware
 export function requestLogger() {
   return (req: Request, res: Response, next: NextFunction) => {
+    if (isMonitorPath(req.originalUrl || req.url)) {
+      next();
+      return;
+    }
+
     const startTime = Date.now();
 
-    // Log request start
-    logger.http('Request started', {
-      method: req.method,
-      url: req.url,
-      ip: req.ip,
-      userAgent: req.get('user-agent'),
-      referrer: req.get('referer'),
-      requestId: (req as any).id,
-      userId: (req as any).user?.id,
-    });
-
-    // Capture response data
-    const originalSend = res.send;
-    const originalJson = res.json;
-
-    let responseBody: any;
-
-    // Override send to capture response body
-    res.send = function (body: any) {
-      responseBody = body;
-      return originalSend.call(this, body);
-    };
-
-    // Override json to capture response body
-    res.json = function (body: any) {
-      responseBody = body;
-      return originalJson.call(this, body);
-    };
-
-    // Log when response is finished
     res.on('finish', () => {
       const duration = Date.now() - startTime;
-      const isError = res.statusCode >= 400;
-
       const logData = {
         method: req.method,
         url: req.url,
         statusCode: res.statusCode,
         duration,
         ip: req.ip,
-        userAgent: req.get('user-agent'),
         requestId: (req as any).id,
-        userId: (req as any).user?.id,
-        contentLength: res.get('content-length'),
-        contentType: res.get('content-type'),
       };
 
-      // Add request body for errors (for debugging)
-      if (isError && req.body && Object.keys(req.body).length > 0) {
-        (logData as any).requestBody = sanitizeRequestBody(req.body);
-      }
-
-      // Add response body for errors (for debugging)
-      if (isError && responseBody) {
-        (logData as any).responseBody = sanitizeResponseBody(responseBody);
-      }
-
-      // Log based on status code
       if (res.statusCode >= 500) {
         logger.error(`Request failed: ${req.method} ${req.url}`, logData);
       } else if (res.statusCode >= 400) {
         logger.warn(`Request warning: ${req.method} ${req.url}`, logData);
-      } else {
-        logger.http(`Request completed: ${req.method} ${req.url}`, logData);
       }
     });
 
@@ -185,60 +136,46 @@ function sanitizeResponseBody(body: any): any {
   return sanitized;
 }
 
-// Database query logging middleware
-export function databaseLogger() {
-  return (req: Request, _res: Response, next: NextFunction) => {
-    const mongoose = require('mongoose');
+let mongooseQueryLoggingPatched = false;
 
-    // Only log in development or if explicitly enabled
-    if (process.env.NODE_ENV !== 'development' && process.env.LOG_DATABASE_QUERIES !== 'true') {
-      return next();
+// Database query logging — patch once. Never wrap Query.exec per request (that leaks memory).
+export function databaseLogger() {
+  return (_req: Request, _res: Response, next: NextFunction) => {
+    if (process.env.LOG_DATABASE_QUERIES !== 'true') {
+      next();
+      return;
     }
 
-    // Store original query methods
+    if (mongooseQueryLoggingPatched) {
+      next();
+      return;
+    }
+
+    mongooseQueryLoggingPatched = true;
+    const mongoose = require('mongoose');
     const originalExec = mongoose.Query.prototype.exec;
     const originalAggregateExec = mongoose.Aggregate.prototype.exec;
 
     mongoose.Query.prototype.exec = async function () {
       const start = Date.now();
       const result = await originalExec.apply(this, arguments);
-      const duration = Date.now() - start;
-
-      const collection = this.model.collection.name;
-      const operation = this.op;
-      const query = this.getQuery();
-      const options = this.getOptions();
-
       logger.debug('Database query executed', {
-        collection,
-        operation,
-        duration,
-        query: sanitizeDatabaseQuery(query),
-        options,
-        requestId: (req as any).id,
-        userId: (req as any).user?.id,
+        collection: this.model.collection.name,
+        operation: this.op,
+        duration: Date.now() - start,
+        query: sanitizeDatabaseQuery(this.getQuery()),
       });
-
       return result;
     };
 
     mongoose.Aggregate.prototype.exec = async function () {
       const start = Date.now();
       const result = await originalAggregateExec.apply(this, arguments);
-      const duration = Date.now() - start;
-
-      const pipeline = this.pipeline();
-      const collection = this._model?.collection?.name || 'unknown';
-
       logger.debug('Database aggregation executed', {
-        collection,
-        operation: 'aggregate',
-        duration,
-        pipeline: sanitizeAggregationPipeline(pipeline),
-        requestId: (req as any).id,
-        userId: (req as any).user?.id,
+        collection: this._model?.collection?.name || 'unknown',
+        duration: Date.now() - start,
+        pipeline: sanitizeAggregationPipeline(this.pipeline()),
       });
-
       return result;
     };
 
@@ -277,33 +214,26 @@ function sanitizeAggregationPipeline(pipeline: any[]): any[] {
 // Performance monitoring middleware
 export function performanceLogger() {
   return (req: Request, res: Response, next: NextFunction) => {
+    if (isMonitorPath(req.originalUrl || req.url)) {
+      next();
+      return;
+    }
+
     const startTime = process.hrtime();
 
     res.on('finish', () => {
       const [seconds, nanoseconds] = process.hrtime(startTime);
       const duration = seconds * 1000 + nanoseconds / 1000000;
 
-      // Log slow requests
       if (duration > 1000) {
-        // More than 1 second
         logger.warn('Slow request detected', {
           method: req.method,
           url: req.url,
           duration: Math.round(duration),
           threshold: 1000,
           requestId: (req as any).id,
-          userId: (req as any).user?.id,
         });
       }
-
-      // Log performance metrics
-      logger.debug('Request performance', {
-        method: req.method,
-        url: req.url,
-        duration: Math.round(duration),
-        statusCode: res.statusCode,
-        requestId: (req as any).id,
-      });
     });
 
     next();

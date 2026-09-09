@@ -4,11 +4,13 @@
   "description": "Node.js/Express TypeScript API",
   "main": "dist/app.js",
   "scripts": {
-    "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
+    "dev": "tsc -p tsconfig.json --incremental --pretty false --noCheck --declaration false --sourceMap false && LITE_MODE=1 UV_THREADPOOL_SIZE=2 node --max-old-space-size=192 --max-semi-space-size=4 --optimize-for-size dist/server.js",
+    "dev:watch": "tsx watch --clear-screen=false src/server.ts",
+    "dev:tsnd": "ts-node-dev --respawn --transpile-only src/server.ts",
     "build": "tsc",
     "vercel-build": "pnpm run build",
     "test": "jest",
-    "start": "node dist/server.js",
+    "start": "LITE_MODE=1 UV_THREADPOOL_SIZE=2 node --max-old-space-size=192 --max-semi-space-size=4 --optimize-for-size dist/server.js",
     "start:dev": "NODE_ENV=development ts-node src/server.ts",
     "start:prod": "NODE_ENV=production node dist/server.js",
     "start:staging": "NODE_ENV=staging node dist/server.js",
@@ -56,6 +58,7 @@
     "ts-jest": "^29.2.5",
     "ts-node": "^10.9.2",
     "ts-node-dev": "^2.0.0",
+    "tsx": "^4.23.13",
     "typescript": "^5.7.3"
   },
   "dependencies": {

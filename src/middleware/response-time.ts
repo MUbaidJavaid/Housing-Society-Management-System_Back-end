@@ -1,5 +1,6 @@
 import { NextFunction, Request, Response } from 'express';
 import logger from '../core/logger';
+import { isMonitorPath } from '../utils/monitor-path';
 
 // Store response times for monitoring
 const responseTimes: number[] = [];
@@ -43,6 +44,10 @@ export const responseTimeMiddleware = (req: Request, res: Response, next: NextFu
   // Capture response finish
   res.on('finish', () => {
     const duration = Date.now() - startTime;
+
+    if (isMonitorPath(req.originalUrl || req.url)) {
+      return;
+    }
 
     totalRequests += 1;
     statusClassCounts[classifyStatus(res.statusCode)] += 1;

@@ -29,7 +29,7 @@ const consoleTransport = new winston.transports.Console({
 
 // Vercel serverless: console only (ephemeral FS; avoid ENOENT during logger init)
 const transports: winston.transport[] = [consoleTransport];
-if (!isVercelServerless) {
+if (!isVercelServerless && process.env.NODE_ENV === 'production') {
   transports.push(
     new winston.transports.File({
       filename: `${config.paths.logs}/error.log`,

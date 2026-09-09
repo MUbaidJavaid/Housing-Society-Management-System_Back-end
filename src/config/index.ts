@@ -45,6 +45,12 @@ const config = {
   isProduction: env.data.NODE_ENV === 'production',
   isStaging: env.data.NODE_ENV === 'staging',
   isTest: env.data.NODE_ENV === 'test',
+  liteMode:
+    process.env.LITE_MODE === '0' || process.env.LITE_MODE === 'false'
+      ? false
+      : process.env.LITE_MODE === '1' || process.env.LITE_MODE === 'true'
+        ? true
+        : env.data.NODE_ENV !== 'production',
 
   redis: {
     url: process.env.REDIS_URL || 'redis://localhost:6379',
@@ -127,7 +133,7 @@ const config = {
 
   // Logging
   logging: {
-    level: env.data.NODE_ENV === 'production' ? 'info' : 'debug',
+    level: process.env.LOG_LEVEL || (env.data.NODE_ENV === 'production' ? 'info' : 'info'),
     format: env.data.NODE_ENV === 'production' ? 'json' : 'pretty',
   },
 };

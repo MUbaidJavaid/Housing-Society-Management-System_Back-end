@@ -28,35 +28,20 @@ winston.addColors(colors);
 export function createLogger() {
   const isDevelopment = config.env === 'development';
   const isProduction = config.env === 'production';
-  const isTest = config.env === 'test';
 
   // Create logger
   const logger = winston.createLogger({
-    level: isDevelopment ? 'debug' : isProduction ? 'info' : 'warn',
+    level: process.env.LOG_LEVEL || (isDevelopment ? 'info' : isProduction ? 'info' : 'warn'),
     levels,
     format: winston.format.combine(
       winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss:ms' }),
       ...createFormats()
     ),
     transports: createTransports(),
-    // Don't exit on handled exceptions
     exitOnError: false,
-    // Handle uncaught exceptions
     handleExceptions: true,
     handleRejections: true,
   });
-
-  // If not in production, log to console with colors
-  if (!isProduction && !isTest) {
-    logger.add(
-      new winston.transports.Console({
-        format: winston.format.combine(
-          winston.format.colorize({ all: true }),
-          winston.format.printf(info => `${info.timestamp} ${info.level}: ${info.message}`)
-        ),
-      })
-    );
-  }
 
   return logger;
 }

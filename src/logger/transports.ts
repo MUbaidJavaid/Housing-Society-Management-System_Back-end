@@ -15,76 +15,38 @@ export function createTransports() {
   const transports: winston.transport[] = [];
   const isProduction = config.env === 'production';
 
-  // Console transport (development)
-  if (!isProduction) {
+  transports.push(
+    new winston.transports.Console({
+      level: isProduction ? 'info' : process.env.LOG_LEVEL || 'info',
+      format: winston.format.combine(winston.format.colorize(), winston.format.simple()),
+    })
+  );
+
+  if (isProduction) {
     transports.push(
-      new winston.transports.Console({
-        level: 'debug',
-        format: winston.format.combine(winston.format.colorize(), winston.format.simple()),
+      new winston.transports.DailyRotateFile({
+        level: 'error',
+        filename: path.join(logsDir, 'error-%DATE%.log'),
+        datePattern: 'YYYY-MM-DD',
+        zippedArchive: true,
+        maxSize: '20m',
+        maxFiles: '30d',
+        handleExceptions: true,
+        handleRejections: true,
+        format: winston.format.combine(winston.format.timestamp(), winston.format.json()),
       })
     );
   }
 
-  // Daily rotate file transport for all logs
-  transports.push(
-    new winston.transports.DailyRotateFile({
-      level: 'info',
-      filename: path.join(logsDir, 'application-%DATE%.log'),
-      datePattern: 'YYYY-MM-DD',
-      zippedArchive: true,
-      maxSize: '20m',
-      maxFiles: '14d', // Keep logs for 14 days
-      format: winston.format.combine(winston.format.timestamp(), winston.format.json()),
-    })
-  );
-
-  // Error logs (separate file)
-  transports.push(
-    new winston.transports.DailyRotateFile({
-      level: 'error',
-      filename: path.join(logsDir, 'error-%DATE%.log'),
-      datePattern: 'YYYY-MM-DD',
-      zippedArchive: true,
-      maxSize: '20m',
-      maxFiles: '30d', // Keep error logs for 30 days
-      handleExceptions: true,
-      handleRejections: true,
-      format: winston.format.combine(winston.format.timestamp(), winston.format.json()),
-    })
-  );
-
-  // HTTP logs (separate file)
-  transports.push(
-    new winston.transports.DailyRotateFile({
-      level: 'http',
-      filename: path.join(logsDir, 'http-%DATE%.log'),
-      datePattern: 'YYYY-MM-DD',
-      zippedArchive: true,
-      maxSize: '20m',
-      maxFiles: '7d', // Keep HTTP logs for 7 days
-      format: winston.format.combine(winston.format.timestamp(), winston.format.json()),
-    })
-  );
-
-  // Audit logs (for security events)
-  transports.push(
-    new winston.transports.DailyRotateFile({
-      level: 'warn',
-      filename: path.join(logsDir, 'audit-%DATE%.log'),
-      datePattern: 'YYYY-MM-DD',
-      zippedArchive: true,
-      maxSize: '10m',
-      maxFiles: '90d', // Keep audit logs for 90 days
-      format: winston.format.combine(winston.format.timestamp(), winston.format.json()),
-    })
-  );
-
-  // Production-only transports
   if (isProduction) {
-    // JSON console for production (for log aggregation services)
     transports.push(
-      new winston.transports.Console({
+      new winston.transports.DailyRotateFile({
         level: 'info',
+        filename: path.join(logsDir, 'application-%DATE%.log'),
+        datePattern: 'YYYY-MM-DD',
+        zippedArchive: true,
+        maxSize: '20m',
+        maxFiles: '14d',
         format: winston.format.combine(winston.format.timestamp(), winston.format.json()),
       })
     );

@@ -1,4 +1,4 @@
-import { Express } from 'express';
+import { Express, NextFunction, Request, Response } from 'express';
 import swaggerJSDoc from 'swagger-jsdoc';
 import swaggerUi from 'swagger-ui-express';
 import packageJson from '../../package.json';
@@ -532,16 +532,17 @@ const swaggerOptions = {
   ],
 };
 
-// Generate swagger spec
+let swaggerSpec: object | null = null;
+
 export function generateSwaggerSpec() {
-  return swaggerJSDoc(swaggerOptions);
+  if (!swaggerSpec) {
+    swaggerSpec = swaggerJSDoc(swaggerOptions);
+  }
+  return swaggerSpec;
 }
 
 // Setup Swagger UI
 export function setupSwagger(app: Express) {
-  const swaggerSpec = generateSwaggerSpec();
-
-  // Swagger UI options
   const swaggerUiOptions = {
     explorer: true,
     customSiteTitle: 'API Documentation',
@@ -556,14 +557,14 @@ export function setupSwagger(app: Express) {
     },
   };
 
-  // Serve swagger spec as JSON
   app.get('/api-docs.json', (_req, res) => {
     res.setHeader('Content-Type', 'application/json');
-    res.send(swaggerSpec);
+    res.send(generateSwaggerSpec());
   });
 
-  // Serve swagger UI
-  app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, swaggerUiOptions));
+  app.use('/api-docs', swaggerUi.serve, (req: Request, res: Response, next: NextFunction) => {
+    swaggerUi.setup(generateSwaggerSpec(), swaggerUiOptions)(req, res, next);
+  });
 
   console.log(`📚 Swagger docs available at http://localhost:${config.port}/api-docs`);
 }

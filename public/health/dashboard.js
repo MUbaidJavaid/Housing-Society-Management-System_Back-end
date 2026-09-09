@@ -1,5 +1,5 @@
 (function () {
-  const REFRESH_MS = 5000;
+  const REFRESH_MS = 60000;
 
   const el = (id) => document.getElementById(id);
 
@@ -160,7 +160,7 @@
       metric('In-flight', fmtNum(data.activeRequests));
 
     el('processMemory').innerHTML =
-      progress(processMem.heapPercent, processMem.heapUsedLabel + ' heap used', processMem.heapTotalLabel + ' total') +
+      progress(processMem.heapPercent, processMem.heapUsedLabel + ' heap used', '384 MB budget') +
       metric('RSS', processMem.rssLabel || '—') +
       metric('External', processMem.externalLabel || '—') +
       metric('RSS vs host', (processMem.rssPercentOfSystem || 0).toFixed(2) + '%');
@@ -169,6 +169,22 @@
       progress(sysMem.usedPercent, sysMem.usedLabel + ' used', sysMem.totalLabel + ' total') +
       metric('Free', sysMem.freeLabel || '—') +
       metric('Event loop', data.eventLoopDelay == null ? '—' : fmtMs(data.eventLoopDelay));
+
+    el('consumersBody').innerHTML = (data.hostConsumers || [])
+      .map(function (row) {
+        return (
+          '<tr><td>' +
+          row.name +
+          '</td><td>' +
+          fmtNum(row.rssMb) +
+          ' MB</td><td>' +
+          fmtNum(row.cpuPercent, 1) +
+          '%</td><td>' +
+          fmtNum(row.processes) +
+          '</td></tr>'
+        );
+      })
+      .join('') || '<tr><td colspan="4">Process list unavailable.</td></tr>';
 
     el('cpuBody').innerHTML =
       progress(cpu.loadPercent, '1m load ' + fmtNum((cpu.loadAvg || [])[0], 2), cpu.cores + ' cores') +
