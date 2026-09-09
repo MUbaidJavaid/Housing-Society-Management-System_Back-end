@@ -17,6 +17,7 @@ import {
   healthHeaders,
   requireHealthy,
 } from './health/middleware/health.middleware';
+import { sendHealthDashboard, wantsHtmlDashboard } from './health/overview';
 import healthRoutes from './health/routes/health.routes';
 import { logger } from './logger';
 import { errorHandler, notFoundHandler } from './middleware/error.middleware';
@@ -229,7 +230,16 @@ function setupMiddleware(app: Application): void {
   app.use(healthHeaders);
 
   // 3. Security middleware
-  app.use(helmet());
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        useDefaults: true,
+        directives: {
+          upgradeInsecureRequests: null,
+        },
+      },
+    })
+  );
   app.use(cors(config.cors || {}));
   app.use(securityMiddleware);
   app.use(securityHeaders);
@@ -312,10 +322,15 @@ function setupRoutes(app: Application): void {
   console.log('setupRoutes');
   app.use('/health', healthRoutes);
   app.head('/healths', healthRoutes);
-  app.get('/', (_req: Request, res: Response) => {
+  app.get('/', (req: Request, res: Response) => {
+    if (wantsHtmlDashboard(req)) {
+      sendHealthDashboard(req, res);
+      return;
+    }
+
     res.json({
       success: true,
-      message: '🚀 HSMS API is Live & Running!',
+      message: 'HSMS API is live',
       data: {
         service: 'Housing Society Management System',
         version: '1.0.0',
@@ -323,21 +338,14 @@ function setupRoutes(app: Application): void {
         environment: process.env.NODE_ENV || 'development',
         timestamp: new Date().toISOString(),
         uptime: `${Math.floor(process.uptime())} seconds`,
+        dashboard: '/health',
         endpoints: {
-          api: 'https://hsms-backend.onrender.com/api/v1',
-          docs: 'https://hsms-backend.onrender.com/api-docs',
-          health: 'https://hsms-backend.onrender.com/health',
-          plots: 'https://hsms-backend.onrender.com/plots',
-          members: 'https://hsms-backend.onrender.com/members',
+          health: '/health',
+          healthJson: '/health?format=json',
+          overview: '/health/overview',
+          docs: '/api-docs',
+          api: '/api',
         },
-        developer: {
-          name: 'M. Ubaid Javaid',
-          github: 'https://github.com/MUbaidJavaid',
-        },
-      },
-      support: {
-        documentation: 'https://hsms-backend.onrender.com/api-docs',
-        issues: 'https://github.com/MUbaidJavaid/Housing-Society-Management-System_Back-end/issues',
       },
     });
   });
@@ -364,18 +372,7 @@ function setupRoutes(app: Application): void {
     });
   });
 
-  // Health endpoint from second codebase
-  app.get('/health', (_req: Request, res: Response) => {
-    res.json({
-      status: 'healthy',
-      timestamp: new Date().toISOString(),
-      uptime: process.uptime(),
-      rateLimiting: {
-        enabled: process.env.RATE_LIMIT_ENABLED !== 'false',
-        redis: process.env.REDIS_HOST || 'localhost',
-      },
-    });
-  });
+  // GET /health is served by healthRoutes (HTML dashboard or JSON)
 
   // Rate limit endpoints from second codebase
   app.get('/rate-limit/info', rateLimitMiddleware.rateLimitInfo);

@@ -25,6 +25,7 @@ export const securityMiddleware: RequestHandler[] = [
         objectSrc: ["'none'"],
         mediaSrc: ["'self'"],
         frameSrc: ["'none'"],
+        upgradeInsecureRequests: null,
       },
     },
     crossOriginEmbedderPolicy: false,
@@ -41,6 +42,10 @@ export const securityMiddleware: RequestHandler[] = [
     legacyHeaders: config.security.rateLimit.legacyHeaders,
     message: config.security.rateLimit.message,
     skipSuccessfulRequests: config.security.rateLimit.skipSuccessfulRequests,
+    skip: (req: Request) => {
+      const p = req.path;
+      return p === '/' || p === '/ping' || p.startsWith('/health') || p.startsWith('/public');
+    },
     handler: (req: Request, res: Response, _next: NextFunction, options) => {
       logger.warn(`Rate limit exceeded for IP: ${req.ip}`);
       res.status(429).json({

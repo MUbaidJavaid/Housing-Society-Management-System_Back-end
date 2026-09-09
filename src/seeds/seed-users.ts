@@ -1,4 +1,3 @@
-import bcrypt from 'bcryptjs';
 import mongoose from 'mongoose';
 import User, { UserRole, UserStatus } from '../database/models/User';
 import Society from '../Society/models/models-society';
@@ -100,13 +99,10 @@ async function seedUser(userData: (typeof TEST_USERS)[number]): Promise<mongoose
     return existing._id as mongoose.Types.ObjectId;
   }
 
-  // Hash password manually so the pre-save hook doesn't double-hash
-  const salt = await bcrypt.genSalt(12);
-  const hashedPassword = await bcrypt.hash(userData.password, salt);
-
+  // Pass plaintext so the User pre-save hook hashes exactly once
   const user = await User.create({
     email: userData.email,
-    password: hashedPassword,
+    password: userData.password,
     firstName: userData.firstName,
     lastName: userData.lastName,
     role: userData.role,

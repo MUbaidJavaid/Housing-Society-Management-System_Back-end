@@ -6,8 +6,47 @@ import { AppError } from '../../middleware/error.middleware';
 import { getResponseTimeStats } from '../../middleware/response-time';
 import { DatabaseHealthCheck } from '../checks/database.check';
 import { healthCheckSystem } from '../index';
+import { buildHealthOverview, sendHealthDashboard, wantsHtmlDashboard } from '../overview';
 
 const router: Router = Router();
+
+/**
+ * Professional HTML dashboard (GET /health) or JSON when requested
+ */
+router.get('/', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    if (wantsHtmlDashboard(req)) {
+      sendHealthDashboard(req, res);
+      return;
+    }
+
+    const responseStartTime = Date.now();
+    const healthResponse = await healthCheckSystem.runAllChecks(responseStartTime);
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('X-Health-Status', healthResponse.status);
+    res.status(healthResponse.status === 'unhealthy' ? 503 : 200).json({
+      status: 'success',
+      data: healthResponse,
+      message: `Service is ${healthResponse.status}`,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * Live dashboard payload
+ * GET /health/overview
+ */
+router.get('/overview', async (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    const overview = await buildHealthOverview();
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.json(overview);
+  } catch (error) {
+    next(error);
+  }
+});
 
 /**
  * Simple ping endpoint

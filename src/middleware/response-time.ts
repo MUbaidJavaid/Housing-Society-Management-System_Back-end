@@ -4,6 +4,35 @@ import logger from '../core/logger';
 // Store response times for monitoring
 const responseTimes: number[] = [];
 const maxSamples = 1000; // Keep last 1000 samples
+const bootTime = Date.now();
+let totalRequests = 0;
+const statusClassCounts = { '2xx': 0, '3xx': 0, '4xx': 0, '5xx': 0 };
+
+type RecentRequest = {
+  method: string;
+  path: string;
+  status: number;
+  duration: number;
+  at: string;
+};
+
+const recentRequests: RecentRequest[] = [];
+const maxRecent = 18;
+
+function classifyStatus(code: number): keyof typeof statusClassCounts {
+  if (code >= 500) return '5xx';
+  if (code >= 400) return '4xx';
+  if (code >= 300) return '3xx';
+  return '2xx';
+}
+
+function safePath(url: string): string {
+  try {
+    return decodeURIComponent(url.split('?')[0] || '/').slice(0, 120);
+  } catch {
+    return '/';
+  }
+}
 
 /**
  * Response time monitoring middleware
@@ -15,10 +44,24 @@ export const responseTimeMiddleware = (req: Request, res: Response, next: NextFu
   res.on('finish', () => {
     const duration = Date.now() - startTime;
 
+    totalRequests += 1;
+    statusClassCounts[classifyStatus(res.statusCode)] += 1;
+
     // Store response time
     responseTimes.push(duration);
     if (responseTimes.length > maxSamples) {
       responseTimes.shift();
+    }
+
+    recentRequests.push({
+      method: req.method,
+      path: safePath(req.originalUrl || req.url),
+      status: res.statusCode,
+      duration,
+      at: new Date().toISOString(),
+    });
+    if (recentRequests.length > maxRecent) {
+      recentRequests.shift();
     }
 
     // Log slow requests
@@ -61,9 +104,32 @@ export const getResponseTimeStats = () => {
   };
 };
 
+export const getApiTrafficStats = () => {
+  const elapsedMs = Math.max(Date.now() - bootTime, 1);
+  const elapsedMin = elapsedMs / 60000;
+  const latency = getResponseTimeStats();
+
+  return {
+    totalRequests,
+    requestsPerMinute: totalRequests / elapsedMin,
+    status: { ...statusClassCounts },
+    errorRate:
+      totalRequests === 0 ? 0 : ((statusClassCounts['4xx'] + statusClassCounts['5xx']) / totalRequests) * 100,
+    latency,
+    sparkline: responseTimes.slice(-40),
+    recent: [...recentRequests].reverse(),
+  };
+};
+
 /**
  * Reset response time statistics
  */
 export const resetResponseTimeStats = () => {
   responseTimes.length = 0;
+  recentRequests.length = 0;
+  totalRequests = 0;
+  statusClassCounts['2xx'] = 0;
+  statusClassCounts['3xx'] = 0;
+  statusClassCounts['4xx'] = 0;
+  statusClassCounts['5xx'] = 0;
 };

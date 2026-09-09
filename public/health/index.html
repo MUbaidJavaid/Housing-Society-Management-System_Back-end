@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>HSMS · System Health</title>
+    <link rel="stylesheet" href="/public/health/dashboard.css" />
+  </head>
+  <body>
+    <div class="bg-grid" aria-hidden="true"></div>
+    <header class="topbar">
+      <div class="brand">
+        <span class="mark" aria-hidden="true"></span>
+        <div>
+          <p class="eyebrow">Housing Society Management System</p>
+          <h1>System Health</h1>
+        </div>
+      </div>
+      <div class="top-meta">
+        <div class="status-pill" id="statusPill">
+          <span class="dot"></span>
+          <strong id="statusLabel">Checking</strong>
+        </div>
+        <p class="updated">Updated <span id="updatedAt">—</span></p>
+      </div>
+    </header>
+
+    <main>
+      <section class="kpis" id="kpis"></section>
+
+      <section class="grid">
+        <article class="card span-2">
+          <div class="card-head">
+            <h2>API cost &amp; latency</h2>
+            <span class="hint">Request time as compute cost · last 1,000 samples</span>
+          </div>
+          <canvas id="latencyChart" width="920" height="180"></canvas>
+          <div class="stat-row" id="latencyStats"></div>
+        </article>
+
+        <article class="card">
+          <div class="card-head">
+            <h2>Traffic</h2>
+            <span class="hint">Since process start</span>
+          </div>
+          <div id="trafficBody"></div>
+        </article>
+      </section>
+
+      <section class="grid">
+        <article class="card">
+          <div class="card-head">
+            <h2>Process memory</h2>
+            <span class="hint">Node.js heap &amp; RSS</span>
+          </div>
+          <div id="processMemory"></div>
+        </article>
+
+        <article class="card">
+          <div class="card-head">
+            <h2>Host RAM</h2>
+            <span class="hint">Machine physical memory</span>
+          </div>
+          <div id="hostMemory"></div>
+        </article>
+
+        <article class="card">
+          <div class="card-head">
+            <h2>CPU &amp; load</h2>
+            <span class="hint">1 / 5 / 15 minute load</span>
+          </div>
+          <div id="cpuBody"></div>
+        </article>
+      </section>
+
+      <section class="grid">
+        <article class="card">
+          <div class="card-head">
+            <h2>Disk</h2>
+            <span class="hint">Working directory volume</span>
+          </div>
+          <div id="diskBody"></div>
+        </article>
+
+        <article class="card">
+          <div class="card-head">
+            <h2>MongoDB</h2>
+            <span class="hint">Primary datastore</span>
+          </div>
+          <div id="mongoBody"></div>
+        </article>
+
+        <article class="card">
+          <div class="card-head">
+            <h2>Runtime</h2>
+            <span class="hint">Server identity</span>
+          </div>
+          <div id="runtimeBody"></div>
+        </article>
+      </section>
+
+      <section class="grid">
+        <article class="card span-2">
+          <div class="card-head">
+            <h2>Dependency checks</h2>
+            <span class="hint">Internal and infrastructure probes</span>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Component</th>
+                  <th>Status</th>
+                  <th>Severity</th>
+                  <th>Latency</th>
+                  <th>Detail</th>
+                </tr>
+              </thead>
+              <tbody id="checksBody"></tbody>
+            </table>
+          </div>
+        </article>
+
+        <article class="card">
+          <div class="card-head">
+            <h2>Recent requests</h2>
+            <span class="hint">Live sample of API cost</span>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Call</th>
+                  <th>Code</th>
+                  <th>Cost</th>
+                </tr>
+              </thead>
+              <tbody id="recentBody"></tbody>
+            </table>
+          </div>
+        </article>
+      </section>
+    </main>
+
+    <footer>
+      <p>
+        JSON:
+        <a href="/health?format=json">/health</a>
+        · <a href="/health/overview">/health/overview</a>
+        · <a href="/api-docs">API docs</a>
+        · <a href="/ping">/ping</a>
+      </p>
+      <p class="muted" id="footerMeta"></p>
+    </footer>
+    <script src="/public/health/dashboard.js" defer></script>
+  </body>
+</html>
